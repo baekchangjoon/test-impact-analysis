@@ -188,13 +188,13 @@ git commit -m "build: Gradle 멀티모듈 스캐폴드 (tia-core/cli/junit-exten
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-VERSION="${TEAMSCALE_AGENT_VERSION:-34.1.5}"   # 최신 릴리스로 조정: https://github.com/cqse/teamscale-jacoco-agent/releases
+VERSION="${TEAMSCALE_AGENT_VERSION:-36.5.2}"   # 검증 2026-06-13: 레포 이전 → cqse/teamscale-java-profiler
 DEST="tools"
 mkdir -p "$DEST"
 ZIP="$DEST/teamscale-jacoco-agent-${VERSION}.zip"
 if [ ! -f "$ZIP" ]; then
   curl -fsSL -o "$ZIP" \
-    "https://github.com/cqse/teamscale-jacoco-agent/releases/download/v${VERSION}/teamscale-jacoco-agent-${VERSION}.zip"
+    "https://github.com/cqse/teamscale-java-profiler/releases/download/v${VERSION}/teamscale-jacoco-agent.zip"   # 자산명 버전 무관, jar는 .../lib/teamscale-jacoco-agent.jar
 fi
 unzip -o "$ZIP" -d "$DEST/teamscale-${VERSION}" >/dev/null
 AGENT_JAR="$(find "$DEST/teamscale-${VERSION}" -name 'teamscale-jacoco-agent.jar' -print -quit)"
@@ -380,12 +380,13 @@ mkdir -p poc-out/coverage
 java "-javaagent:$AGENT_JAR=mode=testwise,includes=io.tia.fixture.*,http-server-port=8123,out=poc-out/coverage" \
   -jar fixture-app/build/libs/fixture-app-0.1.0.jar --server.port=8080 &
 sleep 8
-# uniformPath는 원시 슬래시 멀티 세그먼트 (HttpAgentClient와 동일 규약 — Task 15). Task 2에서 실제 규약 확인.
-curl -s -X POST localhost:8123/test/start/io/tia/fixture/ApiSmokeTest/testPrice
+# uniformPath는 %2F 인코딩 (teamscale {testId} 단일 세그먼트 — 실측: raw 슬래시=HTTP 500, %2F=204).
+curl -s -X POST localhost:8123/test/start/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice
 curl -s localhost:8080/price/ABC
-curl -s -X POST localhost:8123/test/end/io/tia/fixture/ApiSmokeTest/testPrice -H 'Content-Type: application/json' -d '{"result":"PASSED"}'
-# 리포트 산출(Task2 REPORT 방식). 파일 산출형이면 종료 시 flush:
-curl -s -X POST localhost:8123/dump || true
+curl -s -X POST localhost:8123/test/end/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice -H 'Content-Type: application/json' -d '{"uniformPath":"io/tia/fixture/ApiSmokeTest/testPrice","durationMillis":5,"result":"PASSED"}'
+# out= 산출물은 .exec + test-execution.json — testwise JSON은 convert로 변환:
+kill %1; sleep 1
+bin/convert --class-dir <classes> --in <out-dir> --testwise-coverage -o report.json   # 출력은 report-1.json
 kill %1
 ```
 
@@ -1739,7 +1740,7 @@ class HttpAgentClientTest {
 
     @BeforeEach void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/", ex -> { hits.add(ex.getRequestMethod() + " " + ex.getRequestURI().getPath());
+        server.createContext("/", ex -> { hits.add(ex.getRequestMethod() + " " + ex.getRequestURI().getRawPath());  // raw: %2F 유지
             ex.sendResponseHeaders(200, -1); ex.close(); });
         server.start();
     }
@@ -1750,8 +1751,8 @@ class HttpAgentClientTest {
         AgentClient client = new HttpAgentClient(base);
         client.testStart("io/tia/fixture/ApiSmokeTest/testPrice");
         client.testEnd("io/tia/fixture/ApiSmokeTest/testPrice", "PASSED");
-        assertTrue(hits.contains("POST /test/start/io/tia/fixture/ApiSmokeTest/testPrice"), hits.toString());
-        assertTrue(hits.contains("POST /test/end/io/tia/fixture/ApiSmokeTest/testPrice"), hits.toString());
+        assertTrue(hits.contains("POST /test/start/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice"), hits.toString());
+        assertTrue(hits.contains("POST /test/end/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice"), hits.toString());
     }
 }
 ```
@@ -1787,10 +1788,16 @@ public final class HttpAgentClient implements AgentClient {
     public HttpAgentClient(String baseUrl) { this.baseUrl = stripTrailingSlash(baseUrl); }
 
     @Override public void testStart(String uniformPath) {
-        post(baseUrl + "/test/start/" + uniformPath, null);
+        post(baseUrl + "/test/start/" + encodeSegment(uniformPath), null);
     }
     @Override public void testEnd(String uniformPath, String result) {
-        post(baseUrl + "/test/end/" + uniformPath, "{\"result\":\"" + result + "\"}");
+        post(baseUrl + "/test/end/" + encodeSegment(uniformPath), "{\"result\":\"" + result + "\"}");
+    }
+
+    // teamscale {testId}는 단일 path 세그먼트 → 슬래시를 %2F로 인코딩(실측: raw=HTTP 500, %2F=204). Java 8 호환.
+    private static String encodeSegment(String s) {
+        try { return java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20"); }
+        catch (java.io.UnsupportedEncodingException e) { throw new RuntimeException(e); }
     }
 
     private static void post(String url, String body) {
@@ -1817,7 +1824,7 @@ public final class HttpAgentClient implements AgentClient {
     }
 }
 ```
-(주의: uniformPath는 **원시 슬래시 멀티 세그먼트**로 보낸다 — Task 4 캡처 curl과 동일 규약. teamscale 엔드포인트가 rest-of-path를 캡처하면 이대로 동작하며, Task 2에서 실제 규약을 확인한다. 테스트명에 공백/특수문자가 있으면 세그먼트별 URL 인코딩을 추가한다.)
+(주의: uniformPath는 **`%2F` 인코딩**해 단일 path 세그먼트로 보낸다 — teamscale `{testId}`가 단일 세그먼트라 필수. **실측: 원시 슬래시=HTTP 500, %2F=204**(agent-api.md). HttpServer 스텁은 `%2F`를 디코딩하므로 테스트는 `getRawPath()`로 인코딩을 검증한다.)
 
 - [ ] **Step 4: 통과 확인**
 
@@ -2226,3 +2233,5 @@ git add -A && git commit -m "chore: Phase 0 PoC 전체 빌드/E2E 그린" || ech
 **알려진 외부 의존 리스크(플랜 결함 아님):** teamscale 에이전트의 정확한 start/end verb·경로·리포트 산출 방식은 Task 2에서 핀다(uniformPath는 원시 슬래시 규약으로 Task 4·15 통일). testwise JSON 스키마는 Task 4 실제 캡처본이 진실의 원천이며 Task 7 파서가 거기에 맞춰진다. git diff↔커버리지 경로 네임스페이스 불일치는 PathNormalizer(Task 6B)로 결정론적으로 해소된다(레포상대 입력을 받는 단위테스트가 가드). 이 두 지점(에이전트 API·리포트 스키마)만 환경 의존이고 나머지는 결정론적.
 
 **리뷰 반영 이력(2차):** A1 경로 정규화(Task 6B 신규), A2 `--release 8`을 main 한정, B1 uniformPath 원시 슬래시 통일, C1 스키마 divergence 메모, C2/C3 Phase 0 defer 명시, D1 measure-flaky 자체 기동, D2 직렬 실행 경고, D3 wrapper 부트스트랩 전제, D4 텍스트블록 취약성 경고, D5 junit-api compileOnly.
+
+**구현·실측 검증 이력(3차, 2026-06-13):** 계획대로 구현하여 전체 30 테스트 GREEN(스펙 수용 E2E 7 + 단위 23), 실제 teamscale 에이전트로 수집→convert→index→impact 전체 E2E도 GREEN. 실측으로 정정한 사항: ① 에이전트 레포 이전(`cqse/teamscale-java-profiler` v36.5.2, jar `.../lib/`), ② **B1 반전 — uniformPath는 원시 슬래시가 아니라 `%2F` 인코딩 필수**(raw=HTTP 500, %2F=204), ③ `out=`는 `.exec`+`test-execution.json` 산출 → `convert -t`로 testwise JSON 변환(출력 `-N` 접미사), ④ 실제 testwise JSON 형식이 `TestwiseReportParser`와 정확히 일치(캡처본을 리소스로 고정). 검증 상세는 `notes/agent-api.md`, 동작 스크립트는 `scripts/run-poc.sh`. 환경 주의: 일부 샌드박스에서 gradle 테스트 워커(포크 JVM) 아웃바운드 차단 → run-poc는 확장과 동일 신호를 curl로 보냄(구현 자체는 정상).
