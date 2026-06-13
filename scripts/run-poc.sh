@@ -27,6 +27,12 @@ APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null || true; [ -f "$SRC.bak" ] && mv "$SRC.bak" "$SRC" || true' EXIT
 for i in $(seq 1 40); do curl -sf localhost:8080/greeting/x >/dev/null 2>&1 && break || sleep 1; done
 
+# 응답 내부값 검증(상태코드뿐 아니라 본문값까지) — ApiSmokeTest와 동일 기대치.
+g="$(curl -s localhost:8080/greeting/Alice)"; p="$(curl -s localhost:8080/price/ABC)"
+[ "$g" = "hello alice" ] || { echo "❌ greeting 값 오류: '$g' (기대 'hello alice')"; exit 1; }
+[ "$p" = "300" ]         || { echo "❌ price 값 오류: '$p' (기대 '300')"; exit 1; }
+echo "✅ 엔드포인트 응답값 검증: greeting='hello alice', price=300"
+
 # per-test 수집: 확장과 동일한 신호(/test/start → 엔드포인트 호출 → /test/end). 직렬.
 signal_test() {  # $1=testId(raw)  $2=endpoint
   local enc="${1//\//%2F}"   # 슬래시 → %2F: teamscale {testId}는 단일 세그먼트 (raw=500, %2F=204)
@@ -54,4 +60,12 @@ git diff --unified=0 -- "$SRC" > poc-out/sample.diff
 mv "$SRC.bak" "$SRC"
 
 echo "===== tia impact (PricingService 변경 → testPrice 선별 기대) ====="
-"$CLI" impact --db poc-out/tia.db --commit "$COMMIT" --diff-file poc-out/sample.diff
+OUT="$("$CLI" impact --db poc-out/tia.db --commit "$COMMIT" --diff-file poc-out/sample.diff)"
+echo "$OUT"
+# 프로그램적 검증: testPrice가 DETERMINISTIC으로 선별되고 testGreeting은 제외되어야 함(없으면 exit 1).
+if echo "$OUT" | grep -qE "^DETERMINISTIC[[:space:]]+io/tia/fixture/ApiSmokeTest/testPrice$" \
+   && ! echo "$OUT" | grep -q "testGreeting"; then
+  echo "✅ E2E PASS: testPrice DETERMINISTIC 선별, testGreeting 제외"
+else
+  echo "❌ E2E FAIL: 기대한 선별 결과가 아님"; exit 1
+fi

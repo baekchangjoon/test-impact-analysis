@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @ExtendWith({ TeamscaleTestwiseExtension.class, RunResultWriter.class })
@@ -20,14 +20,16 @@ class ApiSmokeTest {
     }
 
     @Test void testGreeting() {                 // GreetingService + TextUtil 커버
-        given().when().get("/greeting/Alice").then().statusCode(200).body(containsString("alice"));
+        // greet("Alice") = "hello " + normalize("Alice") = "hello alice" — 본문값까지 정확 검증.
+        given().when().get("/greeting/Alice").then().statusCode(200).body(equalTo("hello alice"));
     }
 
     @Test void testPrice() {                     // PricingService + TextUtil 커버
-        given().when().get("/price/ABC").then().statusCode(200);
+        // priceOf("ABC") = normalize("ABC")="abc"(len 3) * 100 = 300 — 본문값까지 정확 검증(200만 보지 않음).
+        given().when().get("/price/ABC").then().statusCode(200).body(equalTo("300"));
     }
 
-    @Test void testFlaky() {                      // 의도적 플레이키
-        given().when().get("/flaky").then().statusCode(200);
+    @Test void testFlaky() {                      // 의도적 플레이키 — 200을 기대하나 ~50% 500 (플레이키 측정용)
+        given().when().get("/flaky").then().statusCode(200).body(equalTo("ok"));
     }
 }
