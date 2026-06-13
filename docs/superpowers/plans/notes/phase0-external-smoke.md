@@ -2,6 +2,11 @@
 
 전제: 대상은 단일 Spring Boot 레포, RestAssured(또는 임의 JUnit5) 스위트 보유. 에이전트 API는 `agent-api.md` 참조.
 
+> **로컬/CI 컨테이너 검증 (권장, 검증됨)**: `docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester`
+> — SUT(앱+에이전트) 컨테이너와 tester(RestAssured+확장) 컨테이너를 분리해 **실제 out-of-process 토폴로지**로 돌린다.
+> 컨테이너는 자체 네트워크 네임스페이스라, 호스트에서 gradle 테스트 워커 아웃바운드를 막는 샌드박스도 우회한다.
+> 본 레포에서 testGreeting·testPrice 본문값 검증 + 실제 수집→impact(testPrice DETERMINISTIC)까지 통과 확인.
+
 ## 절차
 0. **직렬 실행 보장(설계 §3.3)**: 대상 스위트의 JUnit 병렬 실행을 끈다 — `junit.jupiter.execution.parallel.enabled=false`(기본값 유지). 병렬이면 testwise 커버리지가 섞여 매핑이 오염된다.
 1. 대상 테스트 모듈 의존성에 `io.tia:tia-junit-extension:0.1.0` 추가.

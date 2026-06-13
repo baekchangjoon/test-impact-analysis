@@ -8,6 +8,11 @@ set -euo pipefail
 # (gradle 데몬·일반 JVM·curl·단위테스트는 정상 — 확장 코드 문제 아님). 그런 환경 호환을 위해 본 스크립트는
 # 확장과 '동일한 HTTP 신호'를 curl로 직접 보낸다. 외부 레포 적용 시엔 런북(phase0-external-smoke.md)의
 # RestAssured+확장 경로를 그대로 쓰면 된다.
+#
+# ★ 샌드박스에서도 '실제 RestAssured + TeamscaleTestwiseExtension' 경로를 그대로 돌리려면:
+#     docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester
+#   sut 컨테이너(앱+에이전트) ↔ tester 컨테이너(gradle 테스트)는 자체 네트워크라 워커 차단을 우회한다
+#   (scripts/docker-e2e-tester.sh). 이것이 가장 충실한 out-of-process 검증이다.
 export JAVA_HOME="$(/usr/libexec/java_home -v 17)"   # 코드는 Java 17 바이트코드 — 17 강제(비-macOS는 JDK17 경로로 대체)
 AGENT_JAR="$(find tools/teamscale -name 'teamscale-jacoco-agent.jar' -path '*/lib/*' -print -quit)"
 [ -n "$AGENT_JAR" ] || { echo "에이전트 없음 — scripts/download-agent.sh 먼저"; exit 1; }
