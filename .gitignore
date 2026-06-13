@@ -6,3 +6,4 @@ tools/
 *.exec
 .idea/
 gradle.properties
+.remember/
