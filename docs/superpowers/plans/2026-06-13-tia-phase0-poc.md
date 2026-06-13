@@ -6,9 +6,14 @@
 
 **Architecture:** Java 17 + Gradle 멀티모듈. 순수 로직(`tia-core`: 파싱·교차·저장·플레이키)은 결정론적 단위 테스트로 TDD, CLI(`tia-cli`)가 이를 묶고, 테스트 측 신호용 JUnit5 확장(`tia-junit-extension`, Java 8 호환)이 에이전트를 제어한다. in-repo 최소 Spring Boot 앱(`fixture-app`)으로 파이프라인 전체를 E2E 검증하고, 외부 실제 레포는 스모크 런북으로 확인한다. 설계 결정 **1-A(비코드 변경 보수적 폴백)**, **1-B(신규 코드 저신뢰)**, **D11(라인 정밀도)**를 코드로 구현·검증한다.
 
-**Tech Stack:** Java 17(확장 모듈만 Java 8 타깃), Gradle 8.x, JaCoCo/teamscale-jacoco-agent(testwise), JUnit5, RestAssured, picocli, Jackson, sqlite-jdbc, RoaringBitmap, Spring Boot 3.x.
+**Tech Stack:** Java 17(확장 모듈 main만 Java 8 타깃, 테스트는 17), Gradle 8.x, JaCoCo/teamscale-jacoco-agent(testwise), JUnit5, RestAssured, picocli, Jackson, sqlite-jdbc, RoaringBitmap, Spring Boot 3.x.
 
 **참조 설계 문서:** `docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md` (§1.3, §3.0, §3.1, §6.2, §9, D11, D12)
+
+**Phase 0 의도적 defer (설계 대비):** 아래는 설계엔 있으나 Phase 0 범위에서 의식적으로 미룬 항목이다.
+- **D8 `CoverageCollector` 드롭인 seam**: Phase 0는 직렬 전용이라 인터페이스를 도입하지 않는다. 단 산출물을 정규화된 `(test_id, file, line_bitmap)` 계약 형태로 내보내므로, 병렬 에이전트(`jacocoagent-parallel.jar`)는 이 계약만 구현하면 교체된다.
+- **§6.5 staleness 저신뢰**: Phase 0의 `LOW_CONFIDENCE`는 신규 코드(addition-only)에만 붙는다. "매핑 기준 커밋 ↔ HEAD 변경분 저신뢰"는 Phase 1+.
+- **§7.1 PR 코멘트 이원화(D5)**: Phase 0는 CLI 텍스트 출력. PR Action은 이후 Phase.
 
 ---
 
@@ -28,6 +33,7 @@ test-impact-analysis/
 │   │   ├── model/Confidence.java
 │   │   ├── model/ImpactedTest.java
 │   │   ├── model/ImpactResult.java
+│   │   ├── path/PathNormalizer.java
 │   │   ├── parse/LineRangeParser.java
 │   │   ├── parse/TestwiseReportParser.java
 │   │   ├── parse/GitDiffParser.java
@@ -125,9 +131,11 @@ application { mainClass = 'io.tia.cli.Main' }
 
 `tia-junit-extension/build.gradle`:
 ```groovy
-tasks.withType(JavaCompile).configureEach { options.release = 8 }   // 레거시(Java 8) 스위트 호환
+// 레거시(Java 8) 호환은 '배포되는 main 코드'에만 필요 — 테스트는 toolchain 17 유지.
+// (전체 JavaCompile에 걸면 테스트의 List.of 등 Java 9+ API가 --release 8에서 컴파일 실패.)
+tasks.named('compileJava') { options.release = 8 }
 dependencies {
-    implementation 'org.junit.jupiter:junit-jupiter-api:5.11.0'
+    compileOnly 'org.junit.jupiter:junit-jupiter-api:5.11.0'   // 소비 스위트가 JUnit 런타임 제공
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'org.mockito:mockito-core:5.12.0'
 }
@@ -150,6 +158,7 @@ tasks.named('test') { systemProperties System.getProperties().findAll { it.key.t
 
 Run: `gradle wrapper --gradle-version 8.10 && ./gradlew projects`
 Expected: 루트 아래 `:tia-core`, `:tia-cli`, `:tia-junit-extension`, `:fixture-app` 4개 프로젝트가 출력됨.
+(전제: 래퍼 부트스트랩에 시스템 `gradle`가 필요. 없으면 `brew install gradle`(macOS) 후 진행하거나, 기존 래퍼가 있는 프로젝트의 `gradle/wrapper/` + `gradlew`를 복사해 `./gradlew`로 부트스트랩.)
 
 - [ ] **Step 6: Commit**
 
@@ -366,9 +375,10 @@ mkdir -p poc-out/coverage
 java -javaagent:"$AGENT_JAR"=mode=testwise,includes=io.tia.fixture.*,http-server-port=8123,out=poc-out/coverage \
   -jar fixture-app/build/libs/fixture-app-0.1.0.jar --server.port=8080 &
 sleep 8
-curl -s -X POST localhost:8123/test/start/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice
+# uniformPath는 원시 슬래시 멀티 세그먼트 (HttpAgentClient와 동일 규약 — Task 15). Task 2에서 실제 규약 확인.
+curl -s -X POST localhost:8123/test/start/io/tia/fixture/ApiSmokeTest/testPrice
 curl -s localhost:8080/price/ABC
-curl -s -X POST localhost:8123/test/end/io%2Ftia%2Ffixture%2FApiSmokeTest%2FtestPrice -H 'Content-Type: application/json' -d '{"result":"PASSED"}'
+curl -s -X POST localhost:8123/test/end/io/tia/fixture/ApiSmokeTest/testPrice -H 'Content-Type: application/json' -d '{"result":"PASSED"}'
 # 리포트 산출(Task2 REPORT 방식). 파일 산출형이면 종료 시 flush:
 curl -s -X POST localhost:8123/dump || true
 kill %1
@@ -580,6 +590,88 @@ git commit -m "feat(core): LineRangeParser (coveredLines 범위 문자열 → Ro
 
 ---
 
+## Task 6B: PathNormalizer (경로 네임스페이스 정규화)
+
+git diff는 **레포 상대 경로**(`fixture-app/src/main/java/io/tia/fixture/Foo.java`)를, testwise 리포트는 **패키지 상대 경로**(`io/tia/fixture/Foo.java`)를 내놓는다. `ImpactAnalyzer`는 파일 키를 **정확 일치**로 교차하므로, 두 경로를 **공통 정규형**으로 변환하지 않으면 실제 git diff와 커버리지가 절대 교차하지 않는다(단위 테스트는 키를 손으로 맞춰 이 갭을 가린다 — 그래서 E2E에서만 터진다). PathNormalizer가 **두 파서의 출력 키를 패키지 상대형으로 통일**한다.
+
+**Files:**
+- Create: `tia-core/src/main/java/io/tia/core/path/PathNormalizer.java`
+- Test: `tia-core/src/test/java/io/tia/core/path/PathNormalizerTest.java`
+
+- [ ] **Step 1: 실패 테스트 작성**
+
+`PathNormalizerTest.java`:
+```java
+package io.tia.core.path;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class PathNormalizerTest {
+    @Test void stripsModuleAndSourceRoot() {   // 레포 상대(실제 git diff) → 패키지 상대(커버리지 키)
+        assertEquals("io/tia/fixture/PricingService.java",
+            PathNormalizer.canonical("fixture-app/src/main/java/io/tia/fixture/PricingService.java"));
+    }
+    @Test void leavesAlreadyCanonicalUnchanged() {   // testwise 리포트는 이미 패키지 상대 → 무변경
+        assertEquals("io/tia/fixture/PricingService.java",
+            PathNormalizer.canonical("io/tia/fixture/PricingService.java"));
+    }
+    @Test void stripsTestRootAndResources() {
+        assertEquals("io/tia/fixture/ApiSmokeTest.java",
+            PathNormalizer.canonical("src/test/java/io/tia/fixture/ApiSmokeTest.java"));
+        assertEquals("application.yml",
+            PathNormalizer.canonical("module/src/main/resources/application.yml"));
+    }
+}
+```
+
+- [ ] **Step 2: 실패 확인**
+
+Run: `./gradlew :tia-core:test --tests io.tia.core.path.PathNormalizerTest`
+Expected: FAIL — `PathNormalizer` 없음.
+
+- [ ] **Step 3: 구현**
+
+`PathNormalizer.java`:
+```java
+package io.tia.core.path;
+
+/** git diff(레포 상대)·testwise 리포트 경로를 공통 패키지 상대 정규형으로 통일. */
+public final class PathNormalizer {
+    private PathNormalizer() {}
+
+    private static final String[] SOURCE_ROOTS = {
+        "src/main/java/", "src/test/java/",
+        "src/main/kotlin/", "src/test/kotlin/",
+        "src/main/resources/", "src/test/resources/"
+    };
+
+    public static String canonical(String path) {
+        if (path == null) return null;
+        String p = path.replace('\\', '/');
+        if (p.startsWith("./")) p = p.substring(2);
+        for (String root : SOURCE_ROOTS) {
+            int idx = p.indexOf(root);
+            if (idx >= 0) return p.substring(idx + root.length());   // 소스 루트 뒤 = 패키지 상대
+        }
+        return p;   // 소스 루트 없음 → 이미 패키지 상대(리포트 경로)로 간주
+    }
+}
+```
+
+- [ ] **Step 4: 통과 확인**
+
+Run: `./gradlew :tia-core:test --tests io.tia.core.path.PathNormalizerTest`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tia-core/src/main/java/io/tia/core/path/PathNormalizer.java tia-core/src/test/java/io/tia/core/path/PathNormalizerTest.java
+git commit -m "feat(core): PathNormalizer (git diff↔커버리지 경로 네임스페이스 정규화)"
+```
+
+---
+
 ## Task 7: TestwiseReportParser (실제 캡처본 기반)
 
 **Files:**
@@ -643,6 +735,7 @@ package io.tia.core.parse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.tia.core.model.TestCoverage;
+import io.tia.core.path.PathNormalizer;
 import org.roaringbitmap.RoaringBitmap;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -663,7 +756,7 @@ public final class TestwiseReportParser {
                     String dir = path.path("path").asText("");
                     for (JsonNode file : path.path("files")) {
                         String fn = file.path("fileName").asText();
-                        String full = dir.isEmpty() ? fn : dir + "/" + fn;
+                        String full = PathNormalizer.canonical(dir.isEmpty() ? fn : dir + "/" + fn);  // 정규형 키
                         RoaringBitmap lines = LineRangeParser.parse(file.path("coveredLines").asText(""));
                         byFile.merge(full, lines, (a, b) -> { a.or(b); return a; });
                     }
@@ -709,49 +802,51 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GitDiffParserTest {
+    // 실제 git diff처럼 '레포 상대' 경로 사용 → PathNormalizer가 패키지 상대로 정규화됨을 함께 검증.
     // .java 수정(old 9,10 변경), .yml 변경(매핑 불가), .java 순수 추가
     private static final String DIFF = """
-        diff --git a/src/main/java/io/tia/fixture/PricingService.java b/src/main/java/io/tia/fixture/PricingService.java
-        --- a/src/main/java/io/tia/fixture/PricingService.java
-        +++ b/src/main/java/io/tia/fixture/PricingService.java
+        diff --git a/fixture-app/src/main/java/io/tia/fixture/PricingService.java b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+        --- a/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+        +++ b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
         @@ -8,3 +8,3 @@ public class PricingService {
          public int priceOf(String sku) {
         -    String key = TextUtil.normalize(sku);
         -    return key.length() * 100;
         +    String key = TextUtil.normalize(sku);
         +    return key.length() * 200;
-        diff --git a/src/main/resources/application.yml b/src/main/resources/application.yml
-        --- a/src/main/resources/application.yml
-        +++ b/src/main/resources/application.yml
+        diff --git a/fixture-app/src/main/resources/application.yml b/fixture-app/src/main/resources/application.yml
+        --- a/fixture-app/src/main/resources/application.yml
+        +++ b/fixture-app/src/main/resources/application.yml
         @@ -1,2 +1,2 @@
         -server.port: 8080
         +server.port: 9090
-        diff --git a/src/main/java/io/tia/fixture/NewFeature.java b/src/main/java/io/tia/fixture/NewFeature.java
+        diff --git a/fixture-app/src/main/java/io/tia/fixture/NewFeature.java b/fixture-app/src/main/java/io/tia/fixture/NewFeature.java
         --- /dev/null
-        +++ b/src/main/java/io/tia/fixture/NewFeature.java
+        +++ b/fixture-app/src/main/java/io/tia/fixture/NewFeature.java
         @@ -0,0 +1,2 @@
         +package io.tia.fixture;
         +public class NewFeature {}
         """;
 
     @Test
-    void classifiesJavaModUnmappableAndAdditionOnly() {
+    void normalizesRepoRelativePathsAndClassifies() {
         DiffSummary d = new GitDiffParser().parse(DIFF);
 
-        // .java 수정: old-side 9,10 라인 (파일 경로는 'b/' 제거)
-        var changed = d.changedOldLinesByJavaFile().get("src/main/java/io/tia/fixture/PricingService.java");
-        assertNotNull(changed);
+        // 레포 상대 → 패키지 상대 정규형 키(커버리지 키와 동일 공간), old-side 9,10 라인
+        var changed = d.changedOldLinesByJavaFile().get("io/tia/fixture/PricingService.java");
+        assertNotNull(changed, "정규화 후 패키지 상대 키여야 함");
         assertTrue(changed.contains(9) && changed.contains(10));
 
         // 비-.java → unmappable (1-A)
-        assertTrue(d.unmappableFiles().contains("src/main/resources/application.yml"));
+        assertTrue(d.unmappableFiles().contains("application.yml"));
 
         // 순수 추가 .java → additionOnly (1-B), changed map엔 없음
-        assertTrue(d.additionOnlyJavaFiles().contains("src/main/java/io/tia/fixture/NewFeature.java"));
-        assertFalse(d.changedOldLinesByJavaFile().containsKey("src/main/java/io/tia/fixture/NewFeature.java"));
+        assertTrue(d.additionOnlyJavaFiles().contains("io/tia/fixture/NewFeature.java"));
+        assertFalse(d.changedOldLinesByJavaFile().containsKey("io/tia/fixture/NewFeature.java"));
     }
 }
 ```
+**주의(텍스트 블록 취약성, [D4]):** diff의 context 라인(` public int priceOf...`)은 **선행 공백 1칸**이 의미를 가진다(unified diff의 context 마커). Java 텍스트 블록의 incidental-whitespace 제거가 이 공백을 지우지 않도록, 닫는 `"""`를 content 본문과 **같은 들여쓰기**에 두고 `diff`/`---`/`+++`/`@@`/`-`/`+` 라인을 context 라인보다 한 칸 더 들여쓰지 말 것. 재포맷 시 파싱이 깨진다.
 
 - [ ] **Step 2: 실패 확인**
 
@@ -764,6 +859,7 @@ Expected: FAIL — `GitDiffParser` 없음.
 ```java
 package io.tia.core.parse;
 import io.tia.core.model.DiffSummary;
+import io.tia.core.path.PathNormalizer;
 import org.roaringbitmap.RoaringBitmap;
 import java.util.*;
 import java.util.regex.*;
@@ -784,11 +880,11 @@ public final class GitDiffParser {
                 file = null; oldLine = 0;
             } else if (line.startsWith("+++ ")) {
                 String p = line.substring(4).trim();
-                if (!p.equals("/dev/null")) file = stripPrefix(p);  // 'b/' 제거
+                if (!p.equals("/dev/null")) file = PathNormalizer.canonical(stripPrefix(p));  // 'b/' 제거 + 정규화
             } else if (line.startsWith("--- ")) {
                 if (file == null) {
                     String p = line.substring(4).trim();
-                    if (!p.equals("/dev/null")) file = stripPrefix(p);
+                    if (!p.equals("/dev/null")) file = PathNormalizer.canonical(stripPrefix(p));
                 }
             } else if (line.startsWith("@@")) {
                 Matcher m = HUNK.matcher(line);
@@ -1064,6 +1160,8 @@ git commit -m "feat(core): FlakyAnalyzer (N회 실행에서 pass/fail 혼재 테
 ---
 
 ## Task 11: CoverageStore (SQLite + Roaring 블롭, 커밋 키)
+
+**스키마 divergence 메모 [C1]:** 설계 §6.2는 `coverage(... service, class_fqn, method_sig ...)`이나, Phase 0는 단일 레포라 `service`를 생략하고 키를 **`file`(정규형 패키지 상대 경로 — Task 6B)**로 둔다. git diff가 파일+라인 단위이므로 `file+line_bitmap`이 교차에 직접 맞고, `class_fqn/method_sig`(메소드 그래프용)는 Phase 2 정적 경로에서 도입한다. `file`은 반드시 PathNormalizer 정규형이어야 diff 키와 교차된다.
 
 **Files:**
 - Create: `tia-core/src/main/java/io/tia/core/store/CoverageStore.java`
@@ -1412,13 +1510,13 @@ class ImpactCommandTest {
         }
         Path diff = dir.resolve("d.diff");
         Files.writeString(diff, """
-            diff --git a/io/tia/fixture/PricingService.java b/io/tia/fixture/PricingService.java
-            --- a/io/tia/fixture/PricingService.java
-            +++ b/io/tia/fixture/PricingService.java
+            diff --git a/fixture-app/src/main/java/io/tia/fixture/PricingService.java b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+            --- a/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+            +++ b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
             @@ -9,1 +9,1 @@
             -    return key.length() * 100;
             +    return key.length() * 200;
-            """);
+            """);   // 레포 상대 경로 → PathNormalizer가 커버리지 키(io/tia/fixture/...)와 교차되게 정규화
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream prev = System.out; System.setOut(new PrintStream(out));
@@ -1697,7 +1795,7 @@ public final class HttpAgentClient implements AgentClient {
     }
 }
 ```
-(주의: HttpServer가 경로를 디코딩하므로 테스트는 비인코딩 경로로 비교한다. 실제 에이전트가 URL 인코딩을 요구하면 `uniformPath`를 세그먼트별 인코딩하도록 수정 — agent-api.md 기준.)
+(주의: uniformPath는 **원시 슬래시 멀티 세그먼트**로 보낸다 — Task 4 캡처 curl과 동일 규약. teamscale 엔드포인트가 rest-of-path를 캡처하면 이대로 동작하며, Task 2에서 실제 규약을 확인한다. 테스트명에 공백/특수문자가 있으면 세그먼트별 URL 인코딩을 추가한다.)
 
 - [ ] **Step 4: 통과 확인**
 
@@ -1937,13 +2035,13 @@ EOF
 echo "===== tia impact ====="
 "$CLI" impact --db poc-out/tia.db --commit "$COMMIT" --diff-file poc-out/sample.diff
 ```
-(diff의 파일 경로/라인은 캡처된 리포트의 파일 경로 표기와 일치해야 교차된다. 리포트가 `io/tia/fixture/PricingService.java`로 표기하면 diff의 `+++ b/` 경로도 동일 접미사가 되도록 맞춘다 — 불일치 시 `tia impact`가 0개를 반환한다.)
+(diff 경로는 **레포 상대 그대로 OK** — PathNormalizer(Task 6B)가 커버리지 키와 동일한 패키지 상대형으로 정규화한다. **라인 번호만** 캡처된 리포트가 커버한 라인과 겹치면 교차된다. 0개가 나오면 디버깅: ① 리포트 생성 여부 ② 라인 번호 겹침 ③ agent-api.md의 start/end 경로 일치.)
 
 - [ ] **Step 4: E2E 실행 + 결과 확인**
 
 Run: `bash scripts/run-poc.sh`
 Expected: 마지막 `tia impact` 출력에 **`DETERMINISTIC  io/tia/fixture/ApiSmokeTest/testPrice`가 포함**되고, `testGreeting`은 **미포함**. (PricingService 변경이 testPrice만 친다.)
-실패 시 디버깅 순서: ① 리포트가 생성됐는지(`ls poc-out/coverage`) ② 리포트의 파일 경로 표기 ③ diff의 파일 경로가 그와 동일 접미사인지 ④ `agent-api.md`의 start/end 경로가 실제와 일치하는지.
+실패 시 디버깅 순서: ① 리포트가 생성됐는지(`ls poc-out/coverage`) ② 리포트 경로가 PathNormalizer로 패키지 상대 정규화되는지(`io/tia/fixture/...`) ③ 샘플 diff의 라인 번호가 리포트 커버 라인과 겹치는지 ④ `agent-api.md`의 start/end 경로가 실제와 일치하는지.
 
 - [ ] **Step 5: Commit**
 
@@ -1966,13 +2064,23 @@ git commit -m "feat(e2e): RestAssured 스위트 + RunResultWriter + run-poc.sh (
 #!/usr/bin/env bash
 set -euo pipefail
 N="${1:-10}"
-BASE="${fixture_baseUrl:-http://localhost:8080}"   # 앱이 이미 떠 있어야 함 (run-poc.sh의 app 기동 재사용 또는 별도 기동)
 mkdir -p poc-out/flaky
+
+# 앱+에이전트를 이 스크립트가 직접 기동 (run-poc.sh와 독립 실행 가능) [D1]
+AGENT_JAR="$(find tools -name teamscale-jacoco-agent.jar | head -1)"
+[ -n "$AGENT_JAR" ] || { echo "에이전트 없음 — scripts/download-agent.sh 먼저"; exit 1; }
+./gradlew :fixture-app:bootJar :tia-cli:installDist
+java -javaagent:"$AGENT_JAR"=mode=testwise,includes=io.tia.fixture.*,http-server-port=8123,out=poc-out/coverage \
+  -jar fixture-app/build/libs/fixture-app-0.1.0.jar --server.port=8080 &
+APP_PID=$!
+trap 'kill $APP_PID 2>/dev/null || true' EXIT
+for i in $(seq 1 30); do curl -sf localhost:8080/greeting/x >/dev/null 2>&1 && break || sleep 1; done
+
 RUNS=""
 for i in $(seq 1 "$N"); do
   OUT="poc-out/flaky/run-$i.json"
   ./gradlew :fixture-app:test --tests io.tia.fixture.ApiSmokeTest \
-    -Dfixture.baseUrl="$BASE" -Dtia.agent.url=http://localhost:8123 \
+    -Dfixture.baseUrl=http://localhost:8080 -Dtia.agent.url=http://localhost:8123 \
     -Dtia.run.out="$PWD/$OUT" --rerun-tasks || true
   RUNS="${RUNS:+$RUNS,}$OUT"
 done
@@ -1983,7 +2091,7 @@ echo "===== tia flaky (N=$N) ====="
 
 - [ ] **Step 2: 앱 기동 후 측정 실행**
 
-Run (앱+에이전트 기동된 상태에서): `bash scripts/measure-flaky.sh 10`
+Run: `bash scripts/download-agent.sh && bash scripts/measure-flaky.sh 10`  (스크립트가 앱+에이전트를 직접 기동)
 Expected: `flaky ratio: 0.xxx (1/3)` 형태로 출력되고 `FLAKY  io/tia/fixture/ApiSmokeTest/testFlaky` 가 표시됨(10회 중 일부 실패하므로 플레이키로 검출). `testGreeting`/`testPrice`는 비플레이키.
 (아주 드물게 10회 모두 같은 결과면 N을 늘린다 — `/flaky`는 50% 확률이라 10회 중 전부 동일할 확률은 약 0.2%.)
 
@@ -2012,6 +2120,7 @@ git commit -m "feat(e2e): measure-flaky.sh (N회 실행 → tia flaky 비율 측
 전제: 대상은 단일 Spring Boot 레포, RestAssured(또는 임의 JUnit5) 스위트 보유.
 
 ## 절차
+0. **직렬 실행 보장(설계 §3.3)**: 대상 스위트의 JUnit 병렬 실행을 끈다 — `junit.jupiter.execution.parallel.enabled=false`(기본값 유지). 병렬이면 testwise 커버리지가 섞여 매핑이 오염된다.
 1. 대상 테스트 모듈 의존성에 `io.tia:tia-junit-extension:0.1.0` 추가.
 2. 테스트 클래스(또는 전역)에 `@ExtendWith(io.tia.junit.TeamscaleTestwiseExtension.class)` 부착.
    (전역 적용: `src/test/resources/META-INF/services/org.junit.jupiter.api.extension.Extension` +
@@ -2072,7 +2181,8 @@ git add -A && git commit -m "chore: Phase 0 PoC 전체 빌드/E2E 그린" || ech
 
 **1. Spec 커버리지 (설계 §9 Phase 0 요구 → 태스크 매핑)**
 - "teamscale-jacoco-agent per-test 매핑" → Task 2,3,4,15,16,17 ✅
-- "git diff 교차 → 영향 테스트 선별" → Task 8,9,13,17 ✅
+- "git diff 교차 → 영향 테스트 선별" → Task 6B(경로 정규화),8,9,13,17 ✅
+- 경로 네임스페이스 정규화(git diff 레포상대 ↔ 커버리지 패키지상대) → Task 6B (A1 결함 수정; 단위테스트가 레포상대 입력으로 정규화까지 검증) ✅
 - "플레이키 비율 측정 포함" → Task 10,14,18 ✅
 - "SQLite 저장(커밋 1급, Roaring)" → Task 11 ✅
 - "CLI 조회" → Task 12,13,14 ✅
@@ -2085,4 +2195,6 @@ git add -A && git commit -m "chore: Phase 0 PoC 전체 빌드/E2E 그린" || ech
 
 **3. 타입 일관성:** `TestCoverage.linesFor/covers`, `DiffSummary(changedOldLinesByJavaFile/additionOnlyJavaFiles/unmappableFiles)`, `ImpactAnalyzer.select`, `CoverageStore.save/load`, `AgentClient.testStart/testEnd`, run-result JSON `{"results":{id:bool}}` 형식이 생산처(Task 17 RunResultWriter)와 소비처(Task 14 FlakyCommand)에서 동일. uniformPath 생성 규칙(`클래스명 '.'→'/' + '/' + 메서드`)이 확장(Task 16)·결과기록기(Task 17)에서 동일. ✅
 
-**알려진 외부 의존 리스크(플랜 결함 아님):** teamscale 에이전트의 정확한 start/end verb·경로·리포트 산출 방식은 Task 2에서 핀다. testwise JSON 스키마는 Task 4 실제 캡처본이 진실의 원천이며 Task 7 파서가 거기에 맞춰진다. 이 두 지점만 환경 의존이고 나머지는 결정론적.
+**알려진 외부 의존 리스크(플랜 결함 아님):** teamscale 에이전트의 정확한 start/end verb·경로·리포트 산출 방식은 Task 2에서 핀다(uniformPath는 원시 슬래시 규약으로 Task 4·15 통일). testwise JSON 스키마는 Task 4 실제 캡처본이 진실의 원천이며 Task 7 파서가 거기에 맞춰진다. git diff↔커버리지 경로 네임스페이스 불일치는 PathNormalizer(Task 6B)로 결정론적으로 해소된다(레포상대 입력을 받는 단위테스트가 가드). 이 두 지점(에이전트 API·리포트 스키마)만 환경 의존이고 나머지는 결정론적.
+
+**리뷰 반영 이력(2차):** A1 경로 정규화(Task 6B 신규), A2 `--release 8`을 main 한정, B1 uniformPath 원시 슬래시 통일, C1 스키마 divergence 메모, C2/C3 Phase 0 defer 명시, D1 measure-flaky 자체 기동, D2 직렬 실행 경고, D3 wrapper 부트스트랩 전제, D4 텍스트블록 취약성 경고, D5 junit-api compileOnly.
