@@ -1,0 +1,126 @@
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO A — precise: change OwnerRestController:53 (a covered line)
+════════════════════════════════════════════════════════════════
+--- diff (unified=0) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/owner/OwnerRestController.java b/src/main/java/org/springframework/samples/petclinic/owner/OwnerRestController.java
+@@ -53 +53 @@ public class OwnerRestController {
+-		return owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
++		return owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build()); // tia-probe
+--- tia impact ---
+# 매핑 기준 커밋: 44a63ab52e534ece971f5a6a5048cce5a232e23f  (영향 테스트 3개)
+DETERMINISTIC	ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted
+DETERMINISTIC	OwnerApiBlackBoxIT#getMissingOwnerReturns404
+DETERMINISTIC	OwnerApiBlackBoxIT#getOwnerById
+awk: syntax error at source line 1
+ context is
+	BEGIN >>>  ( <<< 
+awk: bailing out at source line 1
+→ selected 3 / 24  (skipped 21, % reduction) → selected 3 / 24  (skipped 21, % reduction)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO B — module-scoped: change VetRestController:40
+════════════════════════════════════════════════════════════════
+--- diff (unified=0) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/vet/VetRestController.java b/src/main/java/org/springframework/samples/petclinic/vet/VetRestController.java
+@@ -40 +40 @@ public class VetRestController {
+-					.stream()
++					.stream() // tia-probe
+--- tia impact ---
+# 매핑 기준 커밋: 44a63ab52e534ece971f5a6a5048cce5a232e23f  (영향 테스트 1개)
+DETERMINISTIC	VetApiBlackBoxIT#filterVetsBySpecialty
+awk: syntax error at source line 1
+ context is
+	BEGIN >>>  ( <<< 
+awk: bailing out at source line 1
+→ selected 1 / 24  (skipped 23, % reduction) → selected 1 / 24  (skipped 23, % reduction)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO C — security: change JwtUtil:56
+════════════════════════════════════════════════════════════════
+--- diff (unified=0) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/security/JwtUtil.java b/src/main/java/org/springframework/samples/petclinic/security/JwtUtil.java
+@@ -56 +56 @@ public class JwtUtil {
+-		return Jwts.builder()
++		return Jwts.builder() // tia-probe
+--- tia impact ---
+# 매핑 기준 커밋: 44a63ab52e534ece971f5a6a5048cce5a232e23f  (영향 테스트 2개)
+DETERMINISTIC	AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken
+DETERMINISTIC	ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds
+awk: syntax error at source line 1
+ context is
+	BEGIN >>>  ( <<< 
+awk: bailing out at source line 1
+→ selected 2 / 24  (skipped 22, % reduction) → selected 2 / 24  (skipped 22, % reduction)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO D — shared model fan-out: change Owner.java:94
+════════════════════════════════════════════════════════════════
+--- diff (unified=0) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/owner/Owner.java b/src/main/java/org/springframework/samples/petclinic/owner/Owner.java
+@@ -94 +94 @@ public class Owner extends Person {
+-		return this.pets;
++		return this.pets; // tia-probe
+--- tia impact ---
+# 매핑 기준 커밋: 44a63ab52e534ece971f5a6a5048cce5a232e23f  (영향 테스트 10개)
+DETERMINISTIC	ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds
+DETERMINISTIC	ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted
+DETERMINISTIC	OwnerApiBlackBoxIT#createOwner
+DETERMINISTIC	OwnerApiBlackBoxIT#filterOwnersByLastName
+DETERMINISTIC	OwnerApiBlackBoxIT#getOwnerById
+DETERMINISTIC	OwnerApiBlackBoxIT#listAllOwners
+DETERMINISTIC	OwnerApiBlackBoxIT#updateOwner
+DETERMINISTIC	PetApiBlackBoxIT#createPet
+DETERMINISTIC	PetApiBlackBoxIT#getMissingPetReturns404
+DETERMINISTIC	PetApiBlackBoxIT#getPetById
+awk: syntax error at source line 1
+ context is
+	BEGIN >>>  ( <<< 
+awk: bailing out at source line 1
+→ selected 10 / 24  (skipped 14, % reduction) → selected 10 / 24  (skipped 14, % reduction)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO E — BLIND SPOT: change SecurityConfig:50 (no black-box test covers it)
+════════════════════════════════════════════════════════════════
+--- diff (unified=0) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/security/SecurityConfig.java b/src/main/java/org/springframework/samples/petclinic/security/SecurityConfig.java
+@@ -50 +50 @@ public class SecurityConfig {
+-				.anyRequest()
++				.anyRequest() // tia-probe
+--- tia impact ---
+# 매핑 기준 커밋: 44a63ab52e534ece971f5a6a5048cce5a232e23f  (영향 테스트 0개)
+awk: syntax error at source line 1
+ context is
+	BEGIN >>>  ( <<< 
+awk: bailing out at source line 1
+→ selected 0 / 24  (skipped 24, % reduction) → selected 0 / 24  (skipped 24, % reduction)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO F — non-code change (application.properties) → conservative select-all
+════════════════════════════════════════════════════════════════
+--- diff (non-code) ---
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+@@ -32,0 +33,2 @@ spring.main.allow-circular-references=true
++
++# tia-probe
+--- tia impact ---
+CONSERVATIVE	VetApiBlackBoxIT#filterVetsBySpecialty
+CONSERVATIVE	VetApiBlackBoxIT#getMissingVetReturnsEmptyBody
+CONSERVATIVE	VetApiBlackBoxIT#getVetById
+CONSERVATIVE	VetApiBlackBoxIT#listAllVets
+# 주의: 커버리지 매핑 불가 변경 [application.properties] → 보수적 전체 선택 (목적1) / triage UNKNOWN (목적2)
+
+════════════════════════════════════════════════════════════════
+▶ SCENARIO G — new .java file → conservative select-all (no prior coverage)
+════════════════════════════════════════════════════════════════
+--- diff (new file) ---
+diff --git a/src/main/java/org/springframework/samples/petclinic/owner/NewFeature.java b/src/main/java/org/springframework/samples/petclinic/owner/NewFeature.java
+new file mode 100644
+index 0000000..95d8689
+--- /dev/null
++++ b/src/main/java/org/springframework/samples/petclinic/owner/NewFeature.java
+--- tia impact ---
+CONSERVATIVE	VetApiBlackBoxIT#getMissingVetReturnsEmptyBody
+CONSERVATIVE	VetApiBlackBoxIT#getVetById
+CONSERVATIVE	VetApiBlackBoxIT#listAllVets
+# 주의: 신규 .java [org/springframework/samples/petclinic/owner/NewFeature.java] → 과거 커버리지 없음, 정적 폴백은 Phase 2 → 보수적 전체 선택

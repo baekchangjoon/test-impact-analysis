@@ -1,0 +1,783 @@
+{
+  "tests": [
+    {
+      "uniformPath": "AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/security",
+          "files": [
+            {
+              "fileName": "CustomUserDetailsService.java",
+              "coveredLines": "24-26"
+            },
+            {
+              "fileName": "AuthController.java",
+              "coveredLines": "46-47,60-63,99,108,112-113,116,120-121"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/security",
+          "files": [
+            {
+              "fileName": "CustomUserDetailsService.java",
+              "coveredLines": "24-26"
+            },
+            {
+              "fileName": "AuthController.java",
+              "coveredLines": "46-47,49-50,52-56,58,99,108,112-113,116,120-121"
+            },
+            {
+              "fileName": "JwtUtil.java",
+              "coveredLines": "26,51-52,56-62"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/security",
+          "files": [
+            {
+              "fileName": "AuthController.java",
+              "coveredLines": "74-75,90-94"
+            },
+            {
+              "fileName": "JwtUtil.java",
+              "coveredLines": "26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/security",
+          "files": [
+            {
+              "fileName": "AuthController.java",
+              "coveredLines": "74-76,78-82"
+            },
+            {
+              "fileName": "JwtUtil.java",
+              "coveredLines": "26,30,34,38-39,43,47,66-67"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,43-44,47,51-52"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,74-75,78,82-83,86,90-91,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "59-60"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,44-45,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38,42-43"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,78,86,94,98-99,101"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "52-53"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,62-63,66,70,74-75,78"
+            },
+            {
+              "fileName": "PetRestController.java",
+              "coveredLines": "61-62,66-68,70"
+            },
+            {
+              "fileName": "Visit.java",
+              "coveredLines": "48-50,53,61"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#createOwner",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,43-44,47,51-52"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,74-75,78,82-83,86,90-91,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "59-60"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#filterOwnersByLastName",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,78,86,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "40-44"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,66,70,78"
+            },
+            {
+              "fileName": "Visit.java",
+              "coveredLines": "48-50"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#getMissingOwnerReturns404",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "52-53"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#getOwnerById",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,78,86,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "52-53"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,66,70,78"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#listAllOwners",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,78,86,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "40-41,46"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,66,70,78"
+            },
+            {
+              "fileName": "Visit.java",
+              "coveredLines": "48-50,53,61"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#listingOwnersRequiresAuthentication",
+      "result": "PASSED",
+      "paths": []
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#updateMissingOwnerReturns404",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,43-44,51-52"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,74-75,82-83,90-91"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "67-68"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "OwnerApiBlackBoxIT#updateOwner",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,44-45,48"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,43-44,47,51-52"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,70,74-75,78,82-83,86,90-91,94"
+            },
+            {
+              "fileName": "OwnerRestController.java",
+              "coveredLines": "59-60,67,70-72"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "PetApiBlackBoxIT#createPet",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,44-45,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38,42-43"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,94,98-99,101"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,62-63,66,70,74-75,78"
+            },
+            {
+              "fileName": "PetRestController.java",
+              "coveredLines": "61-62,66-68,70"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "PetApiBlackBoxIT#getMissingPetReturns404",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,94,118-121,125-126"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56"
+            },
+            {
+              "fileName": "PetRestController.java",
+              "coveredLines": "49-51,54-55"
+            },
+            {
+              "fileName": "Visit.java",
+              "coveredLines": "48-50"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "PetApiBlackBoxIT#getPetById",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "Owner.java",
+              "coveredLines": "49,64,94,118-122,125"
+            },
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "Pet.java",
+              "coveredLines": "46,56,66,70,78"
+            },
+            {
+              "fileName": "PetRestController.java",
+              "coveredLines": "49-52"
+            },
+            {
+              "fileName": "Visit.java",
+              "coveredLines": "48-50"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "PetApiBlackBoxIT#getPetTypes",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/security",
+          "files": [
+            {
+              "fileName": "CustomUserDetailsService.java",
+              "coveredLines": "24-26"
+            },
+            {
+              "fileName": "AuthController.java",
+              "coveredLines": "46-47,49-50,52-56,58,99,108,112-113,116,120-121"
+            },
+            {
+              "fileName": "JwtUtil.java",
+              "coveredLines": "26,51-52,56-62"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/owner",
+          "files": [
+            {
+              "fileName": "PetType.java",
+              "coveredLines": "28"
+            },
+            {
+              "fileName": "PetRestController.java",
+              "coveredLines": "42"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "PetApiBlackBoxIT#readingPetsRequiresAuthentication",
+      "result": "PASSED",
+      "paths": []
+    },
+    {
+      "uniformPath": "VetApiBlackBoxIT#filterVetsBySpecialty",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/vet",
+          "files": [
+            {
+              "fileName": "Vet.java",
+              "coveredLines": "45,53,56,61-63,67"
+            },
+            {
+              "fileName": "VetRestController.java",
+              "coveredLines": "36-42"
+            },
+            {
+              "fileName": "Specialty.java",
+              "coveredLines": "30"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "VetApiBlackBoxIT#getMissingVetReturnsEmptyBody",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/vet",
+          "files": [
+            {
+              "fileName": "Vet.java",
+              "coveredLines": "45"
+            },
+            {
+              "fileName": "VetRestController.java",
+              "coveredLines": "50"
+            },
+            {
+              "fileName": "Specialty.java",
+              "coveredLines": "30"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "VetApiBlackBoxIT#getVetById",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/vet",
+          "files": [
+            {
+              "fileName": "Vet.java",
+              "coveredLines": "45,53,56,61-63,67"
+            },
+            {
+              "fileName": "VetRestController.java",
+              "coveredLines": "50"
+            },
+            {
+              "fileName": "Specialty.java",
+              "coveredLines": "30"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "VetApiBlackBoxIT#listAllVets",
+      "result": "PASSED",
+      "paths": [
+        {
+          "path": "org/springframework/samples/petclinic/model",
+          "files": [
+            {
+              "fileName": "BaseEntity.java",
+              "coveredLines": "33,40,48"
+            },
+            {
+              "fileName": "NamedEntity.java",
+              "coveredLines": "31,38"
+            },
+            {
+              "fileName": "Person.java",
+              "coveredLines": "28,39,47"
+            }
+          ]
+        },
+        {
+          "path": "org/springframework/samples/petclinic/vet",
+          "files": [
+            {
+              "fileName": "Vet.java",
+              "coveredLines": "45,53,56,61-63,67"
+            },
+            {
+              "fileName": "VetRestController.java",
+              "coveredLines": "36-37,44"
+            },
+            {
+              "fileName": "Specialty.java",
+              "coveredLines": "30"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uniformPath": "VetApiBlackBoxIT#listingVetsRequiresAuthentication",
+      "result": "PASSED",
+      "paths": []
+    }
+  ]
+}
