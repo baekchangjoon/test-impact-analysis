@@ -4,6 +4,7 @@
 ![Java](https://img.shields.io/badge/Java-17-blue)
 ![Build](https://img.shields.io/badge/build-Gradle-green)
 ![Status](https://img.shields.io/badge/phase%200-PoC%20complete-success)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **테스트 영향 분석(Test Impact Analysis).** `git diff`로 바뀐 코드 라인과 **테스트별(per-test) 커버리지**를 교차해서 두 가지 질문에 결정론적으로 답합니다.
 
@@ -225,4 +226,4 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 
 ## 라이선스
 
-별도 명시 전까지 본 저장소의 코드는 작성자에게 저작권이 있습니다.
+[MIT](LICENSE) © 2026 baekchangjoon
