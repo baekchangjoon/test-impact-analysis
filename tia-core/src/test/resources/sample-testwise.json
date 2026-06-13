@@ -1,14 +1,20 @@
 {
-  "tests": [
-    {
-      "uniformPath": "io/tia/fixture/ApiSmokeTest/testPrice",
-      "result": "PASSED",
-      "paths": [
-        { "path": "io/tia/fixture", "files": [
-          { "fileName": "PricingService.java", "coveredLines": "6-8" },
-          { "fileName": "TextUtil.java", "coveredLines": "6" }
-        ]}
-      ]
-    }
-  ]
+  "tests" : [ {
+    "uniformPath" : "io/tia/fixture/ApiSmokeTest/testPrice",
+    "duration" : 0.056,
+    "result" : "PASSED",
+    "paths" : [ {
+      "path" : "io/tia/fixture",
+      "files" : [ {
+        "fileName" : "ApiController.java",
+        "coveredLines" : "24"
+      }, {
+        "fileName" : "PricingService.java",
+        "coveredLines" : "8-9"
+      }, {
+        "fileName" : "TextUtil.java",
+        "coveredLines" : "7"
+      } ]
+    } ]
+  } ]
 }
