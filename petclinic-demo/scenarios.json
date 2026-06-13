@@ -1,0 +1,335 @@
+[
+  {
+    "id": "A",
+    "title": "precise — change OwnerRestController:53 (a covered line)",
+    "kind": "modify",
+    "target": "src/main/java/org/springframework/samples/petclinic/owner/OwnerRestController.java",
+    "line": 53,
+    "diff": "@@ -53 +53 @@ public class OwnerRestController {\n-\t\treturn owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());\n+\t\treturn owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build()); // tia-probe",
+    "selected": [
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#getMissingOwnerReturns404"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#getOwnerById"
+      }
+    ],
+    "reasons": [],
+    "count": 3,
+    "total": 24,
+    "conservative": false
+  },
+  {
+    "id": "B",
+    "title": "module-scoped — change VetRestController:40",
+    "kind": "modify",
+    "target": "src/main/java/org/springframework/samples/petclinic/vet/VetRestController.java",
+    "line": 40,
+    "diff": "@@ -40 +40 @@ public class VetRestController {\n-\t\t\t\t\t.stream()\n+\t\t\t\t\t.stream() // tia-probe",
+    "selected": [
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "VetApiBlackBoxIT#filterVetsBySpecialty"
+      }
+    ],
+    "reasons": [],
+    "count": 1,
+    "total": 24,
+    "conservative": false
+  },
+  {
+    "id": "C",
+    "title": "security — change JwtUtil:56",
+    "kind": "modify",
+    "target": "src/main/java/org/springframework/samples/petclinic/security/JwtUtil.java",
+    "line": 56,
+    "diff": "@@ -56 +56 @@ public class JwtUtil {\n-\t\treturn Jwts.builder()\n+\t\treturn Jwts.builder() // tia-probe",
+    "selected": [
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "PetApiBlackBoxIT#getPetTypes"
+      }
+    ],
+    "reasons": [],
+    "count": 2,
+    "total": 24,
+    "conservative": false
+  },
+  {
+    "id": "D",
+    "title": "shared model fan-out — change Owner.java:94",
+    "kind": "modify",
+    "target": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+    "line": 94,
+    "diff": "@@ -94 +94 @@ public class Owner extends Person {\n-\t\treturn this.pets;\n+\t\treturn this.pets; // tia-probe",
+    "selected": [
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#createOwner"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#filterOwnersByLastName"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#getOwnerById"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#listAllOwners"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "OwnerApiBlackBoxIT#updateOwner"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "PetApiBlackBoxIT#createPet"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "PetApiBlackBoxIT#getMissingPetReturns404"
+      },
+      {
+        "confidence": "DETERMINISTIC",
+        "testId": "PetApiBlackBoxIT#getPetById"
+      }
+    ],
+    "reasons": [],
+    "count": 10,
+    "total": 24,
+    "conservative": false
+  },
+  {
+    "id": "E",
+    "title": "BLIND SPOT — change SecurityConfig:50 (no black-box test covers it)",
+    "kind": "modify",
+    "target": "src/main/java/org/springframework/samples/petclinic/security/SecurityConfig.java",
+    "line": 50,
+    "diff": "@@ -50 +50 @@ public class SecurityConfig {\n-\t\t\t\t.anyRequest()\n+\t\t\t\t.anyRequest() // tia-probe",
+    "selected": [],
+    "reasons": [],
+    "count": 0,
+    "total": 24,
+    "conservative": false
+  },
+  {
+    "id": "F",
+    "title": "non-code change (application.properties) → conservative select-all",
+    "kind": "noncode",
+    "target": "src/main/resources/application.properties",
+    "line": null,
+    "diff": "@@ -32,0 +33,2 @@ spring.main.allow-circular-references=true\n+\n+# tia-probe",
+    "selected": [
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#createOwner"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#filterOwnersByLastName"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#getMissingOwnerReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#getOwnerById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#listAllOwners"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#updateMissingOwnerReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#updateOwner"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#createPet"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getMissingPetReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getPetById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getPetTypes"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#filterVetsBySpecialty"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#getMissingVetReturnsEmptyBody"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#getVetById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#listAllVets"
+      }
+    ],
+    "reasons": [
+      "커버리지 매핑 불가 변경 [application.properties] → 보수적 전체 선택 (목적1) / triage UNKNOWN (목적2)"
+    ],
+    "count": 21,
+    "total": 24,
+    "conservative": true
+  },
+  {
+    "id": "G",
+    "title": "new .java file → conservative select-all (no prior coverage)",
+    "kind": "newfile",
+    "target": "src/main/java/org/springframework/samples/petclinic/owner/NewFeature.java",
+    "line": null,
+    "diff": "@@ -0,0 +1,2 @@\n+package org.springframework.samples.petclinic.owner;\n+public class NewFeature { public int answer() { return 42; } }",
+    "selected": [
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#createOwner"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#filterOwnersByLastName"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#getMissingOwnerReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#getOwnerById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#listAllOwners"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#updateMissingOwnerReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "OwnerApiBlackBoxIT#updateOwner"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#createPet"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getMissingPetReturns404"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getPetById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "PetApiBlackBoxIT#getPetTypes"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#filterVetsBySpecialty"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#getMissingVetReturnsEmptyBody"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#getVetById"
+      },
+      {
+        "confidence": "CONSERVATIVE",
+        "testId": "VetApiBlackBoxIT#listAllVets"
+      }
+    ],
+    "reasons": [
+      "신규 .java [org/springframework/samples/petclinic/owner/NewFeature.java] → 과거 커버리지 없음, 정적 폴백은 Phase 2 → 보수적 전체 선택"
+    ],
+    "count": 21,
+    "total": 24,
+    "conservative": true
+  }
+]
