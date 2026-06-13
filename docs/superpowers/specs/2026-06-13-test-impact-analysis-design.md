@@ -1,7 +1,7 @@
 # 테스트 영향 분석(TIA) 시스템 — 설계 문서
 
 - 작성일: 2026-06-13
-- 상태: 설계 확정 → 구현 계획(writing-plans) 진입 대기
+- 상태: 설계 확정 → 계획 → **Phase 0 구현 완료** (단위·E2E 33 + 실제 teamscale 에이전트/Docker 컨테이너 E2E + PIT mutation testing 모두 GREEN)
 - 환경: Spring Boot MSA, RestAssured 기반 out-of-process 블랙박스 테스트, GitHub Actions(셀프호스티드 러너), Kiro CLI / Claude Code
 - 선행 문서: `test-impact-analysis-브레인스토밍-정리.md`, `병렬 Per-Test 커버리지 에이전트 브레인스토밍 정리.md`
 

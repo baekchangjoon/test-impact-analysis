@@ -17,6 +17,13 @@ class ApiSmokeTest {
         String base = System.getProperty("fixture.baseUrl");
         assumeTrue(base != null, "fixture.baseUrl 미설정 — E2E 스크립트에서만 실행");
         RestAssured.baseURI = base;
+        // §5.1/D9: 모든 인입 요청에 test.id Baggage 주입. 직렬 모드에선 dump 라벨 보조, 병렬 에이전트(Baggage로
+        // per-test 컨텍스트 활성화) 드롭인 시 입력 와이어가 이미 연결됨(재작업 0). SUT 측 소비는 Phase 3/병렬 에이전트 몫.
+        RestAssured.filters((req, resp, ctx) -> {
+            String tid = TeamscaleTestwiseExtension.currentTestId();
+            if (tid != null) req.header("baggage", "test.id=" + tid);
+            return ctx.next(req, resp);
+        });
     }
 
     @Test void testGreeting() {                 // GreetingService + TextUtil 커버

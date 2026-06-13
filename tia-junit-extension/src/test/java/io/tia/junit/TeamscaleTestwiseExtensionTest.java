@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,7 +31,9 @@ class TeamscaleTestwiseExtensionTest {
         when(ctx.getExecutionException()).thenReturn(Optional.empty());
 
         ext.beforeEach(ctx);
+        assertEquals("io/tia/junit/SampleTest/testPrice", TeamscaleTestwiseExtension.currentTestId());  // §5.1 Baggage 소스
         ext.afterEach(ctx);
+        assertNull(TeamscaleTestwiseExtension.currentTestId(), "afterEach 후 정리되어야 함");
 
         assertEquals(List.of(
             "start:io/tia/junit/SampleTest/testPrice",

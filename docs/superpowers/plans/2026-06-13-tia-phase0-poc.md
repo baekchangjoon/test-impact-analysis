@@ -78,7 +78,7 @@ test-impact-analysis/
 `settings.gradle`:
 ```groovy
 rootProject.name = 'test-impact-analysis'
-include 'tia-core', 'tia-cli', 'tia-junit-extension', 'fixture-app'
+include 'tia-core', 'tia-cli', 'tia-junit-extension', 'fixture-app', 'e2e'
 ```
 
 - [ ] **Step 2: 루트 build.gradle 작성**
@@ -2013,16 +2013,23 @@ class ApiSmokeTest {
         String base = System.getProperty("fixture.baseUrl");
         assumeTrue(base != null, "fixture.baseUrl 미설정 — E2E 스크립트에서만 실행");
         RestAssured.baseURI = base;
+        // §5.1/D9: 모든 인입 요청에 test.id Baggage 주입 (병렬 에이전트 입력 와이어 사전 연결).
+        RestAssured.filters((req, resp, ctx) -> {
+            String tid = TeamscaleTestwiseExtension.currentTestId();
+            if (tid != null) req.header("baggage", "test.id=" + tid);
+            return ctx.next(req, resp);
+        });
     }
 
-    @Test void testGreeting() {                 // GreetingService + TextUtil 커버
-        given().when().get("/greeting/Alice").then().statusCode(200).body(containsString("alice"));
+    // 상태코드뿐 아니라 본문값까지 검증(200만 보지 않음).
+    @Test void testGreeting() {   // greet("Alice")="hello alice"
+        given().when().get("/greeting/Alice").then().statusCode(200).body(equalTo("hello alice"));
     }
-    @Test void testPrice() {                     // PricingService + TextUtil 커버
-        given().when().get("/price/ABC").then().statusCode(200);
+    @Test void testPrice() {       // priceOf("ABC")="abc"(3)*100=300
+        given().when().get("/price/ABC").then().statusCode(200).body(equalTo("300"));
     }
-    @Test void testFlaky() {                      // 의도적 플레이키
-        given().when().get("/flaky").then().statusCode(200);
+    @Test void testFlaky() {        // 의도적 플레이키 — 200일 때 body "ok" (~50% 500)
+        given().when().get("/flaky").then().statusCode(200).body(equalTo("ok"));
     }
 }
 ```
@@ -2235,3 +2242,9 @@ git add -A && git commit -m "chore: Phase 0 PoC 전체 빌드/E2E 그린" || ech
 **리뷰 반영 이력(2차):** A1 경로 정규화(Task 6B 신규), A2 `--release 8`을 main 한정, B1 uniformPath 원시 슬래시 통일, C1 스키마 divergence 메모, C2/C3 Phase 0 defer 명시, D1 measure-flaky 자체 기동, D2 직렬 실행 경고, D3 wrapper 부트스트랩 전제, D4 텍스트블록 취약성 경고, D5 junit-api compileOnly.
 
 **구현·실측 검증 이력(3차, 2026-06-13):** 계획대로 구현하여 전체 30 테스트 GREEN(스펙 수용 E2E 7 + 단위 23), 실제 teamscale 에이전트로 수집→convert→index→impact 전체 E2E도 GREEN. 실측으로 정정한 사항: ① 에이전트 레포 이전(`cqse/teamscale-java-profiler` v36.5.2, jar `.../lib/`), ② **B1 반전 — uniformPath는 원시 슬래시가 아니라 `%2F` 인코딩 필수**(raw=HTTP 500, %2F=204), ③ `out=`는 `.exec`+`test-execution.json` 산출 → `convert -t`로 testwise JSON 변환(출력 `-N` 접미사), ④ 실제 testwise JSON 형식이 `TestwiseReportParser`와 정확히 일치(캡처본을 리소스로 고정). 검증 상세는 `notes/agent-api.md`, 동작 스크립트는 `scripts/run-poc.sh`. 환경 주의: 일부 샌드박스에서 gradle 테스트 워커(포크 JVM) 아웃바운드 차단 → run-poc는 확장과 동일 신호를 curl로 보냄(구현 자체는 정상).
+
+**구현·문서 일치 검증 이력(4차, 2026-06-13):** 구현↔문서 일치 감사.
+- **§5.1/D9 `test.id` Baggage 미구현 → 원래 의도대로 구현**: 확장이 `TeamscaleTestwiseExtension.currentTestId()`(ThreadLocal)로 현재 test.id를 노출하고, `ApiSmokeTest`의 RestAssured 필터가 모든 인입 요청에 `baggage: test.id=<id>`를 주입. 직렬 모드는 dump 라벨 보조, 병렬 에이전트(Baggage로 per-test 컨텍스트 활성화) 드롭인 시 입력 와이어가 이미 연결(재작업 0). SUT 측 소비는 Phase 3/병렬 에이전트 몫.
+- **문서 동기화(구현이 정답, 문서가 stale했던 것)**: 스펙 상태 라인(구현 완료), settings의 `e2e` 모듈, Task 17 ApiSmokeTest 본문값 검증 스니펫.
+- **계획 외 추가 산출물(구현 중 도입, 문서화)**: `e2e` 모듈(`SpecAcceptanceE2ETest` — ATDD 스펙 수용 E2E, 출력 구조 파싱 정확 검증), `docker-compose.e2e.yml`+`scripts/docker-e2e-tester.sh`(컨테이너 간 out-of-process 블랙박스 E2E), tia-core/e2e의 PIT mutation testing 설정.
+- 전체 33 테스트 + Docker 컨테이너 E2E + PIT 모두 GREEN.
