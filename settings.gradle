@@ -1,0 +1,2 @@
+rootProject.name = 'test-impact-analysis'
+include 'tia-core', 'tia-cli', 'tia-junit-extension', 'e2e'

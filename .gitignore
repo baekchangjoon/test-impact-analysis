@@ -1,0 +1,8 @@
+.gradle/
+build/
+*.db
+tools/
+/poc-out/
+*.exec
+.idea/
+gradle.properties

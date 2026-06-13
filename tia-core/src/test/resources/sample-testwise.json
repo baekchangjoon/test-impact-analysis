@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "uniformPath": "io/tia/fixture/ApiSmokeTest/testPrice",
+      "result": "PASSED",
+      "paths": [
+        { "path": "io/tia/fixture", "files": [
+          { "fileName": "PricingService.java", "coveredLines": "6-8" },
+          { "fileName": "TextUtil.java", "coveredLines": "6" }
+        ]}
+      ]
+    }
+  ]
+}

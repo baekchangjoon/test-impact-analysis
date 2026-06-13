@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "uniformPath": "io/tia/fixture/ApiSmokeTest/testPrice",
+      "result": "PASSED",
+      "paths": [
+        { "path": "io/tia/fixture", "files": [
+          { "fileName": "GreetingService.java", "coveredLines": "6-7" }
+        ]}
+      ]
+    },
+    {
+      "uniformPath": "io/tia/fixture/ApiSmokeTest/testGreeting",
+      "result": "PASSED",
+      "paths": [
+        { "path": "io/tia/fixture", "files": [
+          { "fileName": "PricingService.java", "coveredLines": "6-8" }
+        ]}
+      ]
+    }
+  ]
+}

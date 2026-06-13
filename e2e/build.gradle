@@ -1,0 +1,8 @@
+// 스펙 수용(E2E) 테스트 모듈 — CLI를 end-to-end로 구동해 설계 명세 동작을 검증.
+dependencies {
+    testImplementation project(':tia-cli')
+    testImplementation project(':tia-core')
+    testImplementation 'info.picocli:picocli:4.7.6'
+    testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}

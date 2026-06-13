@@ -1,0 +1,10 @@
+plugins { id 'application' }
+dependencies {
+    implementation project(':tia-core')
+    implementation 'info.picocli:picocli:4.7.6'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'   // FlakyCommand가 직접 사용 (tia-core는 implementation이라 미전파)
+    annotationProcessor 'info.picocli:picocli-codegen:4.7.6'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'   // ImpactCommandTest가 직접 사용
+}
+application { mainClass = 'io.tia.cli.Main' }
