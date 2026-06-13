@@ -1,0 +1,19 @@
+// 멀티모듈 테스트 커버리지 집계. ./gradlew testCodeCoverageReport
+// tia-core 등 프로덕션 코드를 모든 테스트(단위 + e2e SpecAcceptanceE2ETest)가 커버한 결과를 합산.
+// fixture-app은 SUT 픽스처(제품 코드 아님)라 집계에서 제외.
+plugins { id 'jacoco-report-aggregation' }
+
+dependencies {
+    jacocoAggregation project(':tia-core')
+    jacocoAggregation project(':tia-cli')
+    jacocoAggregation project(':tia-junit-extension')
+    jacocoAggregation project(':e2e')
+}
+
+tasks.named('testCodeCoverageReport') {
+    reports {
+        xml.required = true     // CI 파싱용
+        html.required = true
+        csv.required = true
+    }
+}

@@ -1,8 +1,10 @@
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'jacoco'
     group = 'io.tia'
     version = '0.1.0'
     repositories { mavenCentral() }
     java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
+    jacoco { toolVersion = '0.8.12' }
     tasks.withType(Test).configureEach { useJUnitPlatform() }
 }

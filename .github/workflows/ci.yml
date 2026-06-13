@@ -1,0 +1,76 @@
+name: CI
+
+# PR 생성/갱신(→main) 및 main 푸시(머지) 시 전체 테스트 + 커버리지 측정.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests + Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache + wrapper 검증)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 전체 테스트 + 집계 커버리지
+        run: ./gradlew test testCodeCoverageReport --no-daemon
+
+      - name: 커버리지 요약 (Job Summary)
+        if: always()
+        run: python3 scripts/coverage-summary.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 커버리지 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/build/reports/jacoco/testCodeCoverageReport/
+
+      - name: 테스트 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/build/reports/tests/test/'
+
+  docker-e2e:
+    name: Container E2E (real teamscale agent)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: teamscale 에이전트 다운로드
+        run: bash scripts/download-agent.sh
+
+      - name: SUT/CLI 아티팩트 + 테스트 의존성 캐시 워밍
+        run: ./gradlew :fixture-app:bootJar :fixture-app:classes :fixture-app:testClasses :tia-cli:installDist --no-daemon
+
+      - name: 컨테이너 간 블랙박스 E2E (sut ↔ tester)
+        run: docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester
