@@ -1,0 +1,17 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.4'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation project(':tia-junit-extension')
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.rest-assured:rest-assured:5.5.0'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+}
+// -Dtia.* / -Dfixture.* 시스템 프로퍼티를 테스트 JVM으로 전달 (E2E 스크립트가 baseUrl/agent.url/run.out 주입).
+tasks.named('test') {
+    systemProperties System.getProperties().findAll {
+        it.key.toString().startsWith('tia.') || it.key.toString().startsWith('fixture.')
+    }
+}
