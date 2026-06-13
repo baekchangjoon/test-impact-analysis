@@ -24,4 +24,9 @@ class PathNormalizerTest {
         assertEquals("application.yml",
             PathNormalizer.canonical("module/src/main/resources/application.yml"));
     }
+
+    @Test
+    void stripsLeadingDotSlash() {   // 'git diff'가 './' 접두를 붙이는 경우 정규화
+        assertEquals("io/tia/fixture/Foo.java", PathNormalizer.canonical("./io/tia/fixture/Foo.java"));
+    }
 }

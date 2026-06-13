@@ -1,8 +1,23 @@
 // 스펙 수용(E2E) 테스트 모듈 — CLI를 end-to-end로 구동해 설계 명세 동작을 검증.
+plugins { id 'info.solidsoft.pitest' version '1.15.0' }   // E2E가 tia-core mutant를 죽이는지 측정
+
 dependencies {
     testImplementation project(':tia-cli')
     testImplementation project(':tia-core')
     testImplementation 'info.picocli:picocli:4.7.6'
     testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+// tia-core 클래스를 변형하고 E2E 테스트(io.tia.e2e.*)로 죽이는지 측정. ./gradlew :e2e:pitest
+evaluationDependsOn(':tia-core')
+pitest {
+    junit5PluginVersion = '1.2.1'
+    targetClasses = ['io.tia.core.*']
+    targetTests = ['io.tia.e2e.*']
+    additionalMutableCodePaths = files(project(':tia-core').sourceSets.main.output.classesDirs)
+    excludedClasses = ['io.tia.core.model.*']
+    outputFormats = ['HTML', 'XML']
+    timestampedReports = false
+    threads = 4
 }

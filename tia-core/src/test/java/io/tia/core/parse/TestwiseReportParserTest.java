@@ -2,6 +2,7 @@ package io.tia.core.parse;
 
 import io.tia.core.model.TestCoverage;
 import org.junit.jupiter.api.Test;
+import org.roaringbitmap.RoaringBitmap;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -40,5 +41,16 @@ class TestwiseReportParserTest {
             List<TestCoverage> tests = new TestwiseReportParser().parse(in);
             assertFalse(tests.isEmpty(), "캡처본에 최소 1개 테스트가 있어야 함");
         }
+    }
+
+    @Test
+    void mergesSameFileAcrossPaths() {   // 같은 파일이 여러 paths 항목으로 오면 라인을 OR 병합
+        String json = "{\"tests\":[{\"uniformPath\":\"T\",\"result\":\"PASSED\",\"paths\":["
+            + "{\"path\":\"io/tia/fixture\",\"files\":[{\"fileName\":\"A.java\",\"coveredLines\":\"1-2\"}]},"
+            + "{\"path\":\"io/tia/fixture\",\"files\":[{\"fileName\":\"A.java\",\"coveredLines\":\"5\"}]}]}]}";
+        InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+        List<TestCoverage> tests = new TestwiseReportParser().parse(in);
+        assertEquals(RoaringBitmap.bitmapOf(1, 2, 5),
+            tests.get(0).linesFor("io/tia/fixture/A.java"));   // {1,2} ∪ {5} 병합 검증
     }
 }

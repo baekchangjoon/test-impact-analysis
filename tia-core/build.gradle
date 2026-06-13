@@ -1,6 +1,18 @@
+plugins { id 'info.solidsoft.pitest' version '1.15.0' }   // PIT mutation testing (spring-mutation-tests/pitbox와 동일 엔진)
+
 dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
     implementation 'org.roaringbitmap:RoaringBitmap:1.2.1'
     implementation 'org.xerial:sqlite-jdbc:3.46.1.3'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+// 핵심 분석 로직(io.tia.core.*)을 변형해 단위 테스트가 잡아내는지 측정. ./gradlew :tia-core:pitest
+pitest {
+    junit5PluginVersion = '1.2.1'
+    targetClasses = ['io.tia.core.*']
+    excludedClasses = ['io.tia.core.model.*']   // 단순 record/enum(로직 없음)
+    outputFormats = ['HTML', 'XML']
+    timestampedReports = false
+    threads = 4
 }

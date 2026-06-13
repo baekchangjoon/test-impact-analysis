@@ -49,4 +49,19 @@ class GitDiffParserTest {
         assertTrue(d.additionOnlyJavaFiles().contains("io/tia/fixture/NewFeature.java"));
         assertFalse(d.changedOldLinesByJavaFile().containsKey("io/tia/fixture/NewFeature.java"));
     }
+
+    @Test
+    void deletedJavaFile_recordsOldLinesAsChanged() {   // +++ /dev/null 분기: 삭제 파일의 old 라인을 변경으로 기록
+        String diff =
+            "diff --git a/fixture-app/src/main/java/io/tia/fixture/Old.java b/fixture-app/src/main/java/io/tia/fixture/Old.java\n"
+            + "--- a/fixture-app/src/main/java/io/tia/fixture/Old.java\n"
+            + "+++ /dev/null\n"
+            + "@@ -1,2 +0,0 @@\n"
+            + "-package io.tia.fixture;\n"
+            + "-class Old {}\n";
+        DiffSummary d = new GitDiffParser().parse(diff);
+        RoaringBitmap changed = d.changedOldLinesByJavaFile().get("io/tia/fixture/Old.java");
+        assertNotNull(changed, "삭제 파일 경로가 --- 에서 잡혀야 함");
+        assertTrue(changed.contains(1) && changed.contains(2), "삭제된 old 라인 1,2가 변경으로 기록되어야 함");
+    }
 }
