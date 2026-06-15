@@ -1,6 +1,7 @@
 plugins {
     id 'application'
     id 'com.gradleup.shadow' version '8.3.5'   // 단일 실행 fat-jar (Gradle 8.10 호환 후속 포크)
+    id 'maven-publish'                          // D1: GitHub Packages 게시
 }
 dependencies {
     implementation project(':tia-core')
@@ -20,4 +21,41 @@ shadowJar {
     archiveBaseName = 'tia'
     archiveClassifier = ''
     archiveVersion = ''
+}
+
+// D1: 버전 단일 소스 — project.version 을 리소스로 생성, picocli VersionProvider 가 읽음
+//     (TiaCommand 의 하드코딩 version 제거 → `tia --version` 이 빌드 버전과 항상 일치)
+def versionDir = layout.buildDirectory.dir('generated/version')
+def generateVersion = tasks.register('generateVersionResource') {
+    def out = versionDir
+    def ver = project.version.toString()
+    inputs.property('version', ver)
+    outputs.dir(out)
+    doLast {
+        def f = out.get().file('tia-version.properties').asFile
+        f.parentFile.mkdirs()
+        f.text = "version=${ver}\n"
+    }
+}
+sourceSets.main.resources.srcDir versionDir
+tasks.named('processResources') { dependsOn generateVersion }
+
+// shadowJar(classifier 없는 tia.jar)가 thin jar 와 publication 에서 충돌하지 않도록 shadow 변형 제외
+//  → Maven 게시는 thin jar + POM 만, fat-jar 는 GitHub Release 자산으로 별도 첨부
+components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) { skip() }
+
+publishing {
+    publications {
+        maven(MavenPublication) { from components.java }   // thin jar + POM
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = 'https://maven.pkg.github.com/baekchangjoon/test-impact-analysis'
+            credentials {
+                username = System.getenv('GITHUB_ACTOR')
+                password = System.getenv('GITHUB_TOKEN')
+            }
+        }
+    }
 }

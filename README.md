@@ -97,14 +97,27 @@ DETERMINISTIC	io/tia/fixture/ApiSmokeTest/testPrice
 
 ---
 
-## CLI 사용법
+## 설치
 
-`run-poc.sh`가 내부에서 쓰는 CLI를 직접 호출할 수도 있습니다. 먼저 한 번 빌드하세요.
+세 가지 방법 중 하나:
 
 ```bash
+# (a) installDist 런처
 ./gradlew :tia-cli:installDist
-CLI=tia-cli/build/install/tia-cli/bin/tia-cli
-$CLI --help          # index | impact | flaky
+CLI=tia-cli/build/install/tia/bin/tia
+
+# (b) 단일 실행 fat-jar
+./gradlew :tia-cli:shadowJar
+java -jar tia-cli/build/libs/tia.jar --help     # → tia <ver>
+
+# (c) 라이브러리 의존(임베딩) — GitHub Packages (태그 릴리스 시 게시; .github/workflows/release.yml)
+#   io.tia:tia-core:<ver>  ·  io.tia:tia-cli:<ver>   (repo: maven.pkg.github.com/baekchangjoon/test-impact-analysis)
+```
+
+## CLI 사용법
+
+```bash
+$CLI --help          # convert | index | impact | flaky | report
 ```
 
 ### 1. `index` — testwise 리포트를 SQLite 스냅샷으로 인덱싱

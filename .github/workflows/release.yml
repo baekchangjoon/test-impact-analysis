@@ -1,0 +1,37 @@
+name: Release
+
+# 태그(v*) 푸시 시: 라이브러리/CLI를 GitHub Packages에 게시 + fat-jar(tia.jar)를 Release 자산으로 첨부.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write    # GitHub Release 생성 + 자산 업로드
+  packages: write    # GitHub Packages 게시
+
+jobs:
+  release:
+    name: Publish (GitHub Packages) + fat-jar asset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 게시 (tia-core · tia-cli → GitHub Packages) + fat-jar 빌드
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :tia-core:publish :tia-cli:publish :tia-cli:shadowJar --no-daemon
+
+      - name: GitHub Release + tia.jar 자산
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" tia-cli/build/libs/tia.jar --title "$GITHUB_REF_NAME" --generate-notes
