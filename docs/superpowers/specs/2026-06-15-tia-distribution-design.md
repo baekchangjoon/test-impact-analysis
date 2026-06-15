@@ -196,15 +196,15 @@ TIA는 에이전트를 **포함하지 않는다**. 지원 에이전트는 산출
 - 번들/다운로드 정책(이분화): **기본 = 번들하지 않음** + 플러그인/Action이 전용 configuration으로 GitHub Releases/Maven Central에서 **SHA-256 핀 검증** 후 다운로드. **데모/샌드박스 전용 태그에서만** 에이전트 jar를 `/opt/tia/agent.jar`로 동봉. 트레이드오프(업데이트 cadence·보안 스캔 범위·이미지 크기)를 함께 기록. 버전 핀 문서화.
 
 ### 5.4 라이선스·공급망
-- TIA 자체는 **MIT** 유지. 단 D0에서 의존하는 **JaCoCo 라이브러리(`org.jacoco.core`/`org.jacoco.report`)는 EPL-2.0**이며 fat-jar/이미지에 번들된다 → 배포물에 혼합 라이선스(MIT + EPL-2.0) 명시.
-- **산출물별 컴플라이언스 체크리스트(재현 가능 릴리스 §1.3.3):**
-  | 산출물 | 포함물 |
-  |---|---|
-  | GitHub Release 자산(fat-jar) | `NOTICE`(EPL-2.0 고지) + `LICENSES/` + SBOM 파일(CycloneDX) |
-  | Docker 이미지 | 레이어 내 `/licenses` + 이미지 SBOM 라벨 |
-  | Maven 아티팩트 | POM license 메타데이터 + 동봉 NOTICE |
-  | Agent Skill 폴더 | `SKILL.md`에 라이선스 표기(CLI 의존 고지) |
-- 의존성 취약점 스캔을 릴리스 게이트에 포함(실패 시 릴리스 차단).
+- TIA 자체는 **MIT** 유지. 번들 서드파티: Apache-2.0(Jackson·picocli·RoaringBitmap·SQLite JDBC)·BSD-3-Clause(ASM)·**EPL-2.0(JaCoCo core/report)**. 모두 MIT 양립, EPL은 파일 단위 약copyleft(비전염). 혼합 라이선스 명시 + EPL 소스 안내는 `THIRD-PARTY-NOTICES.md`.
+- **산출물별 컴플라이언스(구현 완료):**
+  | 산출물 | 포함물 | 상태 |
+  |---|---|---|
+  | fat-jar(`tia.jar`) | `META-INF/THIRD-PARTY-NOTICES.md` + `META-INF/licenses/{Apache-2.0,BSD-3-Clause-ASM,EPL-2.0}.txt` | ✅ shadowJar 동봉 |
+  | GitHub Release 자산 | `THIRD-PARTY-NOTICES.md` + `tia-licenses.zip`(전문) | ✅ release.yml |
+  | Docker 이미지 | `/licenses`(LICENSE+NOTICE+전문) + `image.licenses` 라벨 | ✅ Dockerfile |
+  | Maven 아티팩트 | POM(좌표·MIT) | ☑ 기본 |
+- (선택) SBOM(CycloneDX)·취약점 스캔 게이트는 후속.
 
 ---
 

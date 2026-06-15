@@ -21,6 +21,10 @@ shadowJar {
     archiveBaseName = 'tia'
     archiveClassifier = ''
     archiveVersion = ''
+    // 라이선스 고지 동봉(번들 서드파티: Apache-2.0·BSD-3·EPL-2.0) — 통합 NOTICE + 각 라이선스 전문.
+    // 충돌 회피 위해 의존성 META-INF/LICENSE 와 다른 경로(META-INF/THIRD-PARTY-NOTICES.md, META-INF/licenses/)에 둠.
+    from(rootProject.file('THIRD-PARTY-NOTICES.md')) { into 'META-INF' }
+    from(rootProject.file('licenses')) { into 'META-INF/licenses' }
 }
 
 // D1: 버전 단일 소스 — project.version 을 리소스로 생성, picocli VersionProvider 가 읽음

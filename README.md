@@ -240,3 +240,9 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 ## 라이선스
 
 [MIT](LICENSE) © 2026 baekchangjoon
+
+배포 산출물(fat-jar `tia.jar`·Docker 이미지·GitHub Packages)에는 서드파티가 번들된다 — Jackson·
+picocli·RoaringBitmap·SQLite JDBC(Apache-2.0), ASM(BSD-3-Clause), **JaCoCo core/report(EPL-2.0)**.
+모두 MIT와 양립하며 EPL-2.0은 파일 단위 약copyleft라 TIA 코드에 전염되지 않는다. 전체 고지·라이선스
+전문은 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) + [`licenses/`](licenses) 참조(fat-jar
+`META-INF/`·이미지 `/licenses`·릴리스 자산에도 동봉).

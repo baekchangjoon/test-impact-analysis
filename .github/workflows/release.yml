@@ -31,7 +31,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :tia-core:publish :tia-cli:publish :tia-cli:shadowJar --no-daemon
 
-      - name: GitHub Release + tia.jar 자산
+      - name: 라이선스 고지 번들(자산용)
+        run: |
+          mkdir -p dist
+          cp LICENSE THIRD-PARTY-NOTICES.md dist/
+          cp -r licenses dist/
+          (cd dist && zip -qr tia-licenses.zip LICENSE THIRD-PARTY-NOTICES.md licenses)
+
+      - name: GitHub Release + tia.jar + 라이선스 고지 자산
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" tia-cli/build/libs/tia.jar --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" tia-cli/build/libs/tia.jar dist/THIRD-PARTY-NOTICES.md dist/tia-licenses.zip --title "$GITHUB_REF_NAME" --generate-notes
