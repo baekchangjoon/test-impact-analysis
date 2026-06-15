@@ -56,7 +56,7 @@ kill $APP_PID 2>/dev/null || true; sleep 1   # .exec/test-execution flush 보장
 REPORT="$(find poc-out -name 'testwise*.json' -print -quit)"
 echo "report=$REPORT  (tests: $(grep -o uniformPath "$REPORT" | wc -l | tr -d ' '))"
 
-CLI="tia-cli/build/install/tia-cli/bin/tia-cli"
+CLI="tia-cli/build/install/tia/bin/tia"
 "$CLI" index --report "$REPORT" --repo fixture --commit "$COMMIT" --db poc-out/tia.db
 
 # 실제 git diff (PricingService 한 줄) → 라인 번호 정확, old-side = HEAD(=인덱싱 커밋)이라 라인 공간 정렬.
