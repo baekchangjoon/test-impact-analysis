@@ -53,6 +53,18 @@ final class TiaArgs {
         return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + inc;
     }
 
+    /** D3.1 (in-process model): -javaagent for the teamscale-jacoco-agent TESTWISE mode — contract
+     *  from scripts/run-poc.sh & docker-compose.e2e.yml: {@code mode=TESTWISE,includes=<p>,
+     *  http-server-port=<port>,class-dir=<classes>,out=<dir>}. The test JVM hosts the agent; the
+     *  tia-junit-extension signals per-test start/end to {@code http://localhost:<port>}
+     *  (system property {@code tia.agent.url}). out/<dir> → teamscale convert → testwise.json. */
+    static String teamscaleAgentJvmArg(String agentJarAbsPath, String outDir, int httpPort,
+                                       String classDir, String includes) {
+        String inc = notBlank(includes) ? ",includes=" + includes : "";
+        return "-javaagent:" + agentJarAbsPath + "=mode=TESTWISE" + inc
+                + ",http-server-port=" + httpPort + ",class-dir=" + classDir + ",out=" + outDir;
+    }
+
     private static boolean notBlank(String s) {
         return s != null && !s.isBlank();
     }
