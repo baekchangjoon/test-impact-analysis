@@ -14,7 +14,7 @@ services:
       - java
       - "-javaagent:/agent/teamscale-jacoco-agent.jar=mode=TESTWISE,includes=*io.tia.fixture.*,http-server-port=8123,class-dir=/classes,out=/cov"
       - -jar
-      - /libs/fixture-app-0.1.0.jar
+      - /libs/fixture-app.jar
       - --server.port=8080
     expose: ["8080", "8123"]
 

@@ -102,22 +102,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: SBOM(CycloneDX) 생성
-        run: ./gradlew cyclonedxBom --no-daemon
+        run: ./gradlew :tia-cli:cyclonedxBom --no-daemon
 
       - name: SBOM 업로드
         uses: actions/upload-artifact@v4
         with:
           name: sbom
-          path: build/reports/bom.json
+          path: tia-cli/build/reports/bom.json
 
       - name: 취약점 스캔 (Trivy SBOM, HIGH/CRITICAL 시 실패)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: sbom
-          scan-ref: build/reports/bom.json
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
+          "$RUNNER_TEMP/bin/trivy" sbom --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 tia-cli/build/reports/bom.json
 
   docker-e2e:
     name: Container E2E (real teamscale agent)
