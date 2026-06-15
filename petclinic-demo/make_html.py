@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Build a self-contained interactive HTML TIA report.
 
+DEPRECATED (D0): superseded by `tia report` (Java port; same template + identical
+__DATA__ model — verified canonically equal). Kept for reference/demo. The HTML template
+here is the source of truth that `tia report` embeds verbatim (tia-core resource
+report-template.html). `run-petclinic-tia.sh` now uses `tia report`.
+
 Inputs:
   testwise.json   — per-test coverage (tabs 1,2,5). REQUIRED.
   scenarios.json  — tia impact scenarios (tab 3). Optional — pass "-" to omit.
