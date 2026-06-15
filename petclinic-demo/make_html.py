@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Build a self-contained interactive HTML TIA report.
 
-Inputs (all already produced by the pipeline):
-  testwise.json   — per-test coverage (views 1,2,3,5)
-  scenarios.json  — tia impact scenarios (view 4)
-  flaky.json      — {"real": {...}, "synthetic": {...}}
-  prod_files.txt  — package-relative production .java paths (blind-spot denominator)
+Inputs:
+  testwise.json   — per-test coverage (tabs 1,2,5). REQUIRED.
+  scenarios.json  — tia impact scenarios (tab 3). Optional — pass "-" to omit.
+  flaky.json      — {"real": {...}, "synthetic": {...}} (tab 4). Optional — pass "-".
+  prod_files.txt  — package-relative production .java paths (tab 5 denominator). Optional — "-".
+
+Optional inputs degrade gracefully: an omitted ("-") or missing scenarios/flaky/prod file
+renders a "데이터 없음" placeholder for that tab instead of failing. So testwise.json alone
+("bring your own coverage") still yields tabs 1·2·5. See petclinic-demo/README.md.
 
 Usage:
-  make_html.py <testwise.json> <scenarios.json> <flaky.json> <prod_files.txt> \\
+  make_html.py <testwise.json> <scenarios.json|-> <flaky.json|-> <prod_files.txt|-> \\
                <commit> <out.html> [sut_name] [jacoco_rel_dir] [test_src_root]
 
 Optional trailing args (enable cross-links):
@@ -51,10 +55,28 @@ def first_line(covered):
     return 1
 
 
-tests = json.load(open(TESTWISE))["tests"]
-scenarios = json.load(open(SCEN))
-flaky = json.load(open(FLAKY))
-prod = [l.strip() for l in open(PROD) if l.strip().endswith(".java")]
+def optional(path):
+    """A positional input that may be absent: "-" (or "") or a missing file → None.
+
+    A non-"-" path that doesn't exist is almost certainly a typo, so warn (but still
+    degrade gracefully) rather than silently rendering an empty tab."""
+    if not path or path == "-":
+        return None
+    if not os.path.exists(path):
+        print(f"warning: input {path!r} not found — that tab will be empty", file=sys.stderr)
+        return None
+    return path
+
+
+with open(TESTWISE) as fh:
+    tests = json.load(fh)["tests"]
+# scenarios.json (tab 3) and flaky.json (tab 4) are optional: pass "-" to omit them
+# and the report renders a "데이터 없음" placeholder for that tab instead of crashing.
+# This is the "bring your own coverage" path — testwise.json alone yields tabs 1·2·5.
+scenarios = json.load(open(p)) if (p := optional(SCEN)) else []
+flaky = json.load(open(p)) if (p := optional(FLAKY)) else None
+prod = ([l.strip() for l in open(p) if l.strip().endswith(".java")]
+        if (p := optional(PROD)) else [])
 
 # map: simple test class name -> absolute .java path (for file:// open-local links)
 test_src = {}
@@ -287,7 +309,7 @@ function fmtDiff(s){return s.split('\\n').map(l=>{
  if(l.startsWith('@@'))return `<span class="gutter">${esc(l)}</span>`;
  if(l.startsWith('+'))return `<span class="add">${esc(l)}</span>`;
  if(l.startsWith('-'))return `<span class="del">${esc(l)}</span>`;return esc(l);}).join('\\n');}
-document.getElementById('scen').innerHTML=D.scenarios.map(s=>{
+document.getElementById('scen').innerHTML=D.scenarios.length? D.scenarios.map(s=>{
  const blind=s.id==='E', cons=s.conservative;
  const cls=blind?'card bad':(cons?'card warn':'card');
  const sel=s.selected.map(x=>{const c=CONF[x.confidence]||{cls:'t-con',label:x.confidence,title:x.confidence};
@@ -301,28 +323,32 @@ document.getElementById('scen').innerHTML=D.scenarios.map(s=>{
    <span>${esc(s.title)}</span></div>
    <div style="margin:8px 0">${redu}</div>
    <pre>${fmtDiff(s.diff)}</pre>
-   <table><tbody>${sel}</tbody></table>${reasons}</div>`;}).join('');
+   <table><tbody>${sel}</tbody></table>${reasons}</div>`;}).join('')
+ : '<div class="note">시나리오 데이터가 없다. <code>tia impact</code>로 diff 기반 선별을 만들어 <code>scenarios.json</code>으로 넘기면 이 탭이 채워진다(미지정 시 인자에 <code>-</code> 전달).</div>';
 
 // ---- 4. flaky ----
-const fr=D.flaky.real, fs=D.flaky.synthetic;
 const ratioTxt = o => `${(o.ratio*100).toFixed(1)}% (${o.flaky.length}/${o.total})`;
 const flakyChip = (t,color) => {const href=testSrcHref(t);const label='FLAKY · '+esc(t);
   return href?`<a class="chip" href="${esc(href)}" style="border-color:${color}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`
              :`<span class="chip" style="border-color:${color}">${label}</span>`;};
-document.getElementById('flaky').innerHTML=`
- <p class="hint">두 카드는 <b>서로 다른 것</b>을 측정한다 — 값이 같을 필요가 없다. 왼쪽은 실제 스위트가 흔들리는지(<b>실측</b>), 오른쪽은 그 <b>flaky 검출기 자체가 제대로 동작하는지</b>(<b>양성 대조군</b>).</p>
- <div class="flex">
-  <div class="card grow"><h2 style="margin-top:0">① 실측 (Real) · ${fr.runs}회 연속 실행 · parallelism 8</h2>
-   <p class="hint">동일한 블랙박스 스위트를 <b>${fr.runs}번</b> 실제로 돌려, 매번 결과(Pass/Fail)가 바뀌는 테스트가 있는지 측정. 동시성 테스트 포함.</p>
+const realCard = fr => `
+  <div class="card grow"><h2 style="margin-top:0">① 실측 (Real) · ${fr.runs}회 연속 실행</h2>
+   <p class="hint">동일한 스위트를 <b>${fr.runs}번</b> 실제로 돌려, 매번 결과(Pass/Fail)가 바뀌는 테스트가 있는지 측정.</p>
    <div class="big" style="color:var(--ok)">flaky ratio ${ratioTxt(fr)}</div>
-   <div class="hint">${fr.flaky.length}/${fr.total}개가 flaky → 24개 모두 ${fr.runs}번 내내 같은 결과 → 스위트는 <b>결정론적(deterministic)</b>.</div>
-   <div class="chips" style="margin-top:8px">${fr.flaky.map(t=>flakyChip(t,'var(--ok)')).join('')}</div></div>
+   <div class="hint">${fr.flaky.length}/${fr.total}개가 flaky${fr.flaky.length?'':' → 모두 같은 결과 → 스위트는 <b>결정론적(deterministic)</b>'}.</div>
+   <div class="chips" style="margin-top:8px">${fr.flaky.map(t=>flakyChip(t,'var(--ok)')).join('')}</div></div>`;
+const synthCard = fs => `
   <div class="card grow warn"><h2 style="margin-top:0">② 검출기 검증 (synthetic · 양성 대조군)</h2>
-   <p class="hint">실제 실행이 <b>아니다</b>. 한 테스트의 결과를 <b>일부러 Pass→Fail→Pass로 뒤집은</b> 가짜 실행 3개를 만들어 검출기에 넣는다. 검출기가 이 1개를 flaky로 <b>집어내면 정상</b>(조작했으니 당연히 잡혀야 한다).</p>
+   <p class="hint">실제 실행이 <b>아니다</b>. 한 테스트의 결과를 <b>일부러 Pass→Fail→Pass로 뒤집은</b> 가짜 실행으로 검출기를 시험한다. 검출기가 이를 flaky로 <b>집어내면 정상</b>.</p>
    <div class="big" style="color:var(--warn)">flaky ratio ${ratioTxt(fs)}</div>
-   <div class="hint">${fs.flaky.length}/${fs.total}개 검출 = 조작한 그 테스트를 정확히 잡아냄. → 왼쪽의 0%가 "검출기가 고장나서 0"이 아니라 <b>"진짜 안정적이라 0"</b>임을 보증한다.</div>
-   <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>flakyChip(t,'var(--warn)')).join('')}</div></div>
- </div>`;
+   <div class="hint">${fs.flaky.length}/${fs.total}개 검출 = 조작한 테스트를 정확히 잡아냄. → 왼쪽의 0%가 "검출기 고장으로 0"이 아니라 <b>"진짜 안정적이라 0"</b>임을 보증한다.</div>
+   <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>flakyChip(t,'var(--warn)')).join('')}</div></div>`;
+if(!D.flaky || !D.flaky.real){
+ document.getElementById('flaky').innerHTML='<div class="note">flaky 데이터가 없다. <code>tia flaky --runs run1.json,run2.json,…</code>(≥2회 실행) 결과를 <code>flaky.json</code>으로 넘기면 이 탭이 채워진다(미지정 시 인자에 <code>-</code> 전달).</div>';
+}else{
+ const intro=D.flaky.synthetic?'<p class="hint">두 카드는 <b>서로 다른 것</b>을 측정한다 — 값이 같을 필요가 없다. 왼쪽은 실제 스위트가 흔들리는지(<b>실측</b>), 오른쪽은 그 <b>flaky 검출기 자체가 제대로 동작하는지</b>(<b>양성 대조군</b>).</p>':'';
+ document.getElementById('flaky').innerHTML=`${intro}<div class="flex">${realCard(D.flaky.real)}${D.flaky.synthetic?synthCard(D.flaky.synthetic):''}</div>`;
+}
 
 // ---- 5. blind ----
 document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중 ${D.blind.length}개 파일이 어떤 블랙박스 테스트에도 닿지 않음 (${D.nCovered}개만 커버).`;
