@@ -84,4 +84,32 @@ class ImpactCommandTest {
             "impact", "--db", db.toString(), "--commit", "OTHER_COMMIT", "--strict");
         assertEquals(3, code);
     }
+
+    @Test
+    void runGitDiffProducesUnifiedDiffFromRepo(@TempDir Path repo) throws Exception {
+        git(repo, "init", "-q");
+        git(repo, "config", "user.email", "t@example.com");
+        git(repo, "config", "user.name", "tester");
+        Files.writeString(repo.resolve("A.java"), "class A { int x = 1; }\n");
+        git(repo, "add", "A.java");
+        git(repo, "commit", "-q", "-m", "init");
+        Files.writeString(repo.resolve("A.java"), "class A { int x = 2; }\n");  // unstaged change
+
+        String diff = ImpactCommand.runGitDiff("HEAD", repo.toFile());
+
+        assertTrue(diff.contains("A.java"), diff);
+        assertTrue(diff.contains("+class A { int x = 2; }"), diff);
+        assertTrue(diff.contains("@@"), "unified diff hunk header present: " + diff);
+    }
+
+    private static void git(Path dir, String... args) throws Exception {
+        String[] cmd = new String[args.length + 1];
+        cmd[0] = "git";
+        System.arraycopy(args, 0, cmd, 1, args.length);
+        Process p = new ProcessBuilder(cmd).directory(dir.toFile()).redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes());
+        if (p.waitFor() != 0) {
+            throw new IllegalStateException("git " + String.join(" ", args) + " failed: " + out);
+        }
+    }
 }

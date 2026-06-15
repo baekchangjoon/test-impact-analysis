@@ -21,7 +21,7 @@ with open(paths[0], newline="", encoding="utf-8") as fh:
             total[m][0] += int(row[f"{m}_MISSED"])
             total[m][1] += int(row[f"{m}_COVERED"])
 
-print("## 📊 테스트 커버리지 (집계: tia-core / tia-cli / tia-junit-extension)\n")
+print("## 📊 테스트 커버리지 (집계: tia-core · tia-cli · tia-junit-extension · tia-gradle-plugin · e2e — coverage/build.gradle)\n")
 print("| 지표 | 커버 | 전체 | % |")
 print("|------|------|------|----|")
 for m in metrics:

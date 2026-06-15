@@ -44,7 +44,7 @@ public class ImpactCommand implements Callable<Integer> {
         String base = (gitRef == null) ? commit : gitRef;
         String diffText = (diffFile != null)
             ? Files.readString(diffFile)
-            : runGitDiff(base);
+            : runGitDiff(base, null);   // null = 현재 작업 디렉터리(레포)에서 git diff
 
         DiffSummary diff = new GitDiffParser().parse(diffText);
         ImpactResult r = new ImpactAnalyzer().select(snap, diff);
@@ -57,8 +57,11 @@ public class ImpactCommand implements Callable<Integer> {
         return 0;
     }
 
-    private static String runGitDiff(String ref) throws Exception {
-        Process p = new ProcessBuilder("git", "diff", "--unified=0", ref).redirectErrorStream(true).start();
+    /** two-dot `git diff --unified=0 <ref>` — old-side가 인덱싱 베이스라인 라인공간과 정렬(§6.2).
+     *  workingDir=null 이면 현재 디렉터리(레포). 테스트는 임시 repo를 지정한다. */
+    static String runGitDiff(String ref, java.io.File workingDir) throws Exception {
+        Process p = new ProcessBuilder("git", "diff", "--unified=0", ref)
+            .directory(workingDir).redirectErrorStream(true).start();
         String out = new String(p.getInputStream().readAllBytes());
         p.waitFor();
         return out;
