@@ -1,0 +1,18 @@
+plugins {
+    id 'java-gradle-plugin'
+}
+
+gradlePlugin {
+    plugins {
+        tia {
+            id = 'io.tia'
+            implementationClass = 'io.tia.gradle.TiaPlugin'
+            displayName = 'TIA — Test-Impact-Analysis'
+            description = 'Wires tia convert/index/impact/report into the build and attaches the per-test coverage agent.'
+        }
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
