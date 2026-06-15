@@ -170,8 +170,9 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 <section id="s-reverse"><h2>2 · Reverse selection index</h2>
 <p class="hint">"이 파일을 고치면 이 테스트들을 돌려라." fan-in이 높을수록 변경 위험 큰 핫스팟. 행 클릭 시 테스트 목록 펼침 — 테스트명을 클릭하면 로컬 테스트 소스 파일을 연다. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
 <input class="search" id="rvq" placeholder="filter files…"><div id="rvtbl"></div></section>
-<section id="s-impact"><h2>3 · tia impact — 실제 diff 기반 테스트 선별</h2>
-<p class="hint">인덱싱된 커밋(HEAD) 대비 변경분(diff)을 커버리지와 교차하여, <b>꼭 돌려야 하는 테스트만</b> 골라낸다.</p>
+<section id="s-impact"><h2>3 · tia impact — diff 기반 테스트 선별</h2>
+<p class="hint"><b>베이스라인 커밋</b>(<code id="impact-base"></code> — <code>tia index</code>로 per-test 커버리지를 DB에 저장한 시점)에 <b>적용하려는 변경(diff)</b>을 비교하고, 그 변경 라인을 커버하는 테스트만 골라낸다.</p>
+<div class="note">📌 <b>무엇과 무엇을 비교하나?</b> <code>origin HEAD ↔ local HEAD</code> 같은 고정 비교가 <b>아니다</b>. 베이스라인은 위의 인덱싱된 커밋이고, 비교 대상은 "지금 평가하려는 diff" — 커밋 전 워킹트리, 브랜치 vs 베이스라인, PR diff 등 무엇이든 된다. <b>이 데모에서는</b> 시나리오마다 대상 파일/라인에 <code>// tia-probe</code> 한 줄을 넣은 <b>합성 diff</b>를 베이스라인과 비교했다(perturb-and-revert — 워킹트리 변경은 즉시 복원). <b>선별 규칙:</b> diff의 변경 라인 ∩ 각 테스트의 커버 라인 ≠ ∅ → 🎯 정밀 선별.</div>
 <div class="legend"><h3>용어 설명</h3><dl>
 <dt><span class="tag t-det">🎯 정밀 선별</span></dt><dd><b>DETERMINISTIC</b> — 변경된 코드 라인이 이 테스트의 커버리지 기록에 <b>정확히 포함</b>되어 있음. 즉 이 변경이 직접 실행하는 테스트.</dd>
 <dt><span class="tag t-con">🛡 보수적 선별</span></dt><dd><b>CONSERVATIVE</b> — 변경을 특정 커버리지에 <b>매핑할 수 없어</b>(새 파일·설정 변경 등) 누락을 막기 위해 <b>안전하게 후보로 포함</b>. fallback.</dd>
@@ -192,6 +193,7 @@ const D = __DATA__;
 document.getElementById('sut').textContent = D.sut;
 document.title = `TIA report · ${D.sut} blackbox`;
 document.getElementById('commit').textContent = D.commit.slice(0,12);
+document.getElementById('impact-base').textContent = D.commit.slice(0,12);
 const pct = n => Math.round((1 - n/D.nTests)*100);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 document.getElementById('kpis').innerHTML = [
@@ -308,15 +310,17 @@ const flakyChip = (t,color) => {const href=testSrcHref(t);const label='FLAKY · 
   return href?`<a class="chip" href="${esc(href)}" style="border-color:${color}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`
              :`<span class="chip" style="border-color:${color}">${label}</span>`;};
 document.getElementById('flaky').innerHTML=`
+ <p class="hint">두 카드는 <b>서로 다른 것</b>을 측정한다 — 값이 같을 필요가 없다. 왼쪽은 실제 스위트가 흔들리는지(<b>실측</b>), 오른쪽은 그 <b>flaky 검출기 자체가 제대로 동작하는지</b>(<b>양성 대조군</b>).</p>
  <div class="flex">
-  <div class="card grow"><h2 style="margin-top:0">Real · ${fr.runs} consecutive runs (parallelism 8)</h2>
-   <p class="hint">실측. 동시성 테스트 포함.</p>
+  <div class="card grow"><h2 style="margin-top:0">① 실측 (Real) · ${fr.runs}회 연속 실행 · parallelism 8</h2>
+   <p class="hint">동일한 블랙박스 스위트를 <b>${fr.runs}번</b> 실제로 돌려, 매번 결과(Pass/Fail)가 바뀌는 테스트가 있는지 측정. 동시성 테스트 포함.</p>
    <div class="big" style="color:var(--ok)">flaky ratio ${ratioTxt(fr)}</div>
-   <div class="hint">${fr.flaky.length}/${fr.total} flaky → 스위트는 결정론적(deterministic)</div>
+   <div class="hint">${fr.flaky.length}/${fr.total}개가 flaky → 24개 모두 ${fr.runs}번 내내 같은 결과 → 스위트는 <b>결정론적(deterministic)</b>.</div>
    <div class="chips" style="margin-top:8px">${fr.flaky.map(t=>flakyChip(t,'var(--ok)')).join('')}</div></div>
-  <div class="card grow warn"><h2 style="margin-top:0">Mechanism check · synthetic (labeled)</h2>
-   <p class="hint">한 테스트를 P/F/P로 강제 → 탐지 동작 검증.</p>
+  <div class="card grow warn"><h2 style="margin-top:0">② 검출기 검증 (synthetic · 양성 대조군)</h2>
+   <p class="hint">실제 실행이 <b>아니다</b>. 한 테스트의 결과를 <b>일부러 Pass→Fail→Pass로 뒤집은</b> 가짜 실행 3개를 만들어 검출기에 넣는다. 검출기가 이 1개를 flaky로 <b>집어내면 정상</b>(조작했으니 당연히 잡혀야 한다).</p>
    <div class="big" style="color:var(--warn)">flaky ratio ${ratioTxt(fs)}</div>
+   <div class="hint">${fs.flaky.length}/${fs.total}개 검출 = 조작한 그 테스트를 정확히 잡아냄. → 왼쪽의 0%가 "검출기가 고장나서 0"이 아니라 <b>"진짜 안정적이라 0"</b>임을 보증한다.</div>
    <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>flakyChip(t,'var(--warn)')).join('')}</div></div>
  </div>`;
 
