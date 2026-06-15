@@ -86,6 +86,39 @@ jobs:
       - name: 스킬 스모크(wrapper end-to-end + 사전점검 실패)
         run: TIA_JAR="$PWD/tia-cli/build/libs/tia.jar" bash skills/tia/test/skill-smoke.sh
 
+  security:
+    name: SBOM + 취약점 스캔 (게이트)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: SBOM(CycloneDX) 생성
+        run: ./gradlew cyclonedxBom --no-daemon
+
+      - name: SBOM 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: build/reports/bom.json
+
+      - name: 취약점 스캔 (Trivy SBOM, HIGH/CRITICAL 시 실패)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: sbom
+          scan-ref: build/reports/bom.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
   docker-e2e:
     name: Container E2E (real teamscale agent)
     runs-on: ubuntu-latest

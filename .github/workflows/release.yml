@@ -25,20 +25,33 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # ── 릴리스 게이트: SBOM 생성 → 취약점 스캔(HIGH/CRITICAL 시 실패 → 게시 차단) ──
+      - name: SBOM(CycloneDX) 생성
+        run: ./gradlew cyclonedxBom --no-daemon
+
+      - name: 취약점 스캔 (Trivy SBOM 게이트)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: sbom
+          scan-ref: build/reports/bom.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
       - name: 게시 (tia-core · tia-cli → GitHub Packages) + fat-jar 빌드
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :tia-core:publish :tia-cli:publish :tia-cli:shadowJar --no-daemon
 
-      - name: 라이선스 고지 번들(자산용)
+      - name: 라이선스 고지 + SBOM 번들(자산용)
         run: |
           mkdir -p dist
-          cp LICENSE THIRD-PARTY-NOTICES.md dist/
+          cp LICENSE THIRD-PARTY-NOTICES.md build/reports/bom.json dist/
           cp -r licenses dist/
           (cd dist && zip -qr tia-licenses.zip LICENSE THIRD-PARTY-NOTICES.md licenses)
 
-      - name: GitHub Release + tia.jar + 라이선스 고지 자산
+      - name: GitHub Release + tia.jar + 고지 + SBOM 자산
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" tia-cli/build/libs/tia.jar dist/THIRD-PARTY-NOTICES.md dist/tia-licenses.zip --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" tia-cli/build/libs/tia.jar dist/THIRD-PARTY-NOTICES.md dist/tia-licenses.zip dist/bom.json --title "$GITHUB_REF_NAME" --generate-notes

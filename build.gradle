@@ -1,10 +1,29 @@
+plugins {
+    id 'org.cyclonedx.bom' version '1.10.0'   // SBOM(CycloneDX) 생성: ./gradlew cyclonedxBom → build/reports/bom.json
+}
+
+// 루트 프로젝트 좌표(SBOM 메타데이터용). 버전 단일 소스(아래 subprojects 와 동일).
+group = 'io.tia'
+version = '0.1.1'
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'jacoco'
     group = 'io.tia'
-    version = '0.1.0'   // D1: 릴리스 버전 단일 소스 — Maven 좌표·POM·`tia --version`(generateVersionResource)을 모두 구동. 릴리스 태그도 이 값과 일치시킬 것.
+    version = '0.1.1'   // D1: 릴리스 버전 단일 소스 — Maven 좌표·POM·`tia --version`(generateVersionResource)을 모두 구동. 릴리스 태그도 이 값과 일치시킬 것.
     repositories { mavenCentral() }
     java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
     jacoco { toolVersion = '0.8.12' }
     tasks.withType(Test).configureEach { useJUnitPlatform() }
+}
+
+// 전 모듈 런타임 의존성을 한 SBOM으로 집계. Trivy/OSV가 이 bom.json을 스캔(릴리스 게이트).
+cyclonedxBom {
+    projectType = 'application'
+    outputFormat = 'json'
+    outputName = 'bom'
+    schemaVersion = '1.5'
+    includeConfigs = ['runtimeClasspath']
+    skipConfigs = ['testCompileClasspath', 'testRuntimeClasspath']
+    destination = file('build/reports')
 }

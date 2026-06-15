@@ -204,7 +204,7 @@ TIA는 에이전트를 **포함하지 않는다**. 지원 에이전트는 산출
   | GitHub Release 자산 | `THIRD-PARTY-NOTICES.md` + `tia-licenses.zip`(전문) | ✅ release.yml |
   | Docker 이미지 | `/licenses`(LICENSE+NOTICE+전문) + `image.licenses` 라벨 | ✅ Dockerfile |
   | Maven 아티팩트 | POM(좌표·MIT) | ☑ 기본 |
-- (선택) SBOM(CycloneDX)·취약점 스캔 게이트는 후속.
+- **SBOM·취약점 스캔(구현 완료):** CycloneDX Gradle 플러그인 → `./gradlew cyclonedxBom`(build/reports/bom.json). CI `security` 잡 + release 게이트가 **Trivy로 SBOM 스캔(HIGH/CRITICAL 시 실패→릴리스 차단, ignore-unfixed)**. SBOM은 릴리스 자산으로 첨부.
 
 ---
 
