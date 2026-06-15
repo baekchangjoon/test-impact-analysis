@@ -7,12 +7,27 @@ Inputs (all already produced by the pipeline):
   flaky.json      — {"real": {...}, "synthetic": {...}}
   prod_files.txt  — package-relative production .java paths (blind-spot denominator)
 
-Usage: make_html.py <testwise.json> <scenarios.json> <flaky.json> <prod_files.txt> <commit> <out.html>
+Usage:
+  make_html.py <testwise.json> <scenarios.json> <flaky.json> <prod_files.txt> \\
+               <commit> <out.html> [sut_name] [jacoco_rel_dir] [test_src_root]
+
+Optional trailing args (enable cross-links):
+  sut_name       — name of the System Under Test, used in the title/header
+                   (default: "spring-petclinic")
+  jacoco_rel_dir — path (relative to out.html, or absolute) of the JaCoCo HTML
+                   report root. Per-test file chips link into it. (default: "jacoco")
+  test_src_root  — root of the SUT test sources. Test ids are linked to the local
+                   .java file (file:// link) so the test can be opened. (default: none)
 """
 import json
+import os
 import sys
 
-TESTWISE, SCEN, FLAKY, PROD, COMMIT, OUT = sys.argv[1:7]
+args = sys.argv[1:]
+TESTWISE, SCEN, FLAKY, PROD, COMMIT, OUT = args[:6]
+SUT = args[6] if len(args) > 6 and args[6] else "spring-petclinic"
+JACOCO = args[7] if len(args) > 7 and args[7] else "jacoco"
+TEST_SRC = args[8] if len(args) > 8 else ""
 PREFIX = "org/springframework/samples/petclinic/"
 
 
@@ -29,34 +44,64 @@ def lines_of(covered):
     return n
 
 
+def first_line(covered):
+    for part in covered.split(","):
+        if part:
+            return int(part.split("-")[0])
+    return 1
+
+
 tests = json.load(open(TESTWISE))["tests"]
 scenarios = json.load(open(SCEN))
 flaky = json.load(open(FLAKY))
 prod = [l.strip() for l in open(PROD) if l.strip().endswith(".java")]
 
+# map: simple test class name -> absolute .java path (for file:// open-local links)
+test_src = {}
+if TEST_SRC and os.path.isdir(TEST_SRC):
+    for root, _, fnames in os.walk(TEST_SRC):
+        for fn in fnames:
+            if fn.endswith(".java"):
+                test_src.setdefault(fn[:-5], os.path.abspath(os.path.join(root, fn)))
+
 per_test, rev = {}, {}
 for t in tests:
-    fm = {}
+    files = []
     for p in t["paths"]:
+        pkg = p["path"]                      # slash form: org/.../owner
         for f in p["files"]:
-            full = f"{p['path']}/{f['fileName']}"
-            fm[full] = lines_of(f["coveredLines"])
+            fname = f["fileName"]
+            full = f"{pkg}/{fname}"
+            n = lines_of(f["coveredLines"])
+            files.append({"full": full, "pkg": pkg.replace("/", "."),
+                          "file": fname, "n": n, "line": first_line(f["coveredLines"])})
             rev.setdefault(full, []).append(t["uniformPath"])
-    per_test[t["uniformPath"]] = {"result": t["result"], "files": fm,
-                                  "total": sum(fm.values()), "nfiles": len(fm)}
+    files.sort(key=lambda x: -x["n"])
+    per_test[t["uniformPath"]] = {"result": t["result"], "files": files,
+                                  "total": sum(x["n"] for x in files), "nfiles": len(files)}
 
 covered_files = set(rev)
 blind = sorted(p for p in prod if p not in covered_files)
 short = lambda f: f.replace(PREFIX, "…/")
 
+
+def rev_entry(full, ts):
+    pkg, _, fname = full.rpartition("/")
+    return {"file": short(full), "pkg": pkg.replace("/", "."), "fname": fname,
+            "n": len(ts), "tests": sorted(ts)}
+
+
 model = {
     "commit": COMMIT,
+    "sut": SUT,
+    "jacoco": JACOCO,
+    "testSrc": test_src,
     "perTest": [{"id": tid, "result": d["result"], "nfiles": d["nfiles"],
                  "lines": d["total"],
-                 "files": [{"f": short(f), "n": n} for f, n in
-                           sorted(d["files"].items(), key=lambda kv: -kv[1])]}
+                 "files": [{"f": short(x["full"]), "file": x["file"], "pkg": x["pkg"],
+                            "n": x["n"], "line": x["line"]} for x in d["files"]]}
                 for tid, d in sorted(per_test.items())],
-    "reverse": [{"file": short(f), "n": len(ts), "tests": sorted(ts)}
+    "reverse": [rev_entry(f, ts)
                 for f, ts in sorted(rev.items(), key=lambda kv: (-len(kv[1]), kv[0]))],
     "scenarios": scenarios,
     "flaky": flaky,
@@ -68,7 +113,7 @@ model = {
 
 HTML = """<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TIA report · spring-petclinic blackbox</title>
+<title>TIA report · __SUT__ blackbox</title>
 <style>
 :root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--mut:#8b949e;
 --acc:#58a6ff;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--det:#388bfd;--con:#d29922}
@@ -86,17 +131,23 @@ main{padding:24px 28px;max-width:1180px}section{display:none}section.on{display:
 h2{font-size:16px;margin:0 0 6px}.hint{color:var(--mut);margin:0 0 16px;font-size:13px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel)}
+th{color:var(--mut);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel);white-space:nowrap}
+th:hover{color:var(--fg)}th .arr{color:var(--acc);font-size:11px}
 tr:hover td{background:#1c2230}.num{text-align:right;font-variant-numeric:tabular-nums}
 code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
 .t-det{background:rgba(56,139,253,.15);color:var(--det)}.t-con{background:rgba(210,153,34,.15);color:var(--con)}
 .t-pass{background:rgba(63,185,80,.13);color:var(--ok)}.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;min-width:60px}
 .bar i{display:block;height:100%;background:var(--acc)}
-.chips{display:flex;flex-wrap:wrap;gap:4px}.chip{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}.chip{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--fg);text-decoration:none;display:inline-block}
+a.chip{cursor:pointer}a.chip:hover{border-color:var(--acc);color:var(--acc)}a.chip b{color:inherit}
 input.search{width:100%;max-width:340px;padding:8px 10px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;margin-bottom:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
 .card.warn{border-color:var(--warn)}.card.bad{border-color:var(--bad)}
+.legend{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:18px}
+.legend h3{margin:0 0 10px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.legend dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:8px 14px;align-items:baseline}
+.legend dt{margin:0;white-space:nowrap}.legend dd{margin:0;color:var(--mut);font-size:13px}
 .scen-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .big{font-size:22px;font-weight:700}.redu{color:var(--ok);font-weight:700}
 pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px;margin:10px 0}
@@ -107,32 +158,42 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 .foot{color:var(--mut);font-size:12px;padding:20px 28px;border-top:1px solid var(--line)}
 </style></head><body>
 <header>
-<h1>Test-Impact-Analysis · spring-petclinic black-box suite</h1>
+<h1>Test-Impact-Analysis · <span id="sut"></span> black-box suite</h1>
 <div class="sub">indexed commit <code id="commit"></code> · out-of-process REST Assured + parallel-per-test-coverage agent · all data is real end-to-end measurement</div>
 <div class="kpis" id="kpis"></div>
 </header>
 <nav id="nav"></nav>
 <main>
 <section id="s-pertest"><h2>1 · Per-test impact range</h2>
-<p class="hint">각 블랙박스 테스트가 실제로 실행한 프로덕션 파일/라인. 행 클릭 시 파일 목록 펼침. 헤더 클릭 정렬.</p>
+<p class="hint">각 블랙박스 테스트가 실제로 실행한 프로덕션 파일/라인. 행 클릭 시 파일 목록 펼침 — 파일명을 클릭하면 JaCoCo 커버리지 HTML의 해당 라인으로 이동. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
 <input class="search" id="ptq" placeholder="filter tests…"><div id="pttbl"></div></section>
 <section id="s-reverse"><h2>2 · Reverse selection index</h2>
-<p class="hint">"이 파일을 고치면 이 테스트들을 돌려라." fan-in이 높을수록 변경 위험 큰 핫스팟.</p>
+<p class="hint">"이 파일을 고치면 이 테스트들을 돌려라." fan-in이 높을수록 변경 위험 큰 핫스팟. 행 클릭 시 테스트 목록 펼침 — 테스트명을 클릭하면 로컬 테스트 소스 파일을 연다. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
 <input class="search" id="rvq" placeholder="filter files…"><div id="rvtbl"></div></section>
-<section id="s-impact"><h2>3 · tia impact — 실제 diff 기반 선별</h2>
-<p class="hint">인덱싱 HEAD에 대한 diff → 커버리지와 교차. DETERMINISTIC=정밀 히트, CONSERVATIVE=매핑 불가 시 안전 전체선택.</p>
+<section id="s-impact"><h2>3 · tia impact — 실제 diff 기반 테스트 선별</h2>
+<p class="hint">인덱싱된 커밋(HEAD) 대비 변경분(diff)을 커버리지와 교차하여, <b>꼭 돌려야 하는 테스트만</b> 골라낸다.</p>
+<div class="legend"><h3>용어 설명</h3><dl>
+<dt><span class="tag t-det">🎯 정밀 선별</span></dt><dd><b>DETERMINISTIC</b> — 변경된 코드 라인이 이 테스트의 커버리지 기록에 <b>정확히 포함</b>되어 있음. 즉 이 변경이 직접 실행하는 테스트.</dd>
+<dt><span class="tag t-con">🛡 보수적 선별</span></dt><dd><b>CONSERVATIVE</b> — 변경을 특정 커버리지에 <b>매핑할 수 없어</b>(새 파일·설정 변경 등) 누락을 막기 위해 <b>안전하게 후보로 포함</b>. fallback.</dd>
+<dt><span class="redu">▼ NN% 절감</span></dt><dd>전체 테스트 중 <b>실행을 건너뛸 수 있는 비율</b>. 높을수록 TIA 이득이 큼.</dd>
+<dt><span class="redu">🛡 safe fallback</span></dt><dd>보수적 선별로 전체를 포함한 경우 — 절감은 없지만 누락 위험 0.</dd>
+<dt><span class="del">⚠ 0개 선별</span></dt><dd>어떤 테스트도 닿지 않는 파일을 변경 → 선별 0개. <b>커버리지 사각지대</b>(탭 5 참조).</dd>
+</dl></div>
 <div id="scen"></div></section>
 <section id="s-flaky"><h2>4 · Flaky detection</h2><div id="flaky"></div></section>
 <section id="s-blind"><h2>5 · Coverage blind spots</h2>
 <p class="hint" id="blindhint"></p><div class="blindgrid" id="blindlist"></div>
-<div class="note"><b>왜 중요한가:</b> 블랙박스 스위트는 <code>/api/**</code> REST 계층을 지키지만, 여기 나열된 파일들은 어떤 테스트도 건드리지 않는다. 이 파일들에 대한 <em>수정</em>은 DETERMINISTIC 선별에서 0개를 반환한다(시나리오 E 참조).</div>
+<div class="note"><b>왜 중요한가:</b> 블랙박스 스위트는 <code>/api/**</code> REST 계층을 지키지만, 여기 나열된 파일들은 어떤 테스트도 건드리지 않는다. 이 파일들에 대한 <em>수정</em>은 정밀 선별(DETERMINISTIC)에서 0개를 반환한다(시나리오 E 참조).</div>
 </section>
 </main>
 <div class="foot">Generated by <code>make_html.py</code> from <code>testwise.json · scenarios.json · flaky.json</code>. Reproduce with <code>run-petclinic-tia.sh</code>.</div>
 <script>
 const D = __DATA__;
+document.getElementById('sut').textContent = D.sut;
+document.title = `TIA report · ${D.sut} blackbox`;
 document.getElementById('commit').textContent = D.commit.slice(0,12);
 const pct = n => Math.round((1 - n/D.nTests)*100);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 document.getElementById('kpis').innerHTML = [
  ['black-box tests', D.nTests],['prod files covered', D.nCovered],
  ['prod files blind', D.blind.length],['(test·line) points', D.totalPoints]
@@ -148,53 +209,93 @@ TABS.forEach(([id,l],i)=>{const b=document.createElement('button');b.textContent
  if(i===0)b.classList.add('on');nav.appendChild(b);});
 document.getElementById('s-pertest').classList.add('on');
 
+// ---- cross-link helpers ----
+const jacocoHref = f => `${D.jacoco}/${f.pkg}/${f.file}.html#L${f.line}`;
+const testSrcHref = id => {const cls=id.split('#')[0];const p=D.testSrc[cls];return p?('file://'+p):null;};
+
+// ---- generic sortable header (asc/desc toggle on every column) ----
+function headHtml(cols, sort){
+ // arrow on the clicked column only (sort.i); "reach"/"fan-in" share a key with
+ // Lines/#tests so keying off sort.k alone would mark two columns at once.
+ return '<tr>'+cols.map((c,i)=>{
+  const arr = sort.i===i ? `<span class="arr">${sort.dir>0?'▲':'▼'}</span>` : '';
+  return `<th class="${c.num?'num':''}" data-k="${c.k}" data-i="${i}">${c.label} ${arr}</th>`;
+ }).join('')+'</tr>';
+}
+function applySort(arr, sort){
+ const k=sort.k, dir=sort.dir;
+ arr.sort((a,b)=>{const av=a[k],bv=b[k];
+  if(typeof av==='string'||typeof bv==='string') return dir*String(av).localeCompare(String(bv));
+  return dir*(av-bv);});
+}
+function wireSort(sel, cols, sort, data, redraw){
+ document.querySelectorAll(sel+' th[data-k]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k, i=+th.dataset.i;
+  if(sort.i===i) sort.dir*=-1;                                   // same column → flip direction
+  else {sort.k=k; sort.i=i; sort.dir = (typeof data[0][k]==='string')?1:-1;} // new column → sensible default
+  applySort(data, sort); redraw();
+ });
+}
+
 // ---- 1. per-test ----
+const PT_COLS=[{k:'id',label:'Test'},{k:'result',label:'Result'},
+ {k:'nfiles',label:'Files',num:1},{k:'lines',label:'Lines',num:1},{k:'lines',label:'reach'}];
+const ptSort={k:'id',i:0,dir:1};
 function ptRows(q){q=(q||'').toLowerCase();
+ const max=Math.max(...D.perTest.map(x=>x.lines),1);
  return D.perTest.filter(t=>t.id.toLowerCase().includes(q)).map(t=>{
-  const max=Math.max(...D.perTest.map(x=>x.lines),1);
-  const files=t.files.map(f=>`<span class="chip">${f.f.split('/').pop()} <b>${f.n}</b></span>`).join('');
-  return `<tr class="exp"><td><code>${t.id}</code></td>
-   <td><span class="tag t-pass">${t.result}</span></td>
+  const files=t.files.map(f=>`<a class="chip" href="${esc(jacocoHref(f))}" target="_blank" title="JaCoCo 커버리지: ${esc(f.file)}:${f.line}"><span class="mono">${esc(f.file)}</span> <b>${f.n}</b></a>`).join('');
+  return `<tr class="exp"><td><code>${esc(t.id)}</code></td>
+   <td><span class="tag t-pass">${esc(t.result)}</span></td>
    <td class="num">${t.nfiles}</td>
    <td class="num">${t.lines}</td>
    <td><div class="bar"><i style="width:${100*t.lines/max}%"></i></div></td></tr>
    <tr class="det" style="display:none"><td colspan="5"><div class="chips">${files||'<span class=gutter>no attributed coverage</span>'}</div></td></tr>`;
  }).join('')}
-function drawPt(q){document.getElementById('pttbl').innerHTML=
- `<table><thead><tr><th data-k="id">Test</th><th>Result</th><th class="num" data-k="nfiles">Files</th><th class="num" data-k="lines">Lines</th><th>reach</th></tr></thead><tbody>${ptRows(q)}</tbody></table>`;
- document.querySelectorAll('#pttbl tr.exp').forEach(r=>r.onclick=()=>{const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
- document.querySelectorAll('#pttbl th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
-  D.perTest.sort((a,b)=>typeof a[k]==='string'?a[k].localeCompare(b[k]):b[k]-a[k]);drawPt(document.getElementById('ptq').value);});}
-document.getElementById('ptq').oninput=e=>drawPt(e.target.value);drawPt('');
+function drawPt(){
+ document.getElementById('pttbl').innerHTML=
+ `<table><thead>${headHtml(PT_COLS,ptSort)}</thead><tbody>${ptRows(document.getElementById('ptq').value)}</tbody></table>`;
+ document.querySelectorAll('#pttbl tr.exp').forEach(r=>r.onclick=e=>{
+  if(e.target.closest('a'))return; const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
+ wireSort('#pttbl', PT_COLS, ptSort, D.perTest, drawPt);}
+document.getElementById('ptq').oninput=drawPt;drawPt();
 
 // ---- 2. reverse ----
-function drawRv(q){q=(q||'').toLowerCase();
- const rows=D.reverse.filter(r=>r.file.toLowerCase().includes(q)).map(r=>{
-  const max=Math.max(...D.reverse.map(x=>x.n),1);
-  const chips=r.tests.map(t=>`<span class="chip">${t.replace('BlackBoxIT','')}</span>`).join('');
-  return `<tr class="exp"><td><code>${r.file}</code></td><td class="num">${r.n}</td>
+const RV_COLS=[{k:'file',label:'Production file'},{k:'n',label:'#tests',num:1},{k:'n',label:'fan-in'}];
+const rvSort={k:'n',i:1,dir:-1};
+function rvRows(q){q=(q||'').toLowerCase();
+ const max=Math.max(...D.reverse.map(x=>x.n),1);
+ return D.reverse.filter(r=>r.file.toLowerCase().includes(q)).map(r=>{
+  const chips=r.tests.map(t=>{const href=testSrcHref(t);const label=esc(t.replace('BlackBoxIT',''));
+   return href?`<a class="chip" href="${esc(href)}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`:`<span class="chip">${label}</span>`;}).join('');
+  return `<tr class="exp"><td><code>${esc(r.file)}</code></td><td class="num">${r.n}</td>
    <td><div class="bar"><i style="width:${100*r.n/max}%"></i></div></td></tr>
-   <tr class="det" style="display:none"><td colspan="3"><div class="chips">${chips}</div></td></tr>`;}).join('');
- document.getElementById('rvtbl').innerHTML=`<table><thead><tr><th>Production file</th><th class="num">#tests</th><th>fan-in</th></tr></thead><tbody>${rows}</tbody></table>`;
- document.querySelectorAll('#rvtbl tr.exp').forEach(r=>r.onclick=()=>{const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});}
-document.getElementById('rvq').oninput=e=>drawRv(e.target.value);drawRv('');
+   <tr class="det" style="display:none"><td colspan="3"><div class="chips">${chips}</div></td></tr>`;}).join('');}
+function drawRv(){
+ document.getElementById('rvtbl').innerHTML=`<table><thead>${headHtml(RV_COLS,rvSort)}</thead><tbody>${rvRows(document.getElementById('rvq').value)}</tbody></table>`;
+ document.querySelectorAll('#rvtbl tr.exp').forEach(r=>r.onclick=e=>{
+  if(e.target.closest('a'))return; const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
+ wireSort('#rvtbl', RV_COLS, rvSort, D.reverse, drawRv);}
+document.getElementById('rvq').oninput=drawRv;drawRv();
 
 // ---- 3. scenarios ----
+const CONF={DETERMINISTIC:{cls:'t-det',label:'🎯 정밀 선별',title:'DETERMINISTIC: 변경 라인이 이 테스트의 커버리지에 정확히 매핑됨'},
+            CONSERVATIVE:{cls:'t-con',label:'🛡 보수적 선별',title:'CONSERVATIVE: 매핑 불가 → 안전하게 후보 포함'}};
 function fmtDiff(s){return s.split('\\n').map(l=>{
  if(l.startsWith('@@'))return `<span class="gutter">${esc(l)}</span>`;
  if(l.startsWith('+'))return `<span class="add">${esc(l)}</span>`;
  if(l.startsWith('-'))return `<span class="del">${esc(l)}</span>`;return esc(l);}).join('\\n');}
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 document.getElementById('scen').innerHTML=D.scenarios.map(s=>{
  const blind=s.id==='E', cons=s.conservative;
  const cls=blind?'card bad':(cons?'card warn':'card');
- const sel=s.selected.map(x=>`<tr><td><span class="tag ${x.confidence==='DETERMINISTIC'?'t-det':'t-con'}">${x.confidence}</span></td><td><code>${x.testId}</code></td></tr>`).join('')
+ const sel=s.selected.map(x=>{const c=CONF[x.confidence]||{cls:'t-con',label:x.confidence,title:x.confidence};
+   return `<tr><td><span class="tag ${c.cls}" title="${esc(c.title)}">${c.label}</span></td><td><code>${esc(x.testId)}</code></td></tr>`;}).join('')
    ||'<tr><td colspan=2 class="gutter">— 선별된 테스트 없음 —</td></tr>';
- const redu = cons? '<span class="redu">safe fallback</span>'
-   : (blind? '<span class="del">0 selected ⚠ blind spot</span>'
-   : `<span class="redu">${pct(s.count)}% reduction</span> · ${s.count}/${s.total} selected`);
+ const redu = cons? `<span class="redu">🛡 safe fallback</span> — 전체 ${s.total}개를 보수적으로 포함 (절감 없음, 누락 위험 0)`
+   : (blind? '<span class="del">⚠ 0개 선별 — 커버리지 사각지대 (탭 5 참조)</span>'
+   : `<span class="redu">▼ ${pct(s.count)}% 절감</span> · 전체 ${s.total}개 중 ${s.count}개만 실행`);
  const reasons=s.reasons.map(r=>`<div class="note">${esc(r)}</div>`).join('');
- return `<div class="${cls}"><div class="scen-head"><span class="big">${s.id}</span>
+ return `<div class="${cls}"><div class="scen-head"><span class="big">${esc(s.id)}</span>
    <span>${esc(s.title)}</span></div>
    <div style="margin:8px 0">${redu}</div>
    <pre>${fmtDiff(s.diff)}</pre>
@@ -202,23 +303,29 @@ document.getElementById('scen').innerHTML=D.scenarios.map(s=>{
 
 // ---- 4. flaky ----
 const fr=D.flaky.real, fs=D.flaky.synthetic;
+const ratioTxt = o => `${(o.ratio*100).toFixed(1)}% (${o.flaky.length}/${o.total})`;
+const flakyChip = (t,color) => {const href=testSrcHref(t);const label='FLAKY · '+esc(t);
+  return href?`<a class="chip" href="${esc(href)}" style="border-color:${color}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`
+             :`<span class="chip" style="border-color:${color}">${label}</span>`;};
 document.getElementById('flaky').innerHTML=`
  <div class="flex">
   <div class="card grow"><h2 style="margin-top:0">Real · ${fr.runs} consecutive runs (parallelism 8)</h2>
    <p class="hint">실측. 동시성 테스트 포함.</p>
-   <div class="big" style="color:var(--ok)">flaky ratio ${fr.ratio.toFixed(3)}</div>
-   <div class="hint">${fr.flaky.length}/${fr.total} flaky → 스위트는 결정론적(deterministic)</div></div>
+   <div class="big" style="color:var(--ok)">flaky ratio ${ratioTxt(fr)}</div>
+   <div class="hint">${fr.flaky.length}/${fr.total} flaky → 스위트는 결정론적(deterministic)</div>
+   <div class="chips" style="margin-top:8px">${fr.flaky.map(t=>flakyChip(t,'var(--ok)')).join('')}</div></div>
   <div class="card grow warn"><h2 style="margin-top:0">Mechanism check · synthetic (labeled)</h2>
    <p class="hint">한 테스트를 P/F/P로 강제 → 탐지 동작 검증.</p>
-   <div class="big" style="color:var(--warn)">flaky ratio ${fs.ratio.toFixed(3)}</div>
-   <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>`<span class="chip" style="border-color:var(--warn)">FLAKY · ${t}</span>`).join('')}</div></div>
+   <div class="big" style="color:var(--warn)">flaky ratio ${ratioTxt(fs)}</div>
+   <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>flakyChip(t,'var(--warn)')).join('')}</div></div>
  </div>`;
 
 // ---- 5. blind ----
 document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중 ${D.blind.length}개 파일이 어떤 블랙박스 테스트에도 닿지 않음 (${D.nCovered}개만 커버).`;
-document.getElementById('blindlist').innerHTML=D.blind.map(f=>`<div><code>${f}</code></div>`).join('');
+document.getElementById('blindlist').innerHTML=D.blind.map(f=>`<div><code>${esc(f)}</code></div>`).join('');
 </script></body></html>"""
 
-open(OUT, "w").write(HTML.replace("__DATA__", json.dumps(model, ensure_ascii=False)))
+out_html = HTML.replace("__SUT__", SUT).replace("__DATA__", json.dumps(model, ensure_ascii=False))
+open(OUT, "w").write(out_html)
 print(f"wrote {OUT}  ({len(model['perTest'])} tests, {len(model['scenarios'])} scenarios, "
       f"{len(model['blind'])} blind spots)")
