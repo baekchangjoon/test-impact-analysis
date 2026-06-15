@@ -122,9 +122,20 @@ syn=parse(sys.argv[2])
 json.dump({"real":real,"synthetic":syn},open(sys.argv[3],"w"))
 PY
 
-# ---- 7. HTML report --------------------------------------------------------
-say "7/7  build interactive HTML report"
+# ---- 7. JaCoCo HTML report (cross-link target for the per-test tab) --------
+say "7/8  merge per-test .exec → JaCoCo HTML report (cross-link target)"
+SUT="$(basename "$PETC")"
+"$JDK21/bin/java" -jar "$JACOCO_CLI" merge "$COV"/*.exec --destfile "$DEMO/merged.exec"
+rm -rf "$DEMO/jacoco"
+"$JDK21/bin/java" -jar "$JACOCO_CLI" report "$DEMO/merged.exec" \
+  --classfiles "$CLASSES" --sourcefiles "$PETC/src/main/java" \
+  --html "$DEMO/jacoco" --name "$SUT"
+
+# ---- 8. HTML report --------------------------------------------------------
+say "8/8  build interactive HTML report"
+# extra args: SUT name (title) · jacoco dir (relative to report.html) · test-source root (file:// open-local links)
 python3 "$DEMO/make_html.py" "$DEMO/testwise.json" "$DEMO/scenarios.json" "$DEMO/flaky.json" \
-  "$DEMO/prod-files.txt" "$COMMIT" "$DEMO/report.html"
+  "$DEMO/prod-files.txt" "$COMMIT" "$DEMO/report.html" \
+  "$SUT" "jacoco" "$PETC/src/test/java"
 
 echo; echo "✅ done. open: $DEMO/report.html"

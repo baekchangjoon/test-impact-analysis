@@ -7,3 +7,5 @@ tools/
 .idea/
 gradle.properties
 .remember/
+petclinic-demo/jacoco/
+.gstack/
