@@ -15,6 +15,8 @@
 
 이 저장소는 위 설계의 **Phase 0 PoC** 구현체입니다. 단일 레포에서 [teamscale-jacoco-agent](https://github.com/cqse/teamscale-java-profiler)로 per-test 커버리지를 수집 → `git diff`와 교차 → **영향 테스트 선별** + **플레이키 비율 측정**까지 동작합니다.
 
+> 🚀 **내 프로젝트에 적용하려면 → [GETTING-STARTED.md](GETTING-STARTED.md).** 바로 동작을 보려면 아래 [빠른 시작](#빠른-시작-1줄-e2e). 배포 형태(CLI·Docker·Gradle 플러그인·Agent Skill)는 [사용 형태](#사용-형태-배포-표면).
+
 ---
 
 ## 아이디어
@@ -120,6 +122,15 @@ java -jar tia-cli/build/libs/tia.jar --help     # → tia <ver>
 $CLI --help          # convert | index | impact | flaky | report
 ```
 
+### 0. `convert` — per-test `.exec` → testwise JSON (jacoco core, subprocess 없음)
+
+```bash
+$CLI convert --exec-dir <execDir> --classes build/classes/java/main --out testwise.json
+```
+
+parallel-per-test-coverage(out-of-process) 수집물을 인덱싱 입력으로 변환. teamscale(in-process)은
+자체 `convert`로 testwise JSON을 만든다(→ [GETTING-STARTED](GETTING-STARTED.md) §1).
+
 ### 1. `index` — testwise 리포트를 SQLite 스냅샷으로 인덱싱
 
 ```bash
@@ -168,6 +179,31 @@ $CLI flaky --runs poc-out/flaky/run-1.json,poc-out/flaky/run-2.json,...
 ```bash
 bash scripts/measure-flaky.sh 10   # 10회 실행 후 tia flaky 집계
 ```
+
+### 4. `report` — 인터랙티브 HTML 리포트
+
+```bash
+$CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-name my-service
+# 옵셔널 입력(scenarios/flaky/prod-files)은 '-' 로 생략 → 해당 탭 graceful
+```
+
+5개 탭(per-test 영향범위·역인덱스·tia impact·flaky·blind spots) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
+
+---
+
+## 사용 형태 (배포 표면)
+
+엔진 하나(`tia-core`/CLI)를 여러 표면으로 감싼다 — 자세한 적용은 **[GETTING-STARTED.md](GETTING-STARTED.md)**.
+
+| 표면 | 용도 | 문서 |
+|---|---|---|
+| **CLI**(fat-jar·installDist·GitHub Packages) | 로컬·스크립트·CI | 위 [CLI 사용법](#cli-사용법) |
+| **Docker 이미지 + GitHub Action** | PR에서 영향 테스트 선별 | [docker/README](docker/README.md) |
+| **Gradle 플러그인** `io.tia` | 빌드 네이티브(`tiaIndex/Impact/Report` + 에이전트 와이어링) | [tia-gradle-plugin](tia-gradle-plugin/README.md) |
+| **Agent Skill** | Claude·Kiro·Antigravity 등에서 자연어 질의 | [skills/tia/SKILL.md](skills/tia/SKILL.md) |
+| **HTML 리포트** | 영향범위·flaky·blind spot 시각화 | [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) |
+
+릴리스(`v*` 태그)마다 GitHub Packages 게시 + GitHub Release(`tia.jar`·SBOM·고지) + ghcr 이미지가 자동 배포된다.
 
 ---
 
@@ -234,8 +270,13 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 
 ## 문서
 
-- [설계 문서 (Phase 0~3 전체)](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md)
-- [Phase 0 PoC 구현 계획 (20 태스크, TDD)](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)
+- **[GETTING-STARTED.md](GETTING-STARTED.md)** — 내 프로젝트에 적용하는 5분 길잡이(수집→index→impact→report)
+- [petclinic-demo](petclinic-demo/README.md) — 실제 블랙박스 스위트 end-to-end 예제 + "이미 커버리지가 있을 때"
+- [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) — HTML 리포트 5개 탭 해설
+- [배포 형태] [Gradle 플러그인](tia-gradle-plugin/README.md) · [Docker/Action](docker/README.md) · [Agent Skill](skills/tia/SKILL.md)
+- [TIA 시스템 설계 (Phase 0~3)](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md) · [배포 설계 (D0~D4)](docs/superpowers/specs/2026-06-15-tia-distribution-design.md)
+- [Phase 0 PoC 구현 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)
+- [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) — 번들 서드파티 라이선스 고지
 
 ## 라이선스
 
