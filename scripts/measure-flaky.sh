@@ -23,6 +23,6 @@ for i in $(seq 1 "$N"); do
     -Dtia.run.out="$PWD/$OUT" || true
   RUNS="${RUNS:+$RUNS,}$OUT"
 done
-CLI="tia-cli/build/install/tia-cli/bin/tia-cli"
+CLI="tia-cli/build/install/tia/bin/tia"
 echo "===== tia flaky (N=$N) ====="
 "$CLI" flaky --runs "$RUNS"
