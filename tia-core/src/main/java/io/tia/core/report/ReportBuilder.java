@@ -46,9 +46,9 @@ public final class ReportBuilder {
     /** The model injected as {@code const D = …} — mirrors make_html.py's `model` dict. */
     public Map<String, Object> buildModel(Inputs in) throws IOException {
         JsonNode root = om.readTree(in.testwise().toFile());
-        Object scenarios = exists(in.scenarios()) ? om.readValue(in.scenarios().toFile(), Object.class) : new ArrayList<>();
-        Object flaky = exists(in.flaky()) ? om.readValue(in.flaky().toFile(), Object.class) : null;
-        List<String> prod = readProd(in.prodFiles());
+        Object scenarios = usable(in.scenarios(), "scenarios") ? om.readValue(in.scenarios().toFile(), Object.class) : new ArrayList<>();
+        Object flaky = usable(in.flaky(), "flaky") ? om.readValue(in.flaky().toFile(), Object.class) : null;
+        List<String> prod = usable(in.prodFiles(), "prod-files") ? readProd(in.prodFiles()) : new ArrayList<>();
         Map<String, String> testSrc = walkTestSrc(in.testSrcRoot());
 
         // per-test + reverse index (rev: full path → list of test ids, insertion order)
@@ -134,8 +134,16 @@ public final class ReportBuilder {
 
     private record PerTest(String result, List<FileCov> files, int total) {}
 
-    private static boolean exists(Path p) {
-        return p != null && Files.exists(p);
+    /** A non-null path that doesn't exist is almost certainly a typo → warn but degrade. */
+    private static boolean usable(Path p, String label) {
+        if (p == null) {
+            return false;
+        }
+        if (!Files.exists(p)) {
+            System.err.println("warning: input " + p + " not found — '" + label + "' tab will be empty");
+            return false;
+        }
+        return true;
     }
 
     private String shorten(String full, String prefixStrip) {
@@ -172,9 +180,6 @@ public final class ReportBuilder {
     }
 
     private List<String> readProd(Path prodFiles) throws IOException {
-        if (!exists(prodFiles)) {
-            return new ArrayList<>();
-        }
         List<String> out = new ArrayList<>();
         for (String line : Files.readAllLines(prodFiles)) {
             String s = line.strip();

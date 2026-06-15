@@ -28,6 +28,7 @@ import java.util.stream.Stream;
  * + {@link Analyzer}) directly — no {@code jacococli} subprocess, no {@code ~/.m2} lookup.
  */
 public final class TestwiseConverter {
+    private final ObjectMapper mapper = new ObjectMapper();
 
     /** Convert every {@code *.exec} under {@code execDir} (sorted by name) into a testwise document. */
     public Testwise.Document convert(Path execDir, Path classesDir) throws IOException {
@@ -79,7 +80,7 @@ public final class TestwiseConverter {
     /** Write a testwise document to {@code out} as JSON (indented, matching the demo bridge). */
     public void write(Testwise.Document doc, Path out) {
         try {
-            new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(out.toFile(), doc);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(out.toFile(), doc);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -91,7 +92,7 @@ public final class TestwiseConverter {
         Path companion = Path.of(s.substring(0, s.length() - ".exec".length()) + ".json");
         if (Files.exists(companion)) {
             try {
-                Object r = new ObjectMapper().readValue(companion.toFile(), java.util.Map.class).get("result");
+                Object r = mapper.readValue(companion.toFile(), java.util.Map.class).get("result");
                 if (r != null) {
                     return r.toString().toUpperCase();
                 }
