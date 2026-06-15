@@ -329,7 +329,12 @@ document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중
 document.getElementById('blindlist').innerHTML=D.blind.map(f=>`<div><code>${esc(f)}</code></div>`).join('');
 </script></body></html>"""
 
-out_html = HTML.replace("__SUT__", SUT).replace("__DATA__", json.dumps(model, ensure_ascii=False))
+# Inject the model as a JS literal. Escape "</" so a value containing "</script>"
+# (or any "</…") cannot close the inline <script> early — a JSON-island XSS/breakout.
+# "<\/" is a valid JS string escape and round-trips through JSON.parse unchanged.
+data_js = json.dumps(model, ensure_ascii=False).replace("</", "<\\/")
+sut_title = SUT.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+out_html = HTML.replace("__SUT__", sut_title).replace("__DATA__", data_js)
 open(OUT, "w").write(out_html)
 print(f"wrote {OUT}  ({len(model['perTest'])} tests, {len(model['scenarios'])} scenarios, "
       f"{len(model['blind'])} blind spots)")

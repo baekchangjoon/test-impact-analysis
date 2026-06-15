@@ -51,6 +51,20 @@ jobs:
           name: test-results
           path: '**/build/reports/tests/test/'
 
+  report-generator:
+    name: Report generator (make_html.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: make_html.py 회귀 테스트
+        run: python3 -m unittest discover -s petclinic-demo -p 'test_*.py' -v
+
   docker-e2e:
     name: Container E2E (real teamscale agent)
     runs-on: ubuntu-latest
