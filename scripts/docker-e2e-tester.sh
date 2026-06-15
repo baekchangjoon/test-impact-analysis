@@ -28,7 +28,7 @@ REPORT="$(find poc-out -name 'tw*.json' -print -quit)"
 echo "report=$REPORT (tests: $(grep -o uniformPath "$REPORT" | wc -l | tr -d ' '))"
 
 echo "=== 3) tia index + impact (실제 수집 기반) ==="
-CLI=tia-cli/build/install/tia-cli/bin/tia-cli
+CLI=tia-cli/build/install/tia/bin/tia   # D0: launcher 개명(tia-cli→tia)
 JAVA_HOME=/opt/java/openjdk "$CLI" index --report "$REPORT" --repo fixture --commit DOCKER --db poc-out/tia.db
 cat > poc-out/p.diff <<'EOF'
 diff --git a/fixture-app/src/main/java/io/tia/fixture/PricingService.java b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
