@@ -28,22 +28,31 @@ tia {
 
 CLI는 `tiaCli` configuration에서 해소된다(기본 `io.tia:tia-cli:<project.version>`, `tia.cliCoordinates`로 오버라이드). PATH의 `tia`에 의존하지 않는다.
 
-## D3.1 커버리지 에이전트 와이어링
+## D3.1 커버리지 에이전트 와이어링 — 두 모델
 
-per-test 커버리지 수집을 위해 `Test` 태스크에 parallel-per-test-coverage 에이전트를 주입한다. 실제 에이전트 계약(`io.pjacoco.agent.AgentOptions` 확인)에 맞춰 `destfile=<dir>`(per-test `.exec` 출력 디렉터리)·`port=<ctrl>`(control 엔드포인트)·`includes=...`를 넘기고, per-test 드라이버를 `-Dpjacoco.control-url`로 그 포트에 연결한다. **control 포트는 고정**(ephemeral 아님)이라 `attachCoverageAgent`가 `maxParallelForks = 1`로 고정해 fork 간 포트 충돌을 막는다.
+per-test 수집은 에이전트마다 모델이 다르다. 플러그인은 각각의 attach 헬퍼를 제공한다(에이전트 jar은 §5.3대로 사용자 제공).
+
+### (a) out-of-process — parallel-per-test-coverage (baggage)
+SUT 프로세스(HTTP 블랙박스)에 에이전트를 붙이고 요청의 test.id baggage로 per-test 귀속. 계약은 `io.pjacoco.agent.AgentOptions` 확인값: `destfile=<dir>`·`port=<ctrl 고정>`·`includes`. 고정 포트라 `maxParallelForks=1`.
 
 ```gradle
-tasks.named('test', Test) { t ->
-    io.tia.gradle.TiaPlugin.attachCoverageAgent(
-        t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
-}
+io.tia.gradle.TiaPlugin.attachCoverageAgent(
+    t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
 // 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json
 ```
 
-에이전트 jar 자체는 TIA가 번들하지 않는다(§5.3) — 사용자가 제공(parallel-per-test-coverage / teamscale).
+### (b) in-process — teamscale-jacoco-agent (TESTWISE)
+**Test JVM**에 에이전트를 붙이고, `tia-junit-extension`(테스트 클래스패스)이 테스트마다 `/test/start|end`를 HTTP control 서버로 신호. 계약(scripts/run-poc.sh·docker-compose.e2e.yml): `mode=TESTWISE,includes=<p>,http-server-port=<port>,class-dir=<classes>,out=<dir>`. 플러그인이 `tia.agent.url` 시스템 프로퍼티 + `maxParallelForks=1`을 설정.
+
+```gradle
+io.tia.gradle.TiaPlugin.attachTeamscaleAgent(
+    t, file('tools/teamscale/.../teamscale-jacoco-agent.jar'),
+    file("$buildDir/tia/cov"), 8123, file("$buildDir/classes/java/main"), 'io.acme.*')
+// 테스트는 @ExtendWith(io.tia.junit.TeamscaleTestwiseExtension); 이후 teamscale convert → testwise.json → tia index
+```
 
 ## 검증 / 범위
 
-- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 인자 벡터, 에이전트 jvmArg(`destfile`/`port`/`includes`)·control-url·`maxParallelForks=1` 검증. 전체 회귀 GREEN.
-- **수집 파이프라인 실증(E2E-R/§7):** parallel-per-test-coverage 에이전트로 petclinic 데모를 end-to-end 실행 — 에이전트가 **per-test `.exec` 35개 수집** → `tia convert`가 **35 tests / 27 커버리지** testwise 산출 → index→impact→flaky→`tia report` 통과. 즉 에이전트 계약·수집→CLI 경로가 실데이터로 검증됨.
-- **남은 부분:** 위는 **out-of-process(SUT-attach)** 모델. **in-process(Test JVM attach + JUnit 익스텐션)** 전체 흐름은 그 익스텐션을 함께 와이어한 샘플 프로젝트에서 추가 검증 필요(에이전트 옵션 계약·`maxParallelForks=1`은 단위로 잠금).
+- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 두 attach 헬퍼의 jvmArg 계약·`tia.agent.url`/`pjacoco.control-url`·`maxParallelForks=1` 검증. 전체 회귀 GREEN.
+- **out-of-process 실증(E2E-R):** parallel 에이전트로 petclinic 데모 end-to-end — per-test `.exec` 35개 → `tia convert` 35 tests/27 커버리지 → index→impact→flaky→report 통과.
+- **in-process 실증(E2E):** teamscale 에이전트(TESTWISE)로 `scripts/run-poc.sh` — per-test 수집 3 tests → testwise → index → `tia impact` → **`DETERMINISTIC testPrice` 선별, testGreeting 제외(E2E PASS)**. 플러그인 attach 헬퍼는 이 스크립트와 동일 계약을 와이어(단위로 잠금); 플러그인-드리븐 전체 실행은 에이전트가 있는 샘플에서 동일 인자로 재현된다.
