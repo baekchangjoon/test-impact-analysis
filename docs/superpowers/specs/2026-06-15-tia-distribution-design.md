@@ -1,7 +1,7 @@
 # TIA 배포(Distribution) 설계 문서
 
 - 작성일: 2026-06-15
-- 상태: 멀티모델 리뷰 반영 → **D0·D1·D1.5·D2·D3 구현 완료(머지)** → D4 조건부(미착수). 실 게시·이미지·E2E-2/3는 v0.1.0 태그 릴리스로 발동, 전체 E2E-4(수집)는 parallel 에이전트 가용 시(O4).
+- 상태: 멀티모델 리뷰 반영 → **D0·D1·D1.5·D2·D3 구현 완료(머지)** → D4 조건부(미착수). **v0.1.1 릴리스(라이브)**: GitHub Packages·ghcr 이미지·GitHub Release(tia.jar·SBOM·라이선스 고지) + SBOM/취약점 게이트·E2E-2/3 발동. 수집 모델(out/in-process)은 실제 에이전트로 실증(petclinic 데모·run-poc); 플러그인-드리븐 전체 E2E-4는 후속.
 - 리뷰: cross-vendor design-doc 리뷰 2라운드(전체 + D1.5 추가분) — Claude(opus/sonnet/haiku)·Gemini 3.5 Flash·GPT-5.2. 주요 지적 반영(jacoco core/report 라이브러리화, D2 impact-only, 병렬 포트 동적할당, report 동치=JSON-island, PREFIX 영향 정정 등)
 - 선행 문서: [`2026-06-13-test-impact-analysis-design.md`](2026-06-13-test-impact-analysis-design.md) (시스템 설계), `petclinic-demo/README.md` (현행 end-to-end 데모)
 - 범위: **이미 구현된 TIA 엔진(Phase 0 PoC)을 사용자에게 어떤 형태로 전달할 것인가** — 패키징·배포·통합. 엔진 알고리즘 자체는 선행 설계 문서를 따른다.
