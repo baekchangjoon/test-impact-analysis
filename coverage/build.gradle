@@ -7,6 +7,7 @@ dependencies {
     jacocoAggregation project(':tia-core')
     jacocoAggregation project(':tia-cli')
     jacocoAggregation project(':tia-junit-extension')
+    jacocoAggregation project(':tia-gradle-plugin')
     jacocoAggregation project(':e2e')
 }
 
