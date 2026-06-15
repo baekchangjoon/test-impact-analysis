@@ -74,12 +74,17 @@ public class TiaPlugin implements Plugin<Project> {
     }
 
     /**
-     * D3.1: attach the per-test coverage agent to a {@code Test} task. Uses {@code port=0} so each
-     * forked JVM gets a free control port (no {@code BindException} at {@code maxParallelForks > 1}).
-     * The agent jar itself is provided by the caller (TIA does not bundle it — §5.3).
+     * D3.1: attach the parallel-per-test-coverage agent to a {@code Test} task (in-process model).
+     * Emits the agent's real options ({@code destfile}/{@code port}/{@code includes}), points the
+     * per-test driver at the control endpoint via {@code -Dpjacoco.control-url}, and — because the
+     * control port is FIXED (not ephemeral) — pins {@code maxParallelForks = 1} so parallel forks
+     * can't collide on it. Per-test {@code <testId>.exec} land in {@code destDir} for {@code tia convert}.
+     * The agent jar is caller-provided (TIA does not bundle it — §5.3).
      */
-    public static void attachCoverageAgent(Test test, File agentJar, String includes) {
-        test.jvmArgs(TiaArgs.coverageAgentJvmArg(agentJar.getAbsolutePath(), includes));
+    public static void attachCoverageAgent(Test test, File agentJar, File destDir, int controlPort, String includes) {
+        test.jvmArgs(TiaArgs.coverageAgentJvmArg(agentJar.getAbsolutePath(), destDir.getAbsolutePath(), controlPort, includes));
+        test.systemProperty("pjacoco.control-url", "http://127.0.0.1:" + controlPort);
+        test.setMaxParallelForks(1);   // fixed control port → single fork
     }
 
     private static String req(Property<String> p, String name) {

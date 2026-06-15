@@ -40,10 +40,12 @@ class TiaPluginTest {
     }
 
     @org.junit.jupiter.api.Test
-    void coverageAgentJvmArgUsesDynamicPort() {
-        String arg = TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "com.acme.*");
-        assertEquals("-javaagent:/opt/agent.jar=port=0,includes=com.acme.*", arg);
-        assertEquals("-javaagent:/opt/agent.jar=port=0", TiaArgs.coverageAgentJvmArg("/opt/agent.jar", null));
+    void coverageAgentJvmArgMatchesRealAgentContract() {
+        // verified against io.pjacoco.agent.AgentOptions: destfile(dir)/port(ctrl)/includes
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,includes=com.acme.*",
+                TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, "com.acme.*"));
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310",
+                TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, null));
     }
 
     // ---- plugin wiring (ProjectBuilder) ----
@@ -70,13 +72,15 @@ class TiaPluginTest {
     }
 
     @org.junit.jupiter.api.Test
-    void attachCoverageAgentAddsJvmArg() {
+    void attachCoverageAgentWiresAgentControlUrlAndSingleFork() {
         Project project = ProjectBuilder.builder().build();
         project.getPlugins().apply("java");
         Test test = (Test) project.getTasks().getByName("test");
-        TiaPlugin.attachCoverageAgent(test, new File("/opt/agent.jar"), "com.acme.*");
+        TiaPlugin.attachCoverageAgent(test, new File("/opt/agent.jar"), new File("/tmp/cov"), 6310, "com.acme.*");
         assertTrue(test.getJvmArgs().stream()
-                        .anyMatch(a -> a.equals("-javaagent:/opt/agent.jar=port=0,includes=com.acme.*")),
-                "agent jvmArg attached: " + test.getJvmArgs());
+                        .anyMatch(a -> a.equals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,includes=com.acme.*")),
+                "agent jvmArg: " + test.getJvmArgs());
+        assertEquals("http://127.0.0.1:6310", test.getSystemProperties().get("pjacoco.control-url"));
+        assertEquals(1, test.getMaxParallelForks(), "fixed control port → single fork");
     }
 }

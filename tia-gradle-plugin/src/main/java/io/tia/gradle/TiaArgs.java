@@ -43,11 +43,14 @@ final class TiaArgs {
         return a;
     }
 
-    /** D3.1: -javaagent for the per-test coverage agent. port=0 → agent picks a free port per fork
-     *  (avoids BindException at maxParallelForks > 1; design D3.1). */
-    static String coverageAgentJvmArg(String agentJarAbsPath, String includes) {
+    /** D3.1: -javaagent for the parallel-per-test-coverage agent — real contract verified against
+     *  the agent (io.pjacoco.agent.AgentOptions): {@code destfile=<dir>} (per-test .exec output dir),
+     *  {@code port=<ctrl>} (fixed control endpoint; the test driver connects via -Dpjacoco.control-url),
+     *  {@code includes=<pattern>}. The control port is FIXED (not auto/ephemeral), so the measured JVM
+     *  must be single (one SUT process, or test JVM with maxParallelForks=1) — see attachCoverageAgent. */
+    static String coverageAgentJvmArg(String agentJarAbsPath, String destDir, int controlPort, String includes) {
         String inc = notBlank(includes) ? ",includes=" + includes : "";
-        return "-javaagent:" + agentJarAbsPath + "=port=0" + inc;
+        return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + inc;
     }
 
     private static boolean notBlank(String s) {

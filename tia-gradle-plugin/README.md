@@ -30,17 +30,20 @@ CLI는 `tiaCli` configuration에서 해소된다(기본 `io.tia:tia-cli:<project
 
 ## D3.1 커버리지 에이전트 와이어링
 
-per-test 커버리지 수집을 위해 `Test` 태스크 fork에 에이전트를 주입한다. 포트는 `port=0`으로 둔다 — fork마다 free port가 되려면 **에이전트가 `port=0`을 프로세스별 ephemeral 바인딩으로 해석**해야 한다(그럴 때 `maxParallelForks > 1`에서 `BindException` 회피). 이는 사용자가 제공하는 에이전트의 런타임 동작에 달려 있다(O4에서 검증).
+per-test 커버리지 수집을 위해 `Test` 태스크에 parallel-per-test-coverage 에이전트를 주입한다. 실제 에이전트 계약(`io.pjacoco.agent.AgentOptions` 확인)에 맞춰 `destfile=<dir>`(per-test `.exec` 출력 디렉터리)·`port=<ctrl>`(control 엔드포인트)·`includes=...`를 넘기고, per-test 드라이버를 `-Dpjacoco.control-url`로 그 포트에 연결한다. **control 포트는 고정**(ephemeral 아님)이라 `attachCoverageAgent`가 `maxParallelForks = 1`로 고정해 fork 간 포트 충돌을 막는다.
 
 ```gradle
 tasks.named('test', Test) { t ->
-    io.tia.gradle.TiaPlugin.attachCoverageAgent(t, file('libs/jacocoagent-parallel.jar'), 'com.acme.*')
+    io.tia.gradle.TiaPlugin.attachCoverageAgent(
+        t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
 }
+// 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json
 ```
 
-에이전트 jar 자체는 TIA가 번들하지 않는다(§5.3) — 사용자가 제공(teamscale / parallel-per-test-coverage).
+에이전트 jar 자체는 TIA가 번들하지 않는다(§5.3) — 사용자가 제공(parallel-per-test-coverage / teamscale).
 
 ## 검증 / 범위
 
-- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 인자 벡터, 에이전트 jvmArg(`port=0`) 검증. 전체 회귀 GREEN.
-- **E2E-4(설계 §7) 부분 의존(O4):** `tiaImpact`/`tiaReport`(기존 인덱스 질의)는 게시된 `tia-cli`로 즉시 동작. **수집(에이전트 와이어링)을 통한 전체 파이프라인**은 parallel-per-test-coverage 에이전트 가용성에 의존 — 그때 완전 검증.
+- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 인자 벡터, 에이전트 jvmArg(`destfile`/`port`/`includes`)·control-url·`maxParallelForks=1` 검증. 전체 회귀 GREEN.
+- **수집 파이프라인 실증(E2E-R/§7):** parallel-per-test-coverage 에이전트로 petclinic 데모를 end-to-end 실행 — 에이전트가 **per-test `.exec` 35개 수집** → `tia convert`가 **35 tests / 27 커버리지** testwise 산출 → index→impact→flaky→`tia report` 통과. 즉 에이전트 계약·수집→CLI 경로가 실데이터로 검증됨.
+- **남은 부분:** 위는 **out-of-process(SUT-attach)** 모델. **in-process(Test JVM attach + JUnit 익스텐션)** 전체 흐름은 그 익스텐션을 함께 와이어한 샘플 프로젝트에서 추가 검증 필요(에이전트 옵션 계약·`maxParallelForks=1`은 단위로 잠금).
