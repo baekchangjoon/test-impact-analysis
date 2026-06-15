@@ -2,6 +2,18 @@ plugins {
     id 'application'
     id 'com.gradleup.shadow' version '8.3.5'   // 단일 실행 fat-jar (Gradle 8.10 호환 후속 포크)
     id 'maven-publish'                          // D1: GitHub Packages 게시
+    id 'org.cyclonedx.bom' version '1.10.0'    // SBOM: 배포물(tia.jar=tia-cli runtime)만 스코프 — fixture-app/e2e 제외
+}
+
+// SBOM은 실제 배포되는 tia-cli runtimeClasspath(=fat-jar 내용물)만 대상으로 한다.
+// (fixture-app 의 Spring Boot 등 테스트 픽스처 의존성은 배포물이 아니므로 게이트 대상 아님.)
+cyclonedxBom {
+    projectType = 'application'
+    outputFormat = 'json'
+    outputName = 'bom'
+    schemaVersion = '1.5'
+    includeConfigs = ['runtimeClasspath']
+    destination = file('build/reports')
 }
 dependencies {
     implementation project(':tia-core')
