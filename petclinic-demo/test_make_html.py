@@ -43,14 +43,30 @@ COMMIT = "fe8128079e12abcdef0123456789abcdef012345"
 SUT = "acme-widgets"
 
 
-def generate(tmp, sut=SUT, jacoco="jacoco", with_test_src=True):
-    """Run make_html.py with fixtures; return (html_text, data_model_dict)."""
+OMIT = "-"  # sentinel: pass this literally as the arg so make_html.py treats the input as absent
+
+
+def generate(tmp, sut=SUT, jacoco="jacoco", with_test_src=True,
+             scenarios=SCENARIOS, flaky=FLAKY, prod=PROD):
+    """Run make_html.py with fixtures; return (html_text, data_model_dict).
+
+    scenarios/flaky/prod may be a Python object (written to a file) or the OMIT
+    sentinel "-" (passed verbatim, exercising the absent-input path)."""
     p = lambda n: os.path.join(tmp, n)
-    for name, obj in (("testwise.json", TESTWISE), ("scenarios.json", SCENARIOS), ("flaky.json", FLAKY)):
-        with open(p(name), "w") as fh:
-            json.dump(obj, fh)
-    with open(p("prod.txt"), "w") as fh:
-        fh.write("\n".join(PROD) + "\n")
+    with open(p("testwise.json"), "w") as fh:
+        json.dump(TESTWISE, fh)
+
+    def arg_for(name, value, write):
+        if value == OMIT:
+            return OMIT
+        path = p(name)
+        with open(path, "w") as fh:
+            write(fh, value)
+        return path
+
+    scen_arg = arg_for("scenarios.json", scenarios, lambda fh, v: json.dump(v, fh))
+    flaky_arg = arg_for("flaky.json", flaky, lambda fh, v: json.dump(v, fh))
+    prod_arg = arg_for("prod.txt", prod, lambda fh, v: fh.write("\n".join(v) + "\n"))
     test_src = ""
     if with_test_src:
         test_src = p("testsrc")
@@ -59,8 +75,8 @@ def generate(tmp, sut=SUT, jacoco="jacoco", with_test_src=True):
         for cls in ("OwnerApiBlackBoxIT", "AuthApiBlackBoxIT"):
             with open(os.path.join(api, cls + ".java"), "w") as fh:
                 fh.write("class " + cls + " {}\n")
-    args = [sys.executable, MAKE_HTML, p("testwise.json"), p("scenarios.json"),
-            p("flaky.json"), p("prod.txt"), COMMIT, p("out.html"), sut, jacoco, test_src]
+    args = [sys.executable, MAKE_HTML, p("testwise.json"), scen_arg,
+            flaky_arg, prod_arg, COMMIT, p("out.html"), sut, jacoco, test_src]
     subprocess.run(args, check=True, capture_output=True, text=True)
     with open(p("out.html")) as fh:
         html = fh.read()
@@ -152,6 +168,25 @@ class MakeHtmlReport(unittest.TestCase):
         self.assertEqual(self.data["nTests"], 3)
         self.assertEqual(self.data["nProd"], 3)
         self.assertIn("…/system/CrashController.java", self.data["blind"])  # uncovered → blind
+
+    # "bring your own coverage" — testwise.json alone (scenarios/flaky/prod omitted)
+    def test_minimal_path_testwise_only(self):
+        with tempfile.TemporaryDirectory() as t:
+            html, data = generate(t, scenarios=OMIT, flaky=OMIT, prod=OMIT)
+            self.assertEqual(len(data["perTest"]), 3)   # tab 1 still works
+            self.assertEqual(data["scenarios"], [])
+            self.assertIsNone(data["flaky"])
+            self.assertEqual(data["blind"], [])         # no prod list → no blind spots
+            # tabs 3 & 4 degrade to a placeholder note instead of crashing/blanking
+            self.assertIn("시나리오 데이터가 없다", html)
+            self.assertIn("flaky 데이터가 없다", html)
+
+    # flaky with only the real card (no synthetic control) still renders
+    def test_flaky_real_only(self):
+        with tempfile.TemporaryDirectory() as t:
+            _, data = generate(t, flaky={"real": {"ratio": 0.0, "flaky": [], "total": 3, "runs": 5}})
+            self.assertIsNotNone(data["flaky"])
+            self.assertNotIn("synthetic", data["flaky"])
 
 
 if __name__ == "__main__":
