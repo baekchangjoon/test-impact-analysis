@@ -9,6 +9,7 @@ dependencies {
     annotationProcessor 'info.picocli:picocli-codegen:4.7.6'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'   // ImpactCommandTest가 직접 사용
+    testImplementation 'org.jacoco:org.jacoco.core:0.8.12'       // D0 E2E-1: hermetic .exec fixture 생성
 }
 // D0: launcher 바이너리는 `tia`, 배포 fat-jar는 `tia.jar` (설계 §5.1 네이밍 매트릭스)
 application {

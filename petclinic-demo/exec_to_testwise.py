@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Bridge: parallel-per-test-coverage per-test `.exec` -> TIA testwise JSON.
 
+DEPRECATED (D0): superseded by `tia convert` (org.jacoco.core in-process; no jacococli
+subprocess). Kept for reference/demo. `run-petclinic-tia.sh` now uses `tia convert`.
+
 For each `<Class#method>.exec` emitted by the agent, render a vanilla-JaCoCo XML
 report against the app's compiled classes, extract per-source-file covered lines
 (instruction coverage ci>0), and emit one testwise `tests[]` entry. The combined

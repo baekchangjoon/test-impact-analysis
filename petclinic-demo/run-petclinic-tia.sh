@@ -18,7 +18,7 @@ AGENT_REPO="${AGENT_REPO:-/Users/changjoonbaek/github_spring-petclinic/parallel-
 AGENT_JAR="$AGENT_REPO/build/libs/jacocoagent-parallel.jar"
 APP_JAR="$PETC/build/libs/spring-petclinic-4.0.0-SNAPSHOT.jar"
 CLASSES="$PETC/build/classes/java/main"
-CLI="$TIA/tia-cli/build/install/tia-cli/bin/tia-cli"
+CLI="$TIA/tia-cli/build/install/tia/bin/tia"   # D0: launcher 개명(tia-cli→tia)
 COV=/tmp/petclinic-coverage
 PORT=8080 CTRL=6310
 
@@ -64,8 +64,8 @@ say "2/7  run black-box suite (per-test .exec via baggage test.id)"
 echo "per-test .exec files: $(ls -1 "$COV"/*.exec | wc -l | tr -d ' ')"
 
 # ---- 3. convert .exec -> testwise JSON ------------------------------------
-say "3/7  convert per-test .exec → testwise JSON"
-python3 "$DEMO/exec_to_testwise.py" "$COV" "$CLASSES" "$JACOCO_CLI" "$JDK21/bin/java" "$DEMO/testwise.json"
+say "3/7  convert per-test .exec → testwise JSON (tia convert; jacoco core in-process)"
+JAVA_HOME="$JDK17" "$CLI" convert --exec-dir "$COV" --classes "$CLASSES" --out "$DEMO/testwise.json"
 
 # ---- 4. index --------------------------------------------------------------
 say "4/7  tia index → SQLite snapshot"
@@ -132,10 +132,11 @@ rm -rf "$DEMO/jacoco"
   --html "$DEMO/jacoco" --name "$SUT"
 
 # ---- 8. HTML report --------------------------------------------------------
-say "8/8  build interactive HTML report"
-# extra args: SUT name (title) · jacoco dir (relative to report.html) · test-source root (file:// open-local links)
-python3 "$DEMO/make_html.py" "$DEMO/testwise.json" "$DEMO/scenarios.json" "$DEMO/flaky.json" \
-  "$DEMO/prod-files.txt" "$COMMIT" "$DEMO/report.html" \
-  "$SUT" "jacoco" "$PETC/src/test/java"
+say "8/8  build interactive HTML report (tia report)"
+JAVA_HOME="$JDK17" "$CLI" report --testwise "$DEMO/testwise.json" \
+  --scenarios "$DEMO/scenarios.json" --flaky "$DEMO/flaky.json" --prod-files "$DEMO/prod-files.txt" \
+  --commit "$COMMIT" --out "$DEMO/report.html" \
+  --sut-name "$SUT" --jacoco-dir jacoco --test-src-root "$PETC/src/test/java" \
+  --prefix-strip "org/springframework/samples/petclinic/"
 
 echo; echo "✅ done. open: $DEMO/report.html"
