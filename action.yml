@@ -1,0 +1,73 @@
+name: 'TIA impact'
+description: 'Select the tests impacted by a diff using Test-Impact-Analysis (runs the tia CLI container).'
+inputs:
+  db:
+    description: 'Baseline TIA SQLite index (tia.db), workspace-relative.'
+    required: true
+  commit:
+    description: 'Commit the index was built at (line-space baseline).'
+    required: true
+  diff-file:
+    description: 'Unified diff file (workspace-relative). If empty, the CLI diffs the working tree vs --git-ref/--commit.'
+    required: false
+    default: ''
+  git-ref:
+    description: 'diff base ref (maps to CLI --git-ref; defaults to --commit). Must match the indexed commit line-space.'
+    required: false
+    default: ''
+  strict:
+    description: 'If "true", fail when there is no baseline for --commit instead of signalling run-all.'
+    required: false
+    default: 'false'
+  image:
+    description: 'tia CLI image to run.'
+    required: false
+    default: 'ghcr.io/baekchangjoon/tia:latest'
+outputs:
+  selected:
+    description: 'Newline-separated selected tests ("<CONFIDENCE>\t<testId>").'
+    value: ${{ steps.impact.outputs.selected }}
+  run-all:
+    description: '"true" when no baseline/index is available → caller MUST run the whole suite (conservative, zero-miss).'
+    value: ${{ steps.impact.outputs.run-all }}
+runs:
+  using: composite
+  steps:
+    - id: impact
+      shell: bash
+      env:
+        IN_DB: ${{ inputs.db }}
+        IN_COMMIT: ${{ inputs.commit }}
+        IN_DIFF: ${{ inputs.diff-file }}
+        IN_GITREF: ${{ inputs.git-ref }}
+        IN_STRICT: ${{ inputs.strict }}
+        IN_IMAGE: ${{ inputs.image }}
+      run: |
+        set -euo pipefail
+        emit() { { echo "selected<<__EOF__"; printf '%s\n' "$1"; echo '__EOF__'; echo "run-all=$2"; } >> "$GITHUB_OUTPUT"; }
+
+        # DB 파일 부재 → 베이스라인 없음. run-all=true (호출측은 전체 실행; 누락 위험 0).
+        if [ ! -f "$IN_DB" ]; then
+          echo "::warning::TIA index '$IN_DB' not found → run-all (conservative, zero-miss)."
+          emit "" "true"; exit 0
+        fi
+
+        args=(impact --db "$IN_DB" --commit "$IN_COMMIT")
+        [ -n "$IN_DIFF" ] && args+=(--diff-file "$IN_DIFF")
+        [ -n "$IN_GITREF" ] && args+=(--git-ref "$IN_GITREF")
+        [ "$IN_STRICT" = "true" ] && args+=(--strict)
+
+        # --strict 면 베이스라인 부재 시 CLI가 비0으로 실패 → 스텝 실패(의도)
+        out="$(docker run --rm -v "$PWD:/work" -w /work "$IN_IMAGE" "${args[@]}")"
+        printf '%s\n' "$out"
+
+        # 베이스라인 부재 마커 → run-all=true (DB에 이 커밋 데이터 없음/불일치)
+        if printf '%s\n' "$out" | grep -qF '# tia:no-baseline'; then
+          echo "::warning::no TIA baseline for '$IN_COMMIT' → run-all (conservative, zero-miss)."
+          { echo '### TIA — no baseline → run all'; } >> "$GITHUB_STEP_SUMMARY"
+          emit "" "true"; exit 0
+        fi
+
+        { echo '### TIA — impacted tests'; echo ''; echo '```'; printf '%s\n' "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        sel="$(printf '%s\n' "$out" | grep -E '^(DETERMINISTIC|CONSERVATIVE|LOW_CONFIDENCE)[[:space:]]' || true)"
+        emit "$sel" "false"

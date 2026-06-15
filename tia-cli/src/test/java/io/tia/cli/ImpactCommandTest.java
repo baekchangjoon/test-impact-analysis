@@ -52,4 +52,36 @@ class ImpactCommandTest {
         assertFalse(printed.contains("T_greet"), printed);
         assertTrue(printed.contains("DETERMINISTIC"), printed);
     }
+
+    @Test
+    void noBaselineEmitsRunAllMarkerAndSucceeds(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (CoverageStore store = new CoverageStore(db)) {
+            store.save(new CoverageSnapshot("fixture", "c0", List.of(
+                new TestCoverage("T", "PASSED",
+                    Map.of("io/tia/fixture/A.java", RoaringBitmap.bitmapOf(1))))));
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream prev = System.out; System.setOut(new PrintStream(out));
+        // ask for a commit NOT in the index → no baseline → run-all signal, exit 0
+        int code = new CommandLine(new TiaCommand()).execute(
+            "impact", "--db", db.toString(), "--commit", "OTHER_COMMIT");
+        System.setOut(prev);
+
+        assertEquals(0, code);
+        assertTrue(out.toString().contains(ImpactCommand.NO_BASELINE_MARKER), out.toString());
+    }
+
+    @Test
+    void strictFailsWhenNoBaseline(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (CoverageStore store = new CoverageStore(db)) {
+            store.save(new CoverageSnapshot("fixture", "c0", List.of(
+                new TestCoverage("T", "PASSED",
+                    Map.of("io/tia/fixture/A.java", RoaringBitmap.bitmapOf(1))))));
+        }
+        int code = new CommandLine(new TiaCommand()).execute(
+            "impact", "--db", db.toString(), "--commit", "OTHER_COMMIT", "--strict");
+        assertEquals(3, code);
+    }
 }
