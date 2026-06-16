@@ -28,9 +28,9 @@ public final class ImpactAnalyzer {
             }
         }
 
-        // 2) Phase 0에서 해결 불가한 변경 → 보수적 전체 선택(안전). skip 기본 OFF이라 과선택 허용.
+        // 2) 현재 구현에서 해결 불가한 변경 → 보수적 전체 선택(안전). skip 기본 OFF이라 과선택 허용.
         //    - 비코드(매핑 불가) [1-A]
-        //    - 신규 .java 파일: 과거 커버리지 없음 + 호출자 탐색(정적 그래프)은 Phase 2 → 영향 불명 [1-B]
+        //    - 신규 .java 파일: 과거 커버리지 없음 + 호출자 탐색(정적 그래프)은 이후 확장 → 영향 불명 [1-B]
         //      (주의: 신규 파일은 어떤 기존 테스트도 커버하지 못하므로 'covers()' 기반 선택은 항상 0 → 보수적이 유일한 안전책)
         boolean conservative = !diff.unmappableFiles().isEmpty() || !diff.additionOnlyJavaFiles().isEmpty();
         if (!diff.unmappableFiles().isEmpty())
@@ -38,7 +38,7 @@ public final class ImpactAnalyzer {
                     + " → 보수적 전체 선택 (목적1) / triage UNKNOWN (목적2)");
         if (!diff.additionOnlyJavaFiles().isEmpty())
             reasons.add("신규 .java " + diff.additionOnlyJavaFiles()
-                    + " → 과거 커버리지 없음, 정적 폴백은 Phase 2 → 보수적 전체 선택");
+                    + " → 과거 커버리지 없음, 정적 폴백은 이후 확장 → 보수적 전체 선택");
 
         if (conservative) {
             List<ImpactedTest> all = new ArrayList<>();

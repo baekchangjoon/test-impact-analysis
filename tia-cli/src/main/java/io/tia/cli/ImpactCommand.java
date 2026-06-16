@@ -40,7 +40,7 @@ public class ImpactCommand implements Callable<Integer> {
         }
 
         // 기본 베이스 = 인덱싱 커밋(--commit) → git diff <commit> 의 old-side가 커버리지와 같은 라인 공간 [§6.2 4-B].
-        // Phase 0는 라인 재조정 미구현이므로 diff 베이스 ≠ 인덱싱 커밋이면 결과 무효(아래 가드).
+        // 현재 구현은 라인 재조정 미구현이므로 diff 베이스 ≠ 인덱싱 커밋이면 결과 무효(아래 가드).
         String base = (gitRef == null) ? commit : gitRef;
         String diffText = (diffFile != null)
             ? Files.readString(diffFile)

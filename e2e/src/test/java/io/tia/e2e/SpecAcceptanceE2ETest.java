@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 설계 명세(docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md)의 Phase 0 동작을
+ * 설계 명세(docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md)의 현재 구현 동작을
  * end-to-end로 검증한다. 캡처된 testwise JSON 픽스처로 전체 파이프라인(index → SQLite 저장 →
  * git diff 교차 → 영향 선별/플레이키)을 CLI로 구동하고, 출력을 **구조적으로 파싱해 정확히** 검증한다.
  *
@@ -111,9 +111,9 @@ class SpecAcceptanceE2ETest {
         assertEquals(Set.of(GREET), c1.byTest.keySet(), "C1: " + c1.raw);   // C1: 뒤바뀐 매핑 → testGreeting
     }
 
-    /** Phase 0: 플레이키 비율 측정 — ratio=0.5, 플레이키={T_flaky}, T_ok는 비플레이키. */
+    /** 플레이키 비율 측정 — ratio=0.5, 플레이키={T_flaky}, T_ok는 비플레이키. */
     @Test
-    void phase0_flakyRatioMeasurement() throws Exception {
+    void flakyRatioMeasurement() throws Exception {
         Path r1 = work.resolve("run1.json"); Files.writeString(r1, "{\"results\":{\"T_ok\":true,\"T_flaky\":true}}");
         Path r2 = work.resolve("run2.json"); Files.writeString(r2, "{\"results\":{\"T_ok\":true,\"T_flaky\":false}}");
         Path r3 = work.resolve("run3.json"); Files.writeString(r3, "{\"results\":{\"T_ok\":true,\"T_flaky\":true}}");
