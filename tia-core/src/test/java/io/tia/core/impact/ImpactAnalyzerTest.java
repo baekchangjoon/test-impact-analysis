@@ -53,7 +53,7 @@ class ImpactAnalyzerTest {
     }
 
     @Test
-    void newJavaFile_forcesConservativeAll_sinceNoCoverageNorStaticGraph() {   // 1-B (Phase 0)
+    void newJavaFile_forcesConservativeAll_sinceNoCoverageNorStaticGraph() {   // 1-B
         DiffSummary diff = new DiffSummary(Map.of(),
             Set.of("io/tia/fixture/NewFeature.java"), Set.of());   // 과거 커버리지 없는 신규 파일
         ImpactResult r = analyzer.select(snapshot(), diff);

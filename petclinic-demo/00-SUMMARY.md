@@ -65,7 +65,7 @@ Diffs were generated against the indexed HEAD (old-side aligns with the coverage
 | G | new `.java` file | 21 (all indexed) | CONSERVATIVE | safe fallback |
 
 DETERMINISTIC = changed line is in a test's covered-line bitmap (bit-AND hit).
-CONSERVATIVE = change can't be mapped to coverage (non-code / brand-new file) → select all (safe by design; precise static fallback is Phase 2).
+CONSERVATIVE = change can't be mapped to coverage (non-code / brand-new file) → select all (safe by design; precise static fallback is a later enhancement).
 
 ## RESULT 4 — Flaky detection  (`tia flaky`)
 
@@ -106,7 +106,7 @@ CONSERVATIVE = change can't be mapped to coverage (non-code / brand-new file) �
    Joining the impact view with the flaky view on test id therefore silently misses those tests.
    Mitigation: emit a stable canonical test id (e.g. `Class#method`) on every signal.
 
-These are properties of *black-box* coverage attribution + the Phase-0 analyzer, not defects in
+These are properties of *black-box* coverage attribution + the current analyzer, not defects in
 the petclinic suite.
 
 ---

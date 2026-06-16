@@ -4,7 +4,7 @@
 - 상태: 멀티모델 리뷰 반영 → **D0·D1·D1.5·D2·D3 구현 완료(머지)** → D4 조건부(미착수). **v0.1.1 릴리스(라이브)**: GitHub Packages·ghcr 이미지·GitHub Release(tia.jar·SBOM·라이선스 고지) + SBOM/취약점 게이트·E2E-2/3 발동. 수집 모델(out/in-process)은 실제 에이전트로 실증(petclinic 데모·run-poc); 플러그인-드리븐 전체 E2E-4는 후속.
 - 리뷰: cross-vendor design-doc 리뷰 2라운드(전체 + D1.5 추가분) — Claude(opus/sonnet/haiku)·Gemini 3.5 Flash·GPT-5.2. 주요 지적 반영(jacoco core/report 라이브러리화, D2 impact-only, 병렬 포트 동적할당, report 동치=JSON-island, PREFIX 영향 정정 등)
 - 선행 문서: [`2026-06-13-test-impact-analysis-design.md`](2026-06-13-test-impact-analysis-design.md) (시스템 설계), `petclinic-demo/README.md` (현행 end-to-end 데모)
-- 범위: **이미 구현된 TIA 엔진(Phase 0 PoC)을 사용자에게 어떤 형태로 전달할 것인가** — 패키징·배포·통합. 엔진 알고리즘 자체는 선행 설계 문서를 따른다.
+- 범위: **이미 구현된 TIA 엔진(PoC)을 사용자에게 어떤 형태로 전달할 것인가** — 패키징·배포·통합. 엔진 알고리즘 자체는 선행 설계 문서를 따른다.
 
 ---
 
@@ -189,10 +189,10 @@ TIA는 에이전트를 **포함하지 않는다**. 지원 에이전트는 산출
 
 | 에이전트 | 산출물 | `tia convert` |
 |---|---|---|
-| teamscale-jacoco-agent (Phase 0 주력) | per-test **testwise JSON 직접** | **불필요** → 바로 `tia index` |
+| teamscale-jacoco-agent (현재 주력) | per-test **testwise JSON 직접** | **불필요** → 바로 `tia index` |
 | parallel-per-test-coverage | per-test **`.exec`** | **필요** (.exec → testwise) |
 
-- `CoverageCollector`는 **선행 설계상의 개념적 seam**이다(Phase 0에 실제 인터페이스로 도입된 상태는 아님; 도입은 D3 후보). D0~D2 범위에서 실재하는 추상화 경계는 **testwise.json 계약**과 **CLI 서브커맨드 경계**다 — 두 에이전트 흐름의 차이는 그 경계(아래 표)에서 흡수된다. D0~D1 베이스라인은 teamscale, parallel은 준비되는 대로 D2+에서 드롭인(O4).
+- `CoverageCollector`는 **선행 설계상의 개념적 seam**이다(현재 PoC에 실제 인터페이스로 도입된 상태는 아님; 도입은 D3 후보). D0~D2 범위에서 실재하는 추상화 경계는 **testwise.json 계약**과 **CLI 서브커맨드 경계**다 — 두 에이전트 흐름의 차이는 그 경계(아래 표)에서 흡수된다. D0~D1 베이스라인은 teamscale, parallel은 준비되는 대로 D2+에서 드롭인(O4).
 - 번들/다운로드 정책(이분화): **기본 = 번들하지 않음** + 플러그인/Action이 전용 configuration으로 GitHub Releases/Maven Central에서 **SHA-256 핀 검증** 후 다운로드. **데모/샌드박스 전용 태그에서만** 에이전트 jar를 `/opt/tia/agent.jar`로 동봉. 트레이드오프(업데이트 cadence·보안 스캔 범위·이미지 크기)를 함께 기록. 버전 핀 문서화.
 
 ### 5.4 라이선스·공급망

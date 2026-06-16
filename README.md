@@ -3,7 +3,7 @@
 [![CI](https://github.com/baekchangjoon/test-impact-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/baekchangjoon/test-impact-analysis/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-17-blue)
 ![Build](https://img.shields.io/badge/build-Gradle-green)
-![Status](https://img.shields.io/badge/phase%200-PoC%20complete-success)
+![Status](https://img.shields.io/badge/status-PoC%20complete-success)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **테스트 영향 분석(Test Impact Analysis).** `git diff`로 바뀐 코드 라인과 **테스트별(per-test) 커버리지**를 교차해서 두 가지 질문에 결정론적으로 답합니다.
@@ -13,7 +13,7 @@
 
 > 비트 연산 자체는 결정론적입니다. 다만 그 신뢰도는 커버리지 매핑 품질에 종속되므로, 커버리지가 닿지 않는 변경(설정/SQL/의존성)과 신규 코드는 **보수적으로 전체 선택**합니다(거짓 "인프라" 면죄부·회귀 누출 방지).
 
-이 저장소는 위 설계의 **Phase 0 PoC** 구현체입니다. 단일 레포에서 [teamscale-jacoco-agent](https://github.com/cqse/teamscale-java-profiler)로 per-test 커버리지를 수집 → `git diff`와 교차 → **영향 테스트 선별** + **플레이키 비율 측정**까지 동작합니다.
+이 저장소는 위 설계의 **PoC** 구현체입니다. 단일 레포에서 [teamscale-jacoco-agent](https://github.com/cqse/teamscale-java-profiler)로 per-test 커버리지를 수집 → `git diff`와 교차 → **영향 테스트 선별** + **플레이키 비율 측정**까지 동작합니다.
 
 > 🚀 **내 프로젝트에 적용하려면 → [GETTING-STARTED.md](GETTING-STARTED.md).** 바로 동작을 보려면 아래 [빠른 시작](#빠른-시작-1줄-e2e). 배포 형태(CLI·Docker·Gradle 플러그인·Agent Skill)는 [사용 형태](#사용-형태-배포-표면).
 
@@ -21,11 +21,11 @@
 
 ## 아이디어
 
-- **동적 우선.** Spring 프록시/AOP/리플렉션/비동기는 정적 호출그래프를 흔듭니다. 그래서 "테스트 T가 실제로 실행하며 밟은 라인"을 동적으로 수집해 **판정의 주(主) 근거**로 삼습니다. 정적 분석은 보조(이후 Phase).
+- **동적 우선.** Spring 프록시/AOP/리플렉션/비동기는 정적 호출그래프를 흔듭니다. 그래서 "테스트 T가 실제로 실행하며 밟은 라인"을 동적으로 수집해 **판정의 주(主) 근거**로 삼습니다. 정적 분석은 보조(이후 확장 구상).
 - **out-of-process 블랙박스.** 측정 대상 앱에 JaCoCo 에이전트를 붙여 띄우고, 테스트는 HTTP로만 호출합니다. 테스트 시작/종료를 에이전트에 신호(`/test/start`·`/test/end`)해 per-test로 커버리지를 분리합니다.
-- **커밋이 기준점.** 커버리지 매핑은 특정 빌드 스냅샷이라, 인덱싱 커밋과 diff의 라인 공간이 일치할 때만 비트 AND가 유효합니다. Phase 0는 "diff 베이스 = 인덱싱 커밋"을 불변식으로 둡니다.
+- **커밋이 기준점.** 커버리지 매핑은 특정 빌드 스냅샷이라, 인덱싱 커밋과 diff의 라인 공간이 일치할 때만 비트 AND가 유효합니다. 이 구현은 "diff 베이스 = 인덱싱 커밋"을 불변식으로 둡니다.
 
-전체 4-Phase 설계와 근거는 **[설계 문서](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md)**, Phase 0 구현 계획은 **[PoC 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)** 참조.
+전체 설계와 근거는 **[설계 문서](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md)**, 구현 계획은 **[PoC 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)** 참조.
 
 ---
 
@@ -43,7 +43,7 @@ test-impact-analysis/
 ├── coverage/             # 집계 JaCoCo 커버리지 리포트
 ├── scripts/              # run-poc.sh, measure-flaky.sh, download-agent.sh …
 ├── docker-compose.e2e.yml# 컨테이너 간 블랙박스 E2E
-└── docs/superpowers/     # 설계 문서 + Phase 0 계획
+└── docs/superpowers/     # 설계 문서 + 구현 계획
 ```
 
 | 모듈 | 역할 |
@@ -253,14 +253,14 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 
 ---
 
-## 현재 범위 (Phase 0) & 한계
+## 현재 범위 & 한계
 
-이 PoC는 **단일 레포 직렬 수집**까지 커버합니다. 설계에는 있으나 의식적으로 이후 Phase로 미룬 항목:
+이 PoC는 **단일 레포 직렬 수집**까지 커버합니다. 설계에는 있으나 의식적으로 이후로 미룬 항목:
 
-- **크로스 레포/API 경계 매핑·Kafka 귀속** — Phase 3
-- **정적 호출그래프 보강**(커버리지 사각지대) — Phase 2
-- **실패 분류기 → qe-rca-action DETERMINISTIC 신호 주입** — Phase 1
-- **PR 코멘트 이원화·자체 MCP 서버** — 이후 Phase (현재는 CLI 텍스트 출력)
+- **크로스 레포/API 경계 매핑·Kafka 귀속** — 이후 확장
+- **정적 호출그래프 보강**(커버리지 사각지대) — 이후 확장
+- **실패 분류기 → qe-rca-action DETERMINISTIC 신호 주입** — 이후 확장
+- **PR 코멘트 이원화·자체 MCP 서버** — 이후 확장 (현재는 CLI 텍스트 출력)
 - **staleness 저신뢰 플래그·라인 재조정** — 현재는 "diff 베이스 = 인덱싱 커밋" 불변식으로 우회
 - **병렬 수집**(`jacocoagent-parallel.jar` 드롭인) — 직렬 스위트가 나이틀리 윈도우를 초과할 때 전환
 
@@ -274,8 +274,8 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 - [petclinic-demo](petclinic-demo/README.md) — 실제 블랙박스 스위트 end-to-end 예제 + "이미 커버리지가 있을 때"
 - [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) — HTML 리포트 5개 탭 해설
 - [배포 형태] [Gradle 플러그인](tia-gradle-plugin/README.md) · [Docker/Action](docker/README.md) · [Agent Skill](skills/tia/SKILL.md)
-- [TIA 시스템 설계 (Phase 0~3)](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md) · [배포 설계 (D0~D4)](docs/superpowers/specs/2026-06-15-tia-distribution-design.md)
-- [Phase 0 PoC 구현 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)
+- [TIA 시스템 설계](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md) · [배포 설계 (D0~D4)](docs/superpowers/specs/2026-06-15-tia-distribution-design.md)
+- [PoC 구현 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)
 - [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) — 번들 서드파티 라이선스 고지
 
 ## 라이선스

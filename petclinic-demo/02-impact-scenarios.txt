@@ -123,4 +123,4 @@ index 0000000..95d8689
 CONSERVATIVE	VetApiBlackBoxIT#getMissingVetReturnsEmptyBody
 CONSERVATIVE	VetApiBlackBoxIT#getVetById
 CONSERVATIVE	VetApiBlackBoxIT#listAllVets
-# 주의: 신규 .java [org/springframework/samples/petclinic/owner/NewFeature.java] → 과거 커버리지 없음, 정적 폴백은 Phase 2 → 보수적 전체 선택
+# 주의: 신규 .java [org/springframework/samples/petclinic/owner/NewFeature.java] → 과거 커버리지 없음, 정적 폴백은 이후 확장 → 보수적 전체 선택
