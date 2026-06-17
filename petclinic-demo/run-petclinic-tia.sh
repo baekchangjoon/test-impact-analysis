@@ -43,7 +43,7 @@ say "1/7  start petclinic with parallel-per-test-coverage agent (port $CTRL)"
 STALE="$(lsof -ti tcp:$PORT 2>/dev/null || true)"; [ -n "$STALE" ] && { echo "freeing stale :$PORT (pid $STALE)"; kill -9 $STALE 2>/dev/null || true; sleep 2; }
 rm -rf "$COV"; mkdir -p "$COV" "$DEMO"
 "$JDK21/bin/java" \
-  -javaagent:"$AGENT_JAR=destfile=$COV,port=$CTRL,includes=org.springframework.samples.petclinic.*" \
+  -javaagent:"$AGENT_JAR=destfile=$COV,port=$CTRL,aggregate=false,includes=org.springframework.samples.petclinic.*" \
   -jar "$APP_JAR" --server.port=$PORT > "$DEMO/server.log" 2>&1 &
 APP_PID=$!
 cleanup(){ kill "$APP_PID" 2>/dev/null || true; }
