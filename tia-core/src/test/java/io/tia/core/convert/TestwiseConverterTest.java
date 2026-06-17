@@ -93,6 +93,28 @@ class TestwiseConverterTest {
         assertFalse(doc.tests().get(0).paths().isEmpty(), "covered fixture yields paths");
     }
 
+    // ---- convert(): pjacoco's whole-run aggregate.exec (aggregate defaults ON) must NOT become a test ----
+    @Test
+    void convertSkipsPjacocoAggregateExec(@TempDir Path tmp) throws Exception {
+        byte[] original = readResource();
+        Path classesDir = tmp.resolve("classes");
+        Path classFile = classesDir.resolve("io/tia/core/convert/fixture/SampleTarget.class");
+        Files.createDirectories(classFile.getParent());
+        Files.write(classFile, original);
+
+        Path execDir = tmp.resolve("cov");
+        Files.createDirectories(execDir);
+        recordExecution(original, execDir.resolve("ATest#a.exec"));
+        recordExecution(original, execDir.resolve("aggregate.exec")); // pjacoco whole-run aggregate
+
+        Testwise.Document doc = new TestwiseConverter().convert(execDir, classesDir);
+
+        assertEquals(1, doc.tests().size(), "aggregate.exec must be excluded: " + doc.tests());
+        assertEquals("ATest#a", doc.tests().get(0).uniformPath());
+        assertTrue(doc.tests().stream().noneMatch(t -> t.uniformPath().equals("aggregate")),
+                "no bogus 'aggregate' test");
+    }
+
     // ---- helpers ----
 
     private static byte[] readResource() throws Exception {

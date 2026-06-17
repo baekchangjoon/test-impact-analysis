@@ -30,12 +30,21 @@ import java.util.stream.Stream;
 public final class TestwiseConverter {
     private final ObjectMapper mapper = new ObjectMapper();
 
-    /** Convert every {@code *.exec} under {@code execDir} (sorted by name) into a testwise document. */
+    /** pjacoco writes a whole-run aggregate here when its {@code aggregate} option is left ON (the
+     *  default, file name {@code aggregate.exec}). It is the union of all tests, not a per-test file,
+     *  so it must never be ingested as a test (it would appear to cover everything). TIA also disables
+     *  it at the source via the Gradle plugin ({@code aggregate=false}); this skip is defense for runs
+     *  that collected with pjacoco defaults. */
+    static final String PJACOCO_AGGREGATE_EXEC = "aggregate.exec";
+
+    /** Convert every per-test {@code *.exec} under {@code execDir} (sorted by name) into a testwise
+     *  document. The pjacoco whole-run {@code aggregate.exec} (if present) is excluded. */
     public Testwise.Document convert(Path execDir, Path classesDir) throws IOException {
         List<Testwise.Test> tests = new ArrayList<>();
         try (Stream<Path> execs = Files.list(execDir)) {
             List<Path> sorted = execs
                     .filter(p -> p.getFileName().toString().endsWith(".exec"))
+                    .filter(p -> !p.getFileName().toString().equals(PJACOCO_AGGREGATE_EXEC))
                     .sorted()
                     .toList();
             for (Path exec : sorted) {

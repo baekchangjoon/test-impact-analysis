@@ -47,10 +47,14 @@ final class TiaArgs {
      *  the agent (io.pjacoco.agent.AgentOptions): {@code destfile=<dir>} (per-test .exec output dir),
      *  {@code port=<ctrl>} (fixed control endpoint; the test driver connects via -Dpjacoco.control-url),
      *  {@code includes=<pattern>}. The control port is FIXED (not auto/ephemeral), so the measured JVM
-     *  must be single (one SUT process, or test JVM with maxParallelForks=1) — see attachCoverageAgent. */
+     *  must be single (one SUT process, or test JVM with maxParallelForks=1) — see attachCoverageAgent.
+     *  {@code aggregate=false}: TIA consumes per-test {@code .exec} only. pjacoco's {@code aggregate}
+     *  defaults ON and would otherwise write a whole-run {@code aggregate.exec} into the same dir, which
+     *  {@code tia convert} would mistake for a test covering everything (TestwiseConverter also skips it
+     *  defensively, but disabling it at the source is cleaner). */
     static String coverageAgentJvmArg(String agentJarAbsPath, String destDir, int controlPort, String includes) {
         String inc = notBlank(includes) ? ",includes=" + includes : "";
-        return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + inc;
+        return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + ",aggregate=false" + inc;
     }
 
     /** D3.1 (in-process model): -javaagent for the teamscale-jacoco-agent TESTWISE mode — contract

@@ -33,7 +33,34 @@ CLI는 `tiaCli` configuration에서 해소된다(기본 `io.tia:tia-cli:<project
 per-test 수집은 에이전트마다 모델이 다르다. 플러그인은 각각의 attach 헬퍼를 제공한다(에이전트 jar은 §5.3대로 사용자 제공).
 
 ### (a) out-of-process — parallel-per-test-coverage (baggage)
-SUT 프로세스(HTTP 블랙박스)에 에이전트를 붙이고 요청의 test.id baggage로 per-test 귀속. 계약은 `io.pjacoco.agent.AgentOptions` 확인값: `destfile=<dir>`·`port=<ctrl 고정>`·`includes`. 고정 포트라 `maxParallelForks=1`.
+
+**권장 — pjacoco 네이티브 플러그인 + 테스트킷.** pjacoco가 자체 Gradle 플러그인(`io.pjacoco.gradle`)과
+테스트킷(`pjacoco-testkit-junit5`·`pjacoco-testkit-restassured`)을 제공한다. 에이전트 attach,
+control-url 주입, 테스트별 start/stop, 요청의 `baggage: test.id` 전파를 플러그인+테스트킷이 모두 처리하므로
+TIA는 산출물(per-test `.exec`)을 `tia convert`로 받기만 하면 된다.
+
+```gradle
+plugins { id 'io.pjacoco.gradle' version '1.1.0' }   // ※ 공개 배포(Maven Central/Plugin Portal) 후 사용 가능
+pjacoco {
+    includes.set(['com.acme.*'])
+    attachTo.set(['integrationTest'])
+    aggregate.set(false)            // TIA는 per-test만 소비 → 전체-실행 aggregate.exec 끔
+}
+dependencies {
+    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.1.0'
+    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.1.0'
+}
+// 이후: tia convert --exec-dir <pjacoco 출력 dir> --classes ... → testwise.json → tiaIndex
+```
+
+> **현재 상태:** pjacoco 플러그인/테스트킷은 아직 공개 저장소에 배포되지 않았다(`mavenLocal`로만 검증 가능).
+> 공개 배포 전까지는 아래 TIA 내장 헬퍼로 같은 계약을 직접 와이어한다. pjacoco가 Maven Central /
+> Gradle Plugin Portal에 올라오면 위 블록으로 전환하고 TIA 내장 헬퍼는 제거한다.
+
+**대안 — TIA 내장 헬퍼 (공개 배포 전 임시).** SUT 프로세스(HTTP 블랙박스)에 에이전트를 직접 붙이고 요청의
+test.id baggage로 per-test 귀속. 계약은 `io.pjacoco.agent.AgentOptions` 확인값:
+`destfile=<dir>`·`port=<ctrl 고정>`·`aggregate=false`(per-test만 소비 → 전체-실행 `aggregate.exec` 비활성)·`includes`.
+고정 포트라 `maxParallelForks=1`. 요청별 `baggage: test.id` 전파는 테스트 하니스가 담당.
 
 ```gradle
 io.tia.gradle.TiaPlugin.attachCoverageAgent(

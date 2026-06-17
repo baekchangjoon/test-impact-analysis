@@ -27,11 +27,13 @@
   테스트 JVM에 붙이고 `tia-junit-extension`(`@ExtendWith(io.tia.junit.TeamscaleTestwiseExtension)`)이
   테스트마다 start/end 신호 → `out` 디렉터리 → teamscale `convert`로 `testwise.json`.
   워크된 예: [`scripts/run-poc.sh`](scripts/run-poc.sh). 플러그인은 `attachTeamscaleAgent(...)` 제공.
-- **out-of-process** (HTTP 블랙박스, SUT 별도 프로세스): **parallel-per-test-coverage** 에이전트를
+- **out-of-process** (HTTP 블랙박스, SUT 별도 프로세스): **parallel-per-test-coverage**(pjacoco) 에이전트를
   SUT에 붙이고 요청 `test.id` baggage로 per-test `.exec` 수집 → **`tia convert`**:
   ```bash
   "$CLI" convert --exec-dir <execDir> --classes build/classes/java/main --out testwise.json
   ```
+  와이어링은 pjacoco 자체 Gradle 플러그인 + 테스트킷이 권장 경로다(공개 배포 후) — [플러그인 가이드 §(a)](tia-gradle-plugin/README.md).
+  per-test만 소비하므로 에이전트의 `aggregate`는 끈다(`aggregate=false`; 기본 ON이면 전체-실행 `aggregate.exec`가 함께 떨어진다).
   워크된 예: [petclinic-demo](petclinic-demo/README.md).
 
 > 이미 `testwise.json`(또는 다른 도구의 동등 산출물)이 있으면 1단계는 건너뛴다 — 형식은

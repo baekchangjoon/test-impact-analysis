@@ -41,10 +41,12 @@ class TiaPluginTest {
 
     @org.junit.jupiter.api.Test
     void coverageAgentJvmArgMatchesRealAgentContract() {
-        // verified against io.pjacoco.agent.AgentOptions: destfile(dir)/port(ctrl)/includes
-        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,includes=com.acme.*",
+        // verified against io.pjacoco.agent.AgentOptions: destfile(dir)/port(ctrl)/includes.
+        // aggregate=false: TIA consumes per-test .exec only; pjacoco's aggregate defaults ON and would
+        // otherwise drop a whole-run aggregate.exec into the same dir (see TestwiseConverter skip).
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,aggregate=false,includes=com.acme.*",
                 TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, "com.acme.*"));
-        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310",
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,aggregate=false",
                 TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, null));
     }
 
@@ -85,7 +87,7 @@ class TiaPluginTest {
         Test test = (Test) project.getTasks().getByName("test");
         TiaPlugin.attachCoverageAgent(test, new File("/opt/agent.jar"), new File("/tmp/cov"), 6310, "com.acme.*");
         assertTrue(test.getJvmArgs().stream()
-                        .anyMatch(a -> a.equals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,includes=com.acme.*")),
+                        .anyMatch(a -> a.equals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,aggregate=false,includes=com.acme.*")),
                 "agent jvmArg: " + test.getJvmArgs());
         assertEquals("http://127.0.0.1:6310", test.getSystemProperties().get("pjacoco.control-url"));
         assertEquals(1, test.getMaxParallelForks(), "fixed control port → single fork");
