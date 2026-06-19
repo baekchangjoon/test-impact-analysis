@@ -90,6 +90,22 @@
 "$CLI" index --report testwise.json --repo my-service --commit "$(git rev-parse HEAD)" --db tia.db
 ```
 
+> **인덱스 저장 위치 (`tia.db`).** `tia.db`는 **git에 커밋하지 않는다** — 바이너리 파일이라 diff가 의미없고,
+> 워크트리마다 충돌을 일으키며 레포를 비대하게 만든다. `.gitignore`에 `tia.db`를 추가해 둘 것.
+>
+> 권장 위치: **git common dir** 아래의 비트래킹 경로.
+> ```bash
+> DB="$(git rev-parse --git-common-dir)/tia/tia.db"
+> mkdir -p "$(dirname "$DB")"
+> "$CLI" index ... --db "$DB"
+> "$CLI" impact --db "$DB" ...
+> ```
+> 이렇게 하면 메인 체크아웃과 모든 워크트리가 같은 DB를 공유한다. 인덱스는 `commit_sha`를 키로
+> 저장하므로 어느 워크트리에서 조회해도 동일한 스냅샷이 반환된다. `$XDG_CACHE_HOME/tia/` 또는
+> 팀 공유 경로도 같은 방식으로 쓸 수 있다.
+>
+> (`--db` 기본값 자동화는 향후 CLI 개선 예정 — 현재는 `--db`로 명시적으로 경로를 전달한다.)
+
 ## 3. 변경 영향 테스트 선별
 
 ```bash

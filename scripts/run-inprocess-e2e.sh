@@ -36,7 +36,7 @@ run_mode() {  # $1 = serial|forks|injvm
   local ov="$OUT/overlap-$mode.csv"
   rm -rf "$cov"; mkdir -p "$cov"; rm -f "$ov"
   echo "=== run_mode: $mode ===" >&2
-  "$REPO_ROOT/gradlew" --no-daemon :e2e:inProcessTesterTest \
+  "$REPO_ROOT/gradlew" --no-daemon --no-build-cache :e2e:inProcessTesterTest \
       -Pinprocess.mode="$mode" \
       -Pinprocess.agentJar="$AGENT_JAR" \
       -Pinprocess.covDir="$cov" \
