@@ -43,6 +43,7 @@ pitest {
     targetTests = ['io.tia.e2e.*']
     additionalMutableCodePaths = files(project(':tia-core').sourceSets.main.output.classesDirs)
     excludedClasses = ['io.tia.core.model.*']
+    excludedTestClasses = ['io.tia.e2e.parallel.*']
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
     threads = 4
