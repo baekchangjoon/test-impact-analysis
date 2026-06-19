@@ -6,6 +6,7 @@ repositories { mavenLocal(); mavenCentral() }   // pjacoco testkit(mavenLocal) �
 dependencies {
     testImplementation project(':tia-cli')
     testImplementation project(':tia-core')
+    testImplementation(project(':fixture-app')) { transitive = false }
     testImplementation 'info.picocli:picocli:4.7.6'
     testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
@@ -15,7 +16,7 @@ dependencies {
 }
 
 // 일반 :e2e:test 에서 병렬 테스터/수용 비교 테스트는 제외(오케스트레이터가 별도 구동).
-tasks.named('test') { useJUnitPlatform { excludeTags 'parallel-tester', 'parallel-e2e' } }
+tasks.named('test') { useJUnitPlatform { excludeTags 'parallel-tester', 'parallel-e2e', 'inprocess-tester', 'inprocess-e2e' } }
 
 // 병렬 테스터 전용 태스크 — -Pparallel.mode 로 직렬/포크/in-JVM 구성. SUT는 외부 기동(스크립트).
 tasks.register('parallelTesterTest', Test) {
@@ -43,6 +44,29 @@ tasks.register('parallelCollectionE2ETest', Test) {
     outputs.upToDateWhen { false }
 }
 
+// in-process per-test 테스터 — 테스터 JVM(=SUT)에 pjacoco 에이전트를 -javaagent로 부착.
+tasks.register('inProcessTesterTest', Test) {
+    useJUnitPlatform { includeTags 'inprocess-tester' }
+    def repo = rootProject.projectDir
+    def agentJar = (project.findProperty('inprocess.agentJar') ?: "${repo}/tools/pjacoco/jacocoagent-parallel.jar").toString()
+    def covDir = (project.findProperty('inprocess.covDir') ?: "${repo}/build/inprocess-e2e/cov-serial").toString()
+    jvmArgs "-javaagent:${agentJar}=destfile=${covDir},aggregate=false,includes=io.tia.fixture.*,port=0"
+    systemProperties System.getProperties().findAll { it.key.toString().startsWith('tia.inprocess.') }
+    def mode = (project.findProperty('inprocess.mode') ?: 'serial').toString()
+    if (mode == 'forks') {
+        maxParallelForks = 4
+    } else if (mode == 'injvm') {
+        maxParallelForks = 1
+        systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
+        systemProperty 'junit.jupiter.execution.parallel.mode.default', 'concurrent'
+        systemProperty 'junit.jupiter.execution.parallel.config.strategy', 'fixed'
+        systemProperty 'junit.jupiter.execution.parallel.config.fixed.parallelism', '4'
+    } else {
+        maxParallelForks = 1
+    }
+    outputs.upToDateWhen { false }
+}
+
 // tia-core 클래스를 변형하고 E2E 테스트(io.tia.e2e.*)로 죽이는지 측정. ./gradlew :e2e:pitest
 evaluationDependsOn(':tia-core')
 pitest {
@@ -51,7 +75,7 @@ pitest {
     targetTests = ['io.tia.e2e.*']
     additionalMutableCodePaths = files(project(':tia-core').sourceSets.main.output.classesDirs)
     excludedClasses = ['io.tia.core.model.*']
-    excludedTestClasses = ['io.tia.e2e.parallel.*']
+    excludedTestClasses = ['io.tia.e2e.parallel.*', 'io.tia.e2e.inprocess.*']
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
     threads = 4

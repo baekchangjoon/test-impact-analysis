@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 /** testwise JSON → {@code Map<testId, Map<fileKey, RoaringBitmap>>}. 직렬/병렬 산출물 동등 비교용 공유 유틸. */
-final class TestwiseNormalizer {
+public final class TestwiseNormalizer {
     private TestwiseNormalizer() {}
 
-    static Map<String, Map<String, RoaringBitmap>> normalize(Path testwiseJson) throws Exception {
+    public static Map<String, Map<String, RoaringBitmap>> normalize(Path testwiseJson) throws Exception {
         try (InputStream in = Files.newInputStream(testwiseJson)) {
             List<TestCoverage> tests = new TestwiseReportParser().parse(in);
             Map<String, Map<String, RoaringBitmap>> out = new LinkedHashMap<>();
