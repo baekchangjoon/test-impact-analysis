@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Do not source this script; always run as: bash scripts/setup-pjacoco.sh
 # pjacoco(미게시)를 소스에서 빌드해 (1) 에이전트 jar 확보 (2) testkit/plugin을 mavenLocal에 게시.
 # 해소 실패 시 비0 종료 — 호출측(E2E/CI)이 skip 아닌 fail로 다룬다.
 #
@@ -22,4 +23,5 @@ AGENT_JAR="$(find "$PJACOCO_SRC/agent/build/libs" -name 'jacocoagent-parallel*.j
 [ -n "$AGENT_JAR" ] || { echo "❌ pjacoco 에이전트 jar 빌드 실패" >&2; exit 1; }
 mkdir -p "$REPO_ROOT/tools/pjacoco"
 cp "$AGENT_JAR" "$REPO_ROOT/tools/pjacoco/jacocoagent-parallel.jar"
+[ -f "$REPO_ROOT/tools/pjacoco/jacocoagent-parallel.jar" ] || { echo "❌ jar 복사 실패" >&2; exit 1; }
 echo "PJACOCO_AGENT_JAR=$REPO_ROOT/tools/pjacoco/jacocoagent-parallel.jar"
