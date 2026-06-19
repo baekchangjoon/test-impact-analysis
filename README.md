@@ -263,6 +263,12 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 
 알려진 환경 제약: 일부 샌드박스에서 Gradle 테스트 워커의 아웃바운드가 막힙니다. 가장 충실한 검증은 위 **컨테이너 E2E**로 하며, in-process/out-of-process 양쪽 모두 pjacoco를 통해 네트워크 제약 없이 동작합니다.
 
+- **멀티모듈 인덱스 병합.** 같은 commit에 모듈별로 따로 인덱싱하면 build가 여러 개 쌓이는데, `impact`는
+  이제 그 commit의 **모든 build를 test_id별 최신-build-wins로 병합**해 선별한다(과거엔 마지막 build만
+  보여 다른 모듈 테스트가 누락됐다). 같은 commit을 재인덱싱하면 같은 test_id는 최신 build가 대체한다.
+  (단, 같은 commit 재인덱싱 시 삭제된 test의 stale 커버리지는 남을 수 있다 — 필요 시 해당 db를 지우고
+  clean 재인덱싱.)
+
 멀티모듈 주의: 파일 키는 package-relative로 정규화되므로(이 덕분에 변환 없이 모듈 간 매칭이 됩니다), **서로 다른 모듈이 같은 패키지를 공유하면 파일 키가 충돌**할 수 있습니다. 모듈별로 패키지를 고유하게 두면 안전합니다.
 
 ---
