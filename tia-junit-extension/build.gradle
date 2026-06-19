@@ -1,8 +1,0 @@
-// 레거시(Java 8) 호환은 '배포되는 main 코드'에만 필요 — 테스트는 toolchain 17 유지.
-// (전체 JavaCompile에 걸면 테스트의 List.of 등 Java 9+ API가 --release 8에서 컴파일 실패.)
-tasks.named('compileJava') { options.release = 8 }
-dependencies {
-    compileOnly 'org.junit.jupiter:junit-jupiter-api:5.11.0'   // 소비 스위트가 JUnit 런타임 제공
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
-    testImplementation 'org.mockito:mockito-core:5.12.0'
-}

@@ -4,8 +4,7 @@ plugins {
 }
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    testImplementation project(':tia-junit-extension')
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
 }

@@ -50,13 +50,6 @@ class TiaPluginTest {
                 TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, null));
     }
 
-    @org.junit.jupiter.api.Test
-    void teamscaleAgentJvmArgMatchesTestwiseContract() {
-        // contract from scripts/run-poc.sh & docker-compose.e2e.yml
-        assertEquals("-javaagent:/opt/ts.jar=mode=TESTWISE,includes=io.acme.*,http-server-port=8123,class-dir=/c,out=/o",
-                TiaArgs.teamscaleAgentJvmArg("/opt/ts.jar", "/o", 8123, "/c", "io.acme.*"));
-    }
-
     // ---- plugin wiring (ProjectBuilder) ----
     @org.junit.jupiter.api.Test
     void registersTasksExtensionAndCliConfig() {
@@ -103,16 +96,4 @@ class TiaPluginTest {
         assertEquals("http://127.0.0.1:6310", t.getSystemProperties().get("pjacoco.control-url"));
     }
 
-    @org.junit.jupiter.api.Test
-    void attachTeamscaleAgentWiresAgentUrlAndSingleFork() {
-        Project project = ProjectBuilder.builder().build();
-        project.getPlugins().apply("java");
-        Test test = (Test) project.getTasks().getByName("test");
-        TiaPlugin.attachTeamscaleAgent(test, new File("/opt/ts.jar"), new File("/o"), 8123, new File("/c"), "io.acme.*");
-        assertTrue(test.getJvmArgs().stream()
-                        .anyMatch(a -> a.equals("-javaagent:/opt/ts.jar=mode=TESTWISE,includes=io.acme.*,http-server-port=8123,class-dir=/c,out=/o")),
-                "teamscale jvmArg: " + test.getJvmArgs());
-        assertEquals("http://localhost:8123", test.getSystemProperties().get("tia.agent.url"));
-        assertEquals(1, test.getMaxParallelForks(), "single http-server-port → single fork");
-    }
 }

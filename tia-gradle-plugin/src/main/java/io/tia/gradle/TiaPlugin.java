@@ -88,22 +88,6 @@ public class TiaPlugin implements Plugin<Project> {
         test.setMaxParallelForks(1);   // fixed control port → single fork
     }
 
-    /**
-     * D3.1 (in-process per-test): attach the teamscale-jacoco-agent (TESTWISE) to the {@code Test} JVM.
-     * The tia-junit-extension (on the test classpath) signals per-test start/end to the agent's HTTP
-     * control server; teamscale writes per-test data under {@code outDir} (→ teamscale convert →
-     * testwise.json → {@code tia index}). Sets {@code tia.agent.url} for the extension and pins
-     * {@code maxParallelForks = 1} (single fixed http-server-port). Verified end-to-end by
-     * scripts/run-poc.sh (3 tests, testPrice selected). Agent jar caller-provided (§5.3).
-     */
-    public static void attachTeamscaleAgent(Test test, File agentJar, File outDir, int httpPort,
-                                            File classDir, String includes) {
-        test.jvmArgs(TiaArgs.teamscaleAgentJvmArg(agentJar.getAbsolutePath(), outDir.getAbsolutePath(),
-                httpPort, classDir.getAbsolutePath(), includes));
-        test.systemProperty("tia.agent.url", "http://localhost:" + httpPort);
-        test.setMaxParallelForks(1);   // single fixed http-server-port → single fork
-    }
-
     private static String req(Property<String> p, String name) {
         if (!p.isPresent()) {
             throw new GradleException("tia: '" + name + "' 가 필요합니다 — tia { " + name + " = ... } 설정");
