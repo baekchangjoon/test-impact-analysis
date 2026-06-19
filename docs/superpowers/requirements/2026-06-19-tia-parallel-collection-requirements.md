@@ -104,6 +104,19 @@
   - Then pjacoco 의존이 해소되어 E2E가 실제로 수행되며, 해소 실패 시 job이 fail한다(조용한 skip 아님).
 - 검증 레벨: CI 파이프라인 (E2E job)
 
+### REQ-010 — 병렬 모드에서 동시성이 실제로 발생함을 프로브로 검증한다
+- 유형: Functional
+- 우선순위: Must
+- 설명: REQ-001/002의 동등 비교가 "serial vs serial"로 전락하지 않도록, 병렬 모드(forks, in-JVM)가
+  실제로 동시 실행되었음을 증명한다. 단일 테스트 클래스는 Gradle `maxParallelForks`(클래스 단위
+  분배)에서 포크 병렬이 발생하지 않으므로 테스터를 **여러 클래스로 분할**하고, SUT가 관측한 **최대
+  동시 인입 요청 수(maxConcurrent)** 를 프로브로 측정한다.
+- 수용기준:
+  - Given 다중 클래스 테스터 + SUT 동시성 프로브, 직렬/forks/in-JVM 각 모드 수집,
+  - When 각 모드 종료 시 SUT가 관측한 maxConcurrent를 읽으면,
+  - Then forks·in-JVM 모드의 maxConcurrent ≥ 2 이고(실제 동시성 증명), serial 모드는 1 이다.
+- 검증 레벨: E2E black-box
+
 ### REQ-009 — E2E는 실행 간 격리된 출력으로 결정적으로 비교한다
 - 유형: Non-functional
 - 우선순위: Should
@@ -128,5 +141,6 @@
 | REQ-007 | 병렬 와이어링 문서 | docs gate (GETTING-STARTED/README) | 문서 | 🔴 planned |
 | REQ-008 | CI 의존 해소(fail-not-skip) | ci.yml parallel-e2e job | CI | 🔴 planned |
 | REQ-009 | 격리 출력·동일 classes | ParallelCollectionE2E (디렉터리 격리/동일 classesDir) | E2E | 🔴 planned |
+| REQ-010 | 병렬 동시성 실증(프로브) | ParallelCollectionE2E#parallelModesRunConcurrently | E2E | 🔴 planned |
 
-Coverage: 0/9 green (0%) — target 100% (대상: Must 8 + 미연기 Should 1[REQ-009]). 연기/Won't/제외 없음.
+Coverage: 0/10 green (0%) — target 100% (대상: Must 9 + 미연기 Should 1[REQ-009]). 연기/Won't/제외 없음.
