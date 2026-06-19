@@ -16,7 +16,7 @@ import java.util.concurrent.Callable;
 
 @Command(name = "impact", description = "diff와 커버리지 매핑을 교차해 영향 테스트 선별")
 public class ImpactCommand implements Callable<Integer> {
-    @Option(names = "--db", required = true) Path db;
+    @Option(names = "--db") Path db;
     @Option(names = "--commit", required = true) String commit;
     @Option(names = "--diff-file", description = "unified diff 파일 (미지정 시 --git-ref로 git diff 실행)") Path diffFile;
     @Option(names = "--git-ref", description = "diff 베이스 ref (미지정 시 --commit). 라인 공간 정렬 위해 인덱싱 커밋과 일치해야 함 [설계 §6.2 4-B]") String gitRef;
@@ -26,9 +26,11 @@ public class ImpactCommand implements Callable<Integer> {
     static final String NO_BASELINE_MARKER = "# tia:no-baseline";
 
     @Override public Integer call() throws Exception {
+        Path effectiveDb = (db != null) ? db : DbPaths.resolveDefault();
+        if (db == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         CoverageSnapshot snap;
         int buildCount;
-        try (CoverageStore store = new CoverageStore(db)) {
+        try (CoverageStore store = new CoverageStore(effectiveDb)) {
             buildCount = store.distinctBuildCount(commit);   // try 블록 안에서 캡처(store 스코프 제한)
             snap = store.load(commit);
         }
@@ -42,7 +44,7 @@ public class ImpactCommand implements Callable<Integer> {
         // --strict 면 실패시켜 파이프라인이 명시적으로 처리하게 한다.
         if (snap.tests().isEmpty()) {
             System.out.println(NO_BASELINE_MARKER);
-            System.err.println("WARN: '" + commit + "' 의 TIA 베이스라인이 " + db
+            System.err.println("WARN: '" + commit + "' 의 TIA 베이스라인이 " + effectiveDb
                 + " 에 없음 → 전체 실행 권장(보수적, 누락 위험 0).");
             return strict ? 3 : 0;
         }
