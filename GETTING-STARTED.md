@@ -60,7 +60,7 @@
    `junit.jupiter.extensions.autodetection.enabled=true`
 2. 서비스 파일로 확장을 등록한다 —
    `META-INF/services/org.junit.jupiter.api.extension.Extension`에 한 줄:
-   `io.tia.pjacoco.PjacocoInProcessExtension`
+   `io.pjacoco.testkit.junit5.PjacocoInProcessExtension`
 3. 에이전트(`-javaagent:pjacoco-agent.jar=aggregate=false,port=0,includes=<패키지>`)는
    Gradle init script로 모든 `test` 태스크에 주입한다(빌드 스크립트 수정 없이).
 

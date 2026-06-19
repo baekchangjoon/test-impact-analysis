@@ -37,11 +37,10 @@ Gradle 멀티모듈입니다.
 test-impact-analysis/
 ├── tia-core/             # 순수 로직: diff·testwise 파싱, 교차 판정, SQLite 저장, 플레이키 집계 (결정론적, TDD)
 ├── tia-cli/              # CLI: index / impact / flaky (picocli)
-├── tia-junit-extension/  # JUnit5 확장: 테스트별로 에이전트에 시작/종료 신호 (Java 8 호환)
 ├── fixture-app/          # 수집 대상 최소 Spring Boot 앱 + RestAssured 스위트
 ├── e2e/                  # 스펙 수용(acceptance) E2E
 ├── coverage/             # 집계 JaCoCo 커버리지 리포트
-├── scripts/              # run-poc.sh, measure-flaky.sh, download-agent.sh …
+├── scripts/              # setup-pjacoco.sh, run-inprocess-e2e.sh, run-parallel-e2e.sh, docker-e2e-tester.sh, coverage-summary.py …
 ├── docker-compose.e2e.yml# 컨테이너 간 블랙박스 E2E
 └── docs/superpowers/     # 설계 문서 + 구현 계획
 ```
@@ -50,7 +49,6 @@ test-impact-analysis/
 |------|------|
 | `tia-core` | diff·커버리지 파싱, `라인 ∩ diff` 교차 판정, SQLite 스냅샷 저장, 플레이키 집계 |
 | `tia-cli` | `tia index` / `tia impact` / `tia flaky` |
-| `tia-junit-extension` | `@BeforeEach`/`@AfterEach`로 에이전트에 per-test 경계 신호 |
 | `fixture-app` | 파이프라인을 끝까지 검증하기 위한 in-repo Spring Boot 앱 |
 
 ---
@@ -263,7 +261,7 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 - **staleness 저신뢰 플래그·라인 재조정** — 현재는 "diff 베이스 = 인덱싱 커밋" 불변식으로 우회
 - **병렬 수집**(`jacocoagent-parallel.jar` 드롭인) — 직렬 스위트가 나이틀리 윈도우를 초과할 때 전환
 
-알려진 환경 제약: 일부 샌드박스에서 Gradle 테스트 워커의 아웃바운드가 막힙니다 → `run-poc.sh`는 확장과 동일한 HTTP 신호를 `curl`로 대체하고, 가장 충실한 검증은 위 **컨테이너 E2E**로 합니다.
+알려진 환경 제약: 일부 샌드박스에서 Gradle 테스트 워커의 아웃바운드가 막힙니다. 가장 충실한 검증은 위 **컨테이너 E2E**로 하며, in-process/out-of-process 양쪽 모두 pjacoco를 통해 네트워크 제약 없이 동작합니다.
 
 멀티모듈 주의: 파일 키는 package-relative로 정규화되므로(이 덕분에 변환 없이 모듈 간 매칭이 됩니다), **서로 다른 모듈이 같은 패키지를 공유하면 파일 키가 충돌**할 수 있습니다. 모듈별로 패키지를 고유하게 두면 안전합니다.
 
