@@ -23,10 +23,11 @@
 
 테스트별로 어떤 프로덕션 라인을 실행했는지 수집한다. **두 모델** 중 프로젝트에 맞는 쪽:
 
-- **in-process** (단위·통합 테스트가 코드와 같은 JVM): **teamscale-jacoco-agent**(`mode=TESTWISE`)를
-  테스트 JVM에 붙이고 `tia-junit-extension`(`@ExtendWith(io.tia.junit.TeamscaleTestwiseExtension)`)이
-  테스트마다 start/end 신호 → `out` 디렉터리 → teamscale `convert`로 `testwise.json`.
-  워크된 예: [`scripts/run-poc.sh`](scripts/run-poc.sh). 플러그인은 `attachTeamscaleAgent(...)` 제공.
+- **in-process** (단위·통합 테스트가 코드와 같은 JVM): **pjacoco in-process** 에이전트(`-javaagent`)를
+  테스트 JVM에 붙이고 `@ExtendWith(PjacocoInProcessExtension)`이 테스트마다 start/stop 신호.
+  `aggregate=false`·`port=0`(시스템 할당)으로 구성하며, 서비스는 테스트에서 직접 호출(HTTP 불필요).
+  수집 결과(`.exec`) → `tia convert` → `testwise.json`. 병렬 실행 제약이 없다(포트 충돌 없음).
+  워크된 예: [`scripts/run-inprocess-e2e.sh`](scripts/run-inprocess-e2e.sh).
 - **out-of-process** (HTTP 블랙박스, SUT 별도 프로세스): **parallel-per-test-coverage**(pjacoco) 에이전트를
   SUT에 붙이고 요청 `test.id` baggage로 per-test `.exec` 수집 → **`tia convert`**:
   ```bash
@@ -59,8 +60,9 @@
    `junit.jupiter.extensions.autodetection.enabled=true`
 2. 서비스 파일로 확장을 등록한다 —
    `META-INF/services/org.junit.jupiter.api.extension.Extension`에 한 줄:
-   `io.tia.junit.TeamscaleTestwiseExtension`
-3. 에이전트는 Gradle init script로 모든 `test` 태스크에 주입한다(빌드 스크립트 수정 없이).
+   `io.tia.pjacoco.PjacocoInProcessExtension`
+3. 에이전트(`-javaagent:pjacoco-agent.jar=aggregate=false,port=0,includes=<패키지>`)는
+   Gradle init script로 모든 `test` 태스크에 주입한다(빌드 스크립트 수정 없이).
 
 > **확장/서비스 jar을 테스트 클래스패스에 추가할 때 `test.classpath`를 재할당하지 않는다.**
 > `test.classpath = test.classpath + files(...)`는 설정 시점에 조기 평가되어 런타임 클래스패스가

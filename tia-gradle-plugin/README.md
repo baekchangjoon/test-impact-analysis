@@ -72,22 +72,34 @@ io.tia.gradle.TiaPlugin.attachCoverageAgent(
 // 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json
 ```
 
-### (b) in-process — teamscale-jacoco-agent (TESTWISE)
-**Test JVM**에 에이전트를 붙이고, `tia-junit-extension`(테스트 클래스패스)이 테스트마다 `/test/start|end`를 HTTP control 서버로 신호. 계약(scripts/run-poc.sh·docker-compose.e2e.yml): `mode=TESTWISE,includes=<p>,http-server-port=<port>,class-dir=<classes>,out=<dir>`. 플러그인이 `tia.agent.url` 시스템 프로퍼티 + `maxParallelForks=1`을 설정.
+### (b) in-process — pjacoco in-process (권장)
+
+**Test JVM**에 pjacoco 에이전트(`-javaagent`)를 붙이고, `PjacocoInProcessExtension`이 테스트마다
+start/stop 신호. `aggregate=false`·`port=0`(OS 할당)으로 설정하며, 서비스는 테스트에서 직접 호출한다.
+per-test `.exec` → `tia convert` → `testwise.json` → `tia index`.
+
+에이전트 옵션 요약: `aggregate=false` (per-test `.exec`만 수집; 전체-실행 `aggregate.exec` 비활성),
+`port=0` (고정 포트 없으므로 병렬 JVM 충돌 없음), `includes=<프로덕션 패키지>`.
 
 ```gradle
-io.tia.gradle.TiaPlugin.attachTeamscaleAgent(
-    t, file('tools/teamscale/.../teamscale-jacoco-agent.jar'),
-    file("$buildDir/tia/cov"), 8123, file("$buildDir/classes/java/main"), 'io.acme.*')
-// 테스트는 @ExtendWith(io.tia.junit.TeamscaleTestwiseExtension); 이후 teamscale convert → testwise.json → tia index
+// build.gradle.kts (또는 Groovy 동등)
+dependencies {
+    testImplementation("io.pjacoco:pjacoco-inprocess-junit5:<ver>")  // PjacocoInProcessExtension
+}
+
+tasks.withType<Test>().configureEach {
+    jvmArgs("-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains("pjacoco-agent") }}=aggregate=false,port=0,includes=com.acme.*")
+}
+// 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json → tia index
 ```
 
-> 기존 레포(테스트 클래스 다수)는 `@ExtendWith`를 일일이 추가하는 대신 **확장을 전역 등록**한다 —
-> 절차와 함정(`test.classpath` 재할당 금지 → `testRuntimeOnly` 사용, `includes`는 프로덕션
-> 패키지만)은 [GETTING-STARTED §1.1](../GETTING-STARTED.md#11-기존-레포에-적용할-때-in-process) 참고.
+> **기존 레포(테스트 클래스 다수)에 적용할 때** `@ExtendWith`를 일일이 추가하는 대신 JUnit 5 자동
+> 등록으로 전역 적용한다 — 절차와 함정(`test.classpath` 재할당 금지 → `testRuntimeOnly` 사용,
+> `includes`는 프로덕션 패키지만)은
+> [GETTING-STARTED §1.1](../GETTING-STARTED.md#11-기존-레포에-적용할-때-in-process) 참고.
 
 ## 검증 / 범위
 
-- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 두 attach 헬퍼의 jvmArg 계약·`tia.agent.url`/`pjacoco.control-url`·`maxParallelForks=1` 검증. 전체 회귀 GREEN.
-- **out-of-process 실증(E2E-R):** parallel 에이전트로 petclinic 데모 end-to-end — per-test `.exec` 35개 → `tia convert` 35 tests/27 커버리지 → index→impact→flaky→report 통과.
-- **in-process 실증(E2E):** teamscale 에이전트(TESTWISE)로 `scripts/run-poc.sh` — per-test 수집 3 tests → testwise → index → `tia impact` → **`DETERMINISTIC testPrice` 선별, testGreeting 제외(E2E PASS)**. 플러그인 attach 헬퍼는 이 스크립트와 동일 계약을 와이어(단위로 잠금); 플러그인-드리븐 전체 실행은 에이전트가 있는 샘플에서 동일 인자로 재현된다.
+- 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 두 attach 헬퍼의 jvmArg 계약·`pjacoco.control-url`·`maxParallelForks=1` 검증. 전체 회귀 GREEN.
+- **out-of-process 실증(E2E-R):** pjacoco parallel 에이전트로 petclinic 데모 end-to-end — per-test `.exec` 35개 → `tia convert` 35 tests/27 커버리지 → index→impact→flaky→report 통과.
+- **in-process 실증(E2E):** pjacoco in-process 에이전트 + `PjacocoInProcessExtension`으로 `scripts/run-inprocess-e2e.sh` — per-test `.exec` 수집 → testwise → index → `tia impact` → **`DETERMINISTIC testPrice` 선별, testGreeting 제외(E2E PASS)**.

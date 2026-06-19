@@ -13,7 +13,7 @@
 
 > 비트 연산 자체는 결정론적입니다. 다만 그 신뢰도는 커버리지 매핑 품질에 종속되므로, 커버리지가 닿지 않는 변경(설정/SQL/의존성)과 신규 코드는 **보수적으로 전체 선택**합니다(거짓 "인프라" 면죄부·회귀 누출 방지).
 
-이 저장소는 위 설계의 **PoC** 구현체입니다. 단일 레포에서 [teamscale-jacoco-agent](https://github.com/cqse/teamscale-java-profiler)로 per-test 커버리지를 수집 → `git diff`와 교차 → **영향 테스트 선별** + **플레이키 비율 측정**까지 동작합니다.
+이 저장소는 위 설계의 **PoC** 구현체입니다. 단일 레포에서 **pjacoco**(parallel-per-test-coverage)로 per-test 커버리지를 수집 → `git diff`와 교차 → **영향 테스트 선별** + **플레이키 비율 측정**까지 동작합니다.
 
 > 🚀 **내 프로젝트에 적용하려면 → [GETTING-STARTED.md](GETTING-STARTED.md).** 바로 동작을 보려면 아래 [빠른 시작](#빠른-시작-1줄-e2e). 배포 형태(CLI·Docker·Gradle 플러그인·Agent Skill)는 [사용 형태](#사용-형태-배포-표면).
 
@@ -68,23 +68,22 @@ test-impact-analysis/
 
 ## 빠른 시작 (1줄 E2E)
 
-커버리지 에이전트를 받고, 전체 파이프라인을 한 번에 돌립니다.
+pjacoco 에이전트를 빌드하고(미공개 — mavenLocal 필요), 전체 파이프라인을 한 번에 돌립니다.
 
 ```bash
-# 1) teamscale-jacoco-agent 다운로드 (tools/ 에 압축 해제)
-bash scripts/download-agent.sh
+# 1) pjacoco 소스 빌드 → mavenLocal (에이전트·확장 해소)
+bash scripts/setup-pjacoco.sh
 
-# 2) 수집 → 인덱싱 → diff 교차 → 영향 테스트 선별까지 전체 E2E
-bash scripts/run-poc.sh
+# 2) in-process 수집 → 인덱싱 → diff 교차 → 영향 테스트 선별까지 전체 E2E
+bash scripts/run-inprocess-e2e.sh
 ```
 
-`run-poc.sh`는 다음을 자동으로 수행합니다.
+`run-inprocess-e2e.sh`는 다음을 자동으로 수행합니다.
 
-1. `fixture-app`을 에이전트와 함께 기동
-2. 엔드포인트 응답값 검증 (`greeting='hello alice'`, `price=300`)
-3. 3개 테스트(`testGreeting`·`testPrice`·`testFlaky`)를 per-test로 커버리지 수집
-4. testwise JSON 으로 변환 후 `tia index`
-5. `PricingService.java` 한 줄을 실제로 바꿔 `git diff` 생성 → `tia impact`
+1. pjacoco 에이전트를 테스트 JVM에 붙여(`-javaagent`, `aggregate=false`, `port=0`) Gradle 테스트 실행
+2. `PjacocoInProcessExtension`이 각 테스트마다 start/stop 신호 → per-test `.exec` 수집
+3. `tia convert` → testwise JSON → `tia index`
+4. `PricingService.java` 한 줄을 실제로 바꿔 `git diff` 생성 → `tia impact`
 
 **기대 출력 (마지막 줄):**
 
@@ -128,14 +127,14 @@ $CLI --help          # convert | index | impact | flaky | report
 $CLI convert --exec-dir <execDir> --classes build/classes/java/main --out testwise.json
 ```
 
-parallel-per-test-coverage(out-of-process) 수집물을 인덱싱 입력으로 변환. teamscale(in-process)은
-자체 `convert`로 testwise JSON을 만든다(→ [GETTING-STARTED](GETTING-STARTED.md) §1).
+pjacoco(in-process·out-of-process 양쪽) 수집물을 인덱싱 입력으로 변환한다.
+`--exec-dir`에 per-test `.exec` 파일들이 있어야 한다(→ [GETTING-STARTED](GETTING-STARTED.md) §1).
 
 ### 1. `index` — testwise 리포트를 SQLite 스냅샷으로 인덱싱
 
 ```bash
 $CLI index \
-  --report poc-out/testwise.json \   # teamscale testwise coverage JSON
+  --report poc-out/testwise.json \   # tia convert 출력 testwise JSON
   --repo   fixture \
   --commit "$(git rev-parse HEAD)" \  # 이 스냅샷의 기준 커밋
   --db     poc-out/tia.db
@@ -230,16 +229,16 @@ RestAssured 스위트 ── JUnit5 확장 ──▶ /test/start·/test/end (per
 
 ## 컨테이너 E2E (가장 충실한 검증)
 
-호스트에 따라 Gradle 테스트 워커(포크 JVM)의 아웃바운드가 막혀 외부 에이전트(:8123)에 못 닿는 경우가 있습니다. 컨테이너는 자체 네트워크라 이 제약을 우회하며, 설계의 out-of-process 토폴로지(`sut` ↔ `tester`)와 정확히 일치합니다.
+호스트에 따라 Gradle 테스트 워커(포크 JVM)의 아웃바운드가 막혀 외부 에이전트에 못 닿는 경우가 있습니다. 컨테이너는 자체 네트워크라 이 제약을 우회하며, 설계의 out-of-process 토폴로지(`sut` ↔ `tester`)와 정확히 일치합니다.
 
 ```bash
-bash scripts/download-agent.sh
+bash scripts/setup-pjacoco.sh
 ./gradlew :fixture-app:bootJar :fixture-app:classes :fixture-app:testClasses :tia-cli:installDist
 docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester
 ```
 
-- `sut` 컨테이너: `fixture-app` + teamscale 에이전트(TESTWISE)
-- `tester` 컨테이너: RestAssured 스위트 + JUnit5 확장이 `sut`를 네트워크로 호출
+- `sut` 컨테이너: `fixture-app` + pjacoco 에이전트(out-of-process, baggage 분리)
+- `tester` 컨테이너: RestAssured 스위트 + pjacoco testkit이 `sut`를 네트워크로 호출
 
 ---
 
@@ -249,7 +248,7 @@ docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-cod
 ./gradlew test testCodeCoverageReport   # 전체 단위·수용 테스트 + 집계 커버리지
 ```
 
-GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·main 푸시마다 ① 전체 테스트 + 커버리지 ② 컨테이너 간 블랙박스 E2E(실제 teamscale 에이전트)를 돌립니다.
+GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·main 푸시마다 ① 전체 테스트 + 커버리지 ② 컨테이너 간 블랙박스 E2E ③ in-process E2E(pjacoco)를 돌립니다.
 
 ---
 
