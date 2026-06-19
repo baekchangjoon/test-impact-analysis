@@ -94,6 +94,16 @@ class TiaPluginTest {
     }
 
     @org.junit.jupiter.api.Test
+    void coverageHelperPinsSingleFork() {
+        Project p = ProjectBuilder.builder().build();
+        Test t = p.getTasks().create("itTest", Test.class);
+        TiaPlugin.attachCoverageAgent(t, new File("/opt/agent.jar"), new File("/tmp/cov"), 6310, "com.acme.*");
+        assertEquals(1, t.getMaxParallelForks(),
+                "내장 헬퍼는 에이전트를 Test JVM에 붙이므로 직렬 유지(병렬은 단일-SUT 토폴로지)");
+        assertEquals("http://127.0.0.1:6310", t.getSystemProperties().get("pjacoco.control-url"));
+    }
+
+    @org.junit.jupiter.api.Test
     void attachTeamscaleAgentWiresAgentUrlAndSingleFork() {
         Project project = ProjectBuilder.builder().build();
         project.getPlugins().apply("java");
