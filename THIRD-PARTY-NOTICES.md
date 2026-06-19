@@ -28,6 +28,5 @@ JaCoCo는 **Eclipse Public License v2.0**(약한, 파일 단위 copyleft)이며 
 - `licenses/BSD-3-Clause-ASM.txt` — ASM
 - `licenses/EPL-2.0.txt` — JaCoCo
 
-> 빌드/CI가 외부에서 가져다 쓰는 커버리지 에이전트(teamscale-jacoco-agent: Apache-2.0 /
-> parallel-per-test-coverage)는 TIA가 **번들하지 않으며**(사용자 제공, 설계 §5.3) 본 고지의
-> 대상이 아닙니다.
+> 빌드/CI가 외부에서 가져다 쓰는 커버리지 에이전트(parallel-per-test-coverage / pjacoco)는
+> TIA가 **번들하지 않으며**(사용자 제공 또는 소스 빌드, 설계 §5.3) 본 고지의 대상이 아닙니다.
