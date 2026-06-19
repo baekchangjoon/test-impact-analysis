@@ -31,11 +31,11 @@ public class ConcurrencyFilter implements Filter {
         int current = inFlight.incrementAndGet();
         maxSeen.updateAndGet(m -> Math.max(m, current));
         try {
-            Thread.sleep(150);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        try {
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             chain.doFilter(request, response);
         } finally {
             inFlight.decrementAndGet();
