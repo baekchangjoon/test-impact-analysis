@@ -132,15 +132,16 @@
 ## 추적 매트릭스
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| REQ-001 | 병렬(forks) == 직렬 | ParallelCollectionE2E#forksParallelMatchesSerial | E2E | 🔴 planned |
-| REQ-002 | 병렬(in-JVM) == 직렬 | ParallelCollectionE2E#inJvmParallelMatchesSerial | E2E | 🔴 planned |
-| REQ-003 | per-test 커버리지 non-empty | ParallelCollectionE2E#everyTestHasNonEmptyCoverage | E2E | 🔴 planned |
-| REQ-004 | 벽시계 시간 측정·기록 | ParallelCollectionE2E#recordsWallClockPerMode | E2E | 🔴 planned |
-| REQ-005 | 내장 헬퍼 직렬 유지 | TiaPluginTest#coverageHelperPinsSingleFork | integration | 🔴 planned |
-| REQ-006 | 동기-호출 한계 문서화 | docs gate (GETTING-STARTED/README) | 문서 | 🔴 planned |
-| REQ-007 | 병렬 와이어링 문서 | docs gate (GETTING-STARTED/README) | 문서 | 🔴 planned |
-| REQ-008 | CI 의존 해소(fail-not-skip) | ci.yml parallel-e2e job | CI | 🔴 planned |
-| REQ-009 | 격리 출력·동일 classes | ParallelCollectionE2E (디렉터리 격리/동일 classesDir) | E2E | 🔴 planned |
-| REQ-010 | 병렬 동시성 실증(프로브) | ParallelCollectionE2E#parallelModesRunConcurrently | E2E | 🔴 planned |
+| REQ-001 | 병렬(forks) == 직렬 | ParallelCollectionE2E#forksParallelMatchesSerial | E2E | 🟢 green |
+| REQ-002 | 병렬(in-JVM) == 직렬 | ParallelCollectionE2E#inJvmParallelMatchesSerial | E2E | 🟢 green |
+| REQ-003 | per-test 커버리지 non-empty | ParallelCollectionE2E#everyTestHasNonEmptyCoverage | E2E | 🟢 green |
+| REQ-004 | 벽시계 시간 측정·기록 | ParallelCollectionE2E#recordsWallClockPerMode | E2E | 🟢 green |
+| REQ-005 | 내장 헬퍼 직렬 유지 | TiaPluginTest#coverageHelperPinsSingleFork | integration | 🟢 green |
+| REQ-006 | 동기-호출 한계 문서화 | docs gate (GETTING-STARTED/README) | 문서 | 🟢 green |
+| REQ-007 | 병렬 와이어링 문서 | docs gate (GETTING-STARTED/README) | 문서 | 🟢 green |
+| REQ-008 | CI 의존 해소(fail-not-skip) | ci.yml parallel-e2e job | CI | 🟢 green |
+| REQ-009 | 격리 출력·동일 classes | ParallelCollectionE2E (디렉터리 격리/동일 classesDir) | E2E | 🟢 green |
+| REQ-010 | 병렬 동시성 실증(프로브) | ParallelCollectionE2E#parallelModesRunConcurrently | E2E | 🟢 green |
 
-Coverage: 0/10 green (0%) — target 100% (대상: Must 9 + 미연기 Should 1[REQ-009]). 연기/Won't/제외 없음.
+Coverage: 10/10 green (100%) — target 100% 충족 (대상: Must 9 + 미연기 Should 1[REQ-009]). 연기/Won't/제외 없음.
+검증: 전체 회귀 `./gradlew test` green; 병렬 수용 E2E `scripts/run-parallel-e2e.sh` → ✅ PASS (concurrency.json = {serial:1, forks:2, injvm:5}; 세 모드 testwise 8 tests×24 rows 동일).
