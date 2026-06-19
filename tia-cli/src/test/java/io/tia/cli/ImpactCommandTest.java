@@ -13,6 +13,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
 
@@ -174,17 +177,44 @@ class ImpactCommandTest {
     void defaultDbWhenOmitted() throws Exception {
         Path expected = DbPaths.resolveDefault();
         boolean preexisting = Files.exists(expected);
+        // 충돌 없는 고유 커밋 식별자 — impact는 이 commit을 조회만 하므로 coverage 행은 삽입되지 않음.
+        // 단, impact가 DB 파일을 생성(schema init)할 수 있으므로 동일한 cleanup 패턴을 유지.
+        final String TEST_COMMIT = "REQ008_UNIQUE_NB";
         try {
             ByteArrayOutputStream err = new ByteArrayOutputStream();
             PrintStream prevErr = System.err; System.setErr(new PrintStream(err));
             // --db 없음, commit "REQ008_UNIQUE_NB" → no-baseline → exit 0
             int code = new CommandLine(new TiaCommand()).execute(
-                "impact", "--commit", "REQ008_UNIQUE_NB");
+                "impact", "--commit", TEST_COMMIT);
             System.setErr(prevErr);
             assertEquals(0, code);
             assertTrue(err.toString().contains("기본 인덱스 DB"), err.toString());
         } finally {
-            if (!preexisting) Files.deleteIfExists(expected);
+            if (preexisting) {
+                // 기존 DB가 있었다면: 이 테스트가 삽입한 행만 정확히 삭제 → 실제 인덱스 오염 방지
+                // (impact는 READ-only이므로 실제로는 행이 없지만, 일관성을 위해 동일 패턴 유지)
+                deleteTestCommitRows(expected, TEST_COMMIT);
+            } else {
+                // 이 테스트가 새로 만든 파일이라면: 파일 전체 삭제
+                Files.deleteIfExists(expected);
+            }
+        }
+    }
+
+    /**
+     * 기본 DB에서 특정 commit_sha의 coverage·builds 행만 삭제.
+     * preexisting DB가 있을 때 테스트 오염 방지용.
+     */
+    private static void deleteTestCommitRows(Path dbPath, String commitSha) throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             PreparedStatement delCov = conn.prepareStatement(
+                 "DELETE FROM coverage WHERE build_id IN (SELECT build_id FROM builds WHERE commit_sha=?)");
+             PreparedStatement delBuild = conn.prepareStatement(
+                 "DELETE FROM builds WHERE commit_sha=?")) {
+            delCov.setString(1, commitSha);
+            delCov.executeUpdate();
+            delBuild.setString(1, commitSha);
+            delBuild.executeUpdate();
         }
     }
 
