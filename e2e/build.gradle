@@ -65,6 +65,7 @@ tasks.register('inProcessTesterTest', Test) {
         maxParallelForks = 1
     }
     outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
 }
 
 // in-process 수용 비교 테스트 전용 태스크 — tia.inprocess.artifacts 로 산출 디렉터리 지정. 오케스트레이터가 구동.
