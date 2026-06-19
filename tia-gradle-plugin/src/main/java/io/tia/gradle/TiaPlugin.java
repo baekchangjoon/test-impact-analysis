@@ -74,11 +74,12 @@ public class TiaPlugin implements Plugin<Project> {
     }
 
     /**
-     * D3.1: attach the parallel-per-test-coverage agent to a {@code Test} task (in-process model).
+     * D3.1: attach the per-test coverage agent to a {@code Test} task (out-of-process; agent on the Test JVM — serial bridge).
      * Emits the agent's real options ({@code destfile}/{@code port}/{@code includes}), points the
      * per-test driver at the control endpoint via {@code -Dpjacoco.control-url}, and — because the
-     * control port is FIXED (not ephemeral) — pins {@code maxParallelForks = 1} so parallel forks
-     * can't collide on it. Per-test {@code <testId>.exec} land in {@code destDir} for {@code tia convert}.
+     * control port is FIXED (not ephemeral) — pins {@code maxParallelForks = 1} for this helper (Test-JVM attach).
+     * Parallel test runs use a single-SUT topology (agent attached once to SUT, not to Test JVM).
+     * Per-test {@code <testId>.exec} land in {@code destDir} for {@code tia convert}.
      * The agent jar is caller-provided (TIA does not bundle it — §5.3).
      */
     public static void attachCoverageAgent(Test test, File agentJar, File destDir, int controlPort, String includes) {

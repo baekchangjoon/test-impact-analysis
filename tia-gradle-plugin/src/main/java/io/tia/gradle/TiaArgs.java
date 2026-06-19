@@ -43,11 +43,12 @@ final class TiaArgs {
         return a;
     }
 
-    /** D3.1: -javaagent for the parallel-per-test-coverage agent — real contract verified against
+    /** D3.1: -javaagent for the per-test coverage agent — real contract verified against
      *  the agent (io.pjacoco.agent.AgentOptions): {@code destfile=<dir>} (per-test .exec output dir),
      *  {@code port=<ctrl>} (fixed control endpoint; the test driver connects via -Dpjacoco.control-url),
-     *  {@code includes=<pattern>}. The control port is FIXED (not auto/ephemeral), so the measured JVM
-     *  must be single (one SUT process, or test JVM with maxParallelForks=1) — see attachCoverageAgent.
+     *  {@code includes=<pattern>}. The control port is FIXED (not auto/ephemeral), so for the Test-JVM
+     *  attach helper, the test JVM must be single (maxParallelForks=1) — see attachCoverageAgent.
+     *  Parallel test runs use a single-SUT topology (agent attached once to SUT, not to Test JVM).
      *  {@code aggregate=false}: TIA consumes per-test {@code .exec} only. pjacoco's {@code aggregate}
      *  defaults ON and would otherwise write a whole-run {@code aggregate.exec} into the same dir, which
      *  {@code tia convert} would mistake for a test covering everything (TestwiseConverter also skips it
