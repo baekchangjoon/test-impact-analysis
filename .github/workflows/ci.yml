@@ -30,6 +30,13 @@ jobs:
       - name: Set up Gradle (cache + wrapper 검증)
         uses: gradle/actions/setup-gradle@v4
 
+      # pjacoco는 미게시(Maven Central/Plugin Portal 준비 중) — 공식 소비 방식대로 소스를 빌드해
+      # mavenLocal에 게시한다(PUBLISHING.md). e2e 모듈의 pjacoco testkit 의존이 컴파일 시 해소된다.
+      - name: pjacoco 소스 빌드 → mavenLocal (e2e testkit 의존 해소)
+        env:
+          PJACOCO_REF: main
+        run: bash scripts/setup-pjacoco.sh
+
       - name: 전체 테스트 + 집계 커버리지
         run: ./gradlew test testCodeCoverageReport --no-daemon
 
