@@ -112,7 +112,7 @@ public final class TestwiseConverter {
         return "UNKNOWN";
     }
 
-    /** {@code [1,2,3,5] -> "1-3,5"} (teamscale coveredLines range syntax). */
+    /** {@code [1,2,3,5] -> "1-3,5"} (testwise coveredLines range syntax). */
     static String compress(Collection<Integer> input) {
         List<Integer> nums = new ArrayList<>(new TreeSet<>(input));
         StringBuilder sb = new StringBuilder();

@@ -5,7 +5,7 @@ import org.roaringbitmap.RoaringBitmap;
 public final class LineRangeParser {
     private LineRangeParser() {}
 
-    /** "10-12,20" 형태(teamscale coveredLines)를 RoaringBitmap으로. */
+    /** "10-12,20" 형태(testwise coveredLines)를 RoaringBitmap으로. */
     public static RoaringBitmap parse(String ranges) {
         RoaringBitmap b = new RoaringBitmap();
         if (ranges == null || ranges.trim().isEmpty()) return b;
