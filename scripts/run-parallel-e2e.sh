@@ -108,6 +108,10 @@ run_mode() {  # $1 = serial|forks|injvm
   local t1
   t1=$(( $(date +%s) * 1000 ))
 
+  # SUT 동시성 프로브 — 테스터 종료 후, SUT 종료 전 [REQ-010]
+  local max_concurrent
+  max_concurrent="$(curl -sf "localhost:$PORT/__concurrency__/max" 2>/dev/null || echo "0")"
+
   kill "$pid" 2>/dev/null || true
   rm -f "$SUT_PID_FILE"
   # 프로세스가 실제로 종료될 때까지 최대 10초 대기 (JaCoCo .exec 플러시 포함)
@@ -123,31 +127,50 @@ run_mode() {  # $1 = serial|forks|injvm
 
   "$CLI" convert --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
 
-  # 타이밍만 stdout으로 출력 (캡처 대상)
-  echo "$mode:$((t1 - t0))"
+  # stdout: timing + concurrency (캡처 대상)
+  echo "$mode:$((t1 - t0)):$max_concurrent"
 }
 
 echo "=== parallel-e2e: 3모드 수집 시작 ===" >&2
-declare -a T
-T+=("$(run_mode serial)")
-T+=("$(run_mode forks)")
-T+=("$(run_mode injvm)")
+
+# 각 모드별 출력을 직접 캡처 (bash 3.x 호환 — declare -A 불가)
+KV_serial="$(run_mode serial)"
+KV_forks="$(run_mode forks)"
+KV_injvm="$(run_mode injvm)"
+
+# "mode:ms:maxconcurrent" 파싱 (IFS=: + 위치 분리)
+_parse_ms()  { local kv="$1"; local rest="${kv#*:}"; echo "${rest%%:*}"; }
+_parse_mc()  { local kv="$1"; echo "${kv##*:}"; }
+
+T_serial_ms="$(_parse_ms "$KV_serial")"
+T_forks_ms="$(_parse_ms "$KV_forks")"
+T_injvm_ms="$(_parse_ms "$KV_injvm")"
+T_serial_mc="$(_parse_mc "$KV_serial")"
+T_forks_mc="$(_parse_mc "$KV_forks")"
+T_injvm_mc="$(_parse_mc "$KV_injvm")"
 
 # timings.json [REQ-004]
 {
-  echo "{"
-  first=1
-  for kv in "${T[@]}"; do
-    k="${kv%%:*}"; v="${kv##*:}"
-    [ $first -eq 1 ] && first=0 || echo ","
-    printf '  "%s": %s' "$k" "$v"
-  done
-  echo
-  echo "}"
+  printf '{\n'
+  printf '  "serial": %s,\n' "$T_serial_ms"
+  printf '  "forks": %s,\n'  "$T_forks_ms"
+  printf '  "injvm": %s\n'   "$T_injvm_ms"
+  printf '}\n'
 } > "$OUT/timings.json"
+
+# concurrency.json [REQ-010]
+{
+  printf '{\n'
+  printf '  "serial": %s,\n' "$T_serial_mc"
+  printf '  "forks": %s,\n'  "$T_forks_mc"
+  printf '  "injvm": %s\n'   "$T_injvm_mc"
+  printf '}\n'
+} > "$OUT/concurrency.json"
 
 echo "=== timings.json ==="
 cat "$OUT/timings.json"
+echo "=== concurrency.json ==="
+cat "$OUT/concurrency.json"
 
 # 수용 비교 green 확인 [REQ-001~004/009]
 echo "=== ParallelCollectionE2E 수용 비교 실행 ==="
