@@ -138,16 +138,17 @@
 ## 추적 매트릭스
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| REQ-001 | in-JVM per-test 수집 | InProcessCollectionE2E#serialPerTestAttribution | E2E | 🔴 planned |
-| REQ-002 | forks == 직렬 | InProcessCollectionE2E#forksMatchesSerial | E2E | 🔴 planned |
-| REQ-003 | in-JVM == 직렬 | InProcessCollectionE2E#inJvmMatchesSerial | E2E | 🔴 planned |
-| REQ-004 | per-test non-empty | InProcessCollectionE2E#everyTestHasNonEmptyCoverage | E2E | 🔴 planned |
-| REQ-005 | in-JVM 동시성 실증 | InProcessCollectionE2E#inJvmRunsConcurrently | E2E | 🔴 planned |
-| REQ-006 | teamscale 완전 은퇴 | grep 게이트 + `./gradlew test` | integration | 🔴 planned |
-| REQ-007 | 컨테이너 E2E pjacoco 마이그레이션 | ci docker-e2e (pjacoco) | E2E | 🔴 planned |
-| REQ-008 | 문서 pjacoco 반영 | docs gate | 문서 | 🔴 planned |
-| REQ-009 | out-of-process 회귀 유지 | run-parallel-e2e.sh + ./gradlew test | E2E+회귀 | 🔴 planned |
-| REQ-010 | 빌드캐시 무력화 방지(--no-build-cache + exec0 fail) | run-inprocess-e2e.sh 가드 | E2E+스크립트 | 🔴 planned |
-| REQ-011 | 인덱스 저장 위치 가이드(db 커밋 금지) | docs gate (GETTING-STARTED) | 문서 | 🔴 planned |
+| REQ-001 | in-JVM per-test 수집 | InProcessCollectionE2E#serialPerTestAttribution | E2E | 🟢 green |
+| REQ-002 | forks == 직렬 | InProcessCollectionE2E#forksMatchesSerial | E2E | 🟢 green |
+| REQ-003 | in-JVM == 직렬 | InProcessCollectionE2E#inJvmMatchesSerial | E2E | 🟢 green |
+| REQ-004 | per-test non-empty | InProcessCollectionE2E#everyTestHasNonEmptyCoverage | E2E | 🟢 green |
+| REQ-005 | in-JVM 동시성 실증 | InProcessCollectionE2E#inJvmRunsConcurrently | E2E | 🟢 green |
+| REQ-006 | teamscale 완전 은퇴 | grep 게이트 + `./gradlew test` | integration | 🟢 green |
+| REQ-007 | 컨테이너 E2E pjacoco 마이그레이션 | ci docker-e2e (pjacoco) | E2E | 🟢 green |
+| REQ-008 | 문서 pjacoco 반영 | docs gate | 문서 | 🟢 green |
+| REQ-009 | out-of-process 회귀 유지 | run-parallel-e2e.sh + ./gradlew test | E2E+회귀 | 🟢 green |
+| REQ-010 | 빌드캐시 무력화 방지(--no-build-cache + cacheIf false + exec0 fail) | run-inprocess-e2e.sh 가드 | E2E+스크립트 | 🟢 green |
+| REQ-011 | 인덱스 저장 위치 가이드(db 커밋 금지) | docs gate (GETTING-STARTED) | 문서 | 🟢 green |
 
-Coverage: 0/11 green (0%) — target 100% (대상: Must 9 + 미연기 Should 2[REQ-009, REQ-011]). 연기/Won't/제외 없음.
+Coverage: 11/11 green (100%) — target 100% 충족 (대상: Must 9 + 미연기 Should 2[REQ-009, REQ-011]). 연기/Won't/제외 없음.
+검증(HEAD bd4331a): `./gradlew test` green; in-process E2E `run-inprocess-e2e.sh` ✅(5/5, injvm 동시성); out-of-process `run-parallel-e2e.sh` ✅(REQ-009); teamscale grep 0(REQ-006); 컨테이너 E2E exit0(Task 6).
