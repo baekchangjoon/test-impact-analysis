@@ -113,7 +113,7 @@
 | REQ-005 | 단일 build 회귀 보존 | `CoverageStoreTest#singleBuildUnchanged` (core) / `ImpactCommandTest#singleBuildNoMergeInfo` (E2E) | integration + E2E | 🟢 |
 | REQ-006 | git-common-dir 기본값 | `IndexCommandTest#defaultDbWhenOmitted` (E2E) | E2E | 🟢 |
 | REQ-007 | XDG 폴백 | `DbPathsTest` AT-P3-4-비git | integration | 🟢 |
-| REQ-008 | 기본값 경로 INFO | `IndexCommandTest#defaultDbWhenOmitted` / `ImpactCommandTest#explicitDbNoInfo` (간접) | E2E | 🟢 |
+| REQ-008 | 기본값 경로 INFO | `IndexCommandTest#defaultDbWhenOmitted` / `ImpactCommandTest#defaultDbWhenOmitted` | E2E | 🟢 |
 | REQ-009 | 명시 `--db` 보존+부모 생성 | `CoverageStoreTest#constructorCreatesParentDirs` (core) / `IndexCommandTest#explicitDbCreatesParentNoInfo` + `ImpactCommandTest#explicitDbNoInfo` (E2E) | integration + E2E | 🟢 |
 
 Coverage: 9/9 green (REQ-001·002·003·004·005·006·007·008·009) — target 100% 달성. Could/Won't 없음, 연기·폐기 없음.
