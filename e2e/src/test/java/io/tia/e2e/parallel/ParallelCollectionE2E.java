@@ -61,4 +61,23 @@ class ParallelCollectionE2E {
         assertEquals(tw("testwise_serial.json").keySet(), tw("testwise_forks.json").keySet());
         assertEquals(tw("testwise_serial.json").keySet(), tw("testwise_injvm.json").keySet());
     }
+
+    @Test @DisplayName("REQ-010: 병렬 모드가 실제로 동시 실행됨")
+    void parallelModesRunConcurrently() throws Exception {
+        String json = Files.readString(dir.resolve("concurrency.json"));
+        int serial = extractInt(json, "serial");
+        int forks  = extractInt(json, "forks");
+        int injvm  = extractInt(json, "injvm");
+        assertEquals(1, serial, "serial maxConcurrent == 1 (직렬 검증)");
+        assertTrue(forks >= 2, "forks maxConcurrent >= 2 (실제 포크 병렬 확인), 실제값=" + forks);
+        assertTrue(injvm >= 2, "injvm maxConcurrent >= 2 (실제 in-JVM 병렬 확인), 실제값=" + injvm);
+    }
+
+    private static int extractInt(String json, String key) {
+        // matches "key": N
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"" + key + "\"\\s*:\\s*(\\d+)");
+        java.util.regex.Matcher m = p.matcher(json);
+        if (m.find()) return Integer.parseInt(m.group(1));
+        throw new IllegalArgumentException("concurrency.json에 '" + key + "' 없음: " + json);
+    }
 }
