@@ -110,6 +110,31 @@
   - Then 여전히 green이다.
 - 검증 레벨: E2E black-box(out-of-process) + 회귀
 
+### REQ-010 — 빌드 캐시가 agent 수집을 조용히 무력화하지 않는다 (graph-rag 피드백 P2-5)
+- 유형: Functional
+- 우선순위: Must
+- 설명: agent `.exec`는 Gradle 태스크 출력이 아니라 `-javaagent` side-effect라, 테스트 태스크가 빌드
+  캐시(FROM-CACHE)/up-to-date로 복원되면 실제로 실행되지 않아 빈 커버리지가 조용히 생긴다. in-process
+  수집은 항상 실제 실행돼야 하며, `.exec`가 0개면 명시적 실패로 처리한다.
+- 수용기준:
+  - Given in-process 수집 오케스트레이터,
+  - When 수집을 실행하면,
+  - Then 테스트 태스크가 캐시/up-to-date로 스킵되지 않고 실제 실행되며(`--no-build-cache` +
+    `outputs.upToDateWhen{false}`), 모드별 `.exec`가 0개면 즉시 비0 종료한다(빈 testwise 조용한 통과 금지).
+- 검증 레벨: E2E black-box(in-JVM) + 스크립트 가드
+
+### REQ-011 — 인덱스(tia.db) 저장 위치 가이드를 문서화한다 (graph-rag 피드백 P3-4)
+- 유형: Non-functional
+- 우선순위: Should
+- 설명: `tia.db`를 git에 커밋하지 말고 공유 비추적 위치(예: git common dir 또는 `$XDG_CACHE_HOME`)에 두라는
+  가이드를 문서화한다(멀티 worktree/CI 공유; 인덱스는 commit 단위 스냅샷). CLI `--db` 자동 기본값은 별도
+  코드 작업으로 보류(본 REQ는 문서만).
+- 수용기준:
+  - Given GETTING-STARTED 문서,
+  - When 인덱스 저장 위치 절을 읽으면,
+  - Then "db git 커밋 금지 + 공유 비추적 위치 권장"이 안내된다.
+- 검증 레벨: 문서 점검 (PR 문서 게이트)
+
 ## 추적 매트릭스
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
@@ -122,5 +147,7 @@
 | REQ-007 | 컨테이너 E2E pjacoco 마이그레이션 | ci docker-e2e (pjacoco) | E2E | 🔴 planned |
 | REQ-008 | 문서 pjacoco 반영 | docs gate | 문서 | 🔴 planned |
 | REQ-009 | out-of-process 회귀 유지 | run-parallel-e2e.sh + ./gradlew test | E2E+회귀 | 🔴 planned |
+| REQ-010 | 빌드캐시 무력화 방지(--no-build-cache + exec0 fail) | run-inprocess-e2e.sh 가드 | E2E+스크립트 | 🔴 planned |
+| REQ-011 | 인덱스 저장 위치 가이드(db 커밋 금지) | docs gate (GETTING-STARTED) | 문서 | 🔴 planned |
 
-Coverage: 0/9 green (0%) — target 100% (대상: Must 8 + 미연기 Should 1[REQ-009]). 연기/Won't/제외 없음.
+Coverage: 0/11 green (0%) — target 100% (대상: Must 9 + 미연기 Should 2[REQ-009, REQ-011]). 연기/Won't/제외 없음.
