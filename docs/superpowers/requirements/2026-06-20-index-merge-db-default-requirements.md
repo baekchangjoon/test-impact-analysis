@@ -111,9 +111,9 @@
 | REQ-003 | `distinctBuildCount` | `CoverageStoreTest#mergesDisjointBuildsForSameCommit` | integration | 🟢 |
 | REQ-004 | 병합 INFO(impact) | `ImpactCommandTest#mergesMultiModuleBuildsAndPrintsInfo` + `ImpactCommandTest#singleBuildNoMergeInfo` | E2E | 🟢 |
 | REQ-005 | 단일 build 회귀 보존 | `CoverageStoreTest#singleBuildUnchanged` (core) / `ImpactCommandTest#singleBuildNoMergeInfo` (E2E) | integration + E2E | 🟢 |
-| REQ-006 | git-common-dir 기본값 | `IndexCommandTest`/`ImpactCommandTest` AT-P3-4-git | E2E | 🔴 planned |
-| REQ-007 | XDG 폴백 | `DbPathsTest` AT-P3-4-비git | integration | 🔴 planned |
+| REQ-006 | git-common-dir 기본값 | `IndexCommandTest`/`ImpactCommandTest` AT-P3-4-git | E2E | 🟡 unit green, E2E pending |
+| REQ-007 | XDG 폴백 | `DbPathsTest` AT-P3-4-비git | integration | 🟢 |
 | REQ-008 | 기본값 경로 INFO | `IndexCommandTest`/`ImpactCommandTest` AT-P3-4-git | E2E | 🔴 planned |
 | REQ-009 | 명시 `--db` 보존+부모 생성 | `CoverageStoreTest#constructorCreatesParentDirs` (core green) / `IndexCommandTest` AT-P3-4-명시-회귀 (E2E 미완) | integration + E2E | 🟢 core green |
 
-Coverage: 5/9 green (REQ-001·002·003·004·005), 4/9 planned (REQ-006·007·008·009 E2E) — target 100% (대상: Must + 미연기 Should). Could/Won't 없음, 연기·폐기 없음.
+Coverage: 6/9 green (REQ-001·002·003·004·005·007), 1/9 yellow unit-done (REQ-006), 2/9 planned (REQ-008·009 E2E) — target 100% (대상: Must + 미연기 Should). Could/Won't 없음, 연기·폐기 없음.
