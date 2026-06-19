@@ -78,6 +78,10 @@ io.tia.gradle.TiaPlugin.attachTeamscaleAgent(
 // 테스트는 @ExtendWith(io.tia.junit.TeamscaleTestwiseExtension); 이후 teamscale convert → testwise.json → tia index
 ```
 
+> 기존 레포(테스트 클래스 다수)는 `@ExtendWith`를 일일이 추가하는 대신 **확장을 전역 등록**한다 —
+> 절차와 함정(`test.classpath` 재할당 금지 → `testRuntimeOnly` 사용, `includes`는 프로덕션
+> 패키지만)은 [GETTING-STARTED §1.1](../GETTING-STARTED.md#11-기존-레포에-적용할-때-in-process) 참고.
+
 ## 검증 / 범위
 
 - 단위(ProjectBuilder + 순수 인자 빌더): 태스크/익스텐션/`tiaCli` 등록, 두 attach 헬퍼의 jvmArg 계약·`tia.agent.url`/`pjacoco.control-url`·`maxParallelForks=1` 검증. 전체 회귀 GREEN.

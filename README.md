@@ -266,6 +266,8 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 
 알려진 환경 제약: 일부 샌드박스에서 Gradle 테스트 워커의 아웃바운드가 막힙니다 → `run-poc.sh`는 확장과 동일한 HTTP 신호를 `curl`로 대체하고, 가장 충실한 검증은 위 **컨테이너 E2E**로 합니다.
 
+멀티모듈 주의: 파일 키는 package-relative로 정규화되므로(이 덕분에 변환 없이 모듈 간 매칭이 됩니다), **서로 다른 모듈이 같은 패키지를 공유하면 파일 키가 충돌**할 수 있습니다. 모듈별로 패키지를 고유하게 두면 안전합니다.
+
 ---
 
 ## 문서

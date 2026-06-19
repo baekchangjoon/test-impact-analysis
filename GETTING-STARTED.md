@@ -8,7 +8,7 @@
 
 ## 0. 설치 (택1)
 
-| 방식 | 명령 / 좌표 |
+| 방식 | 명령 / 이름 |
 |---|---|
 | fat-jar | `./gradlew :tia-cli:shadowJar` → `java -jar tia-cli/build/libs/tia.jar` |
 | installDist 런처 | `./gradlew :tia-cli:installDist` → `tia-cli/build/install/tia/bin/tia` |
@@ -38,6 +38,38 @@
 
 > 이미 `testwise.json`(또는 다른 도구의 동등 산출물)이 있으면 1단계는 건너뛴다 — 형식은
 > [petclinic-demo/README §testwise.json 형식](petclinic-demo/README.md#testwisejson-형식).
+
+### 1.1 기존 레포에 적용할 때 (in-process)
+
+수백 개의 테스트 클래스에 `@ExtendWith`를 일일이 추가하는 것은 비현실적이다. 대신 JUnit 5
+자동 등록으로 확장을 전역 적용한다(테스트 코드 무수정):
+
+1. 확장 자동 감지를 켠다 — `junit-platform.properties` 또는 시스템 프로퍼티:
+   `junit.jupiter.extensions.autodetection.enabled=true`
+2. 서비스 파일로 확장을 등록한다 —
+   `META-INF/services/org.junit.jupiter.api.extension.Extension`에 한 줄:
+   `io.tia.junit.TeamscaleTestwiseExtension`
+3. 에이전트는 Gradle init script로 모든 `test` 태스크에 주입한다(빌드 스크립트 수정 없이).
+
+> **확장/서비스 jar을 테스트 클래스패스에 추가할 때 `test.classpath`를 재할당하지 않는다.**
+> `test.classpath = test.classpath + files(...)`는 설정 시점에 조기 평가되어 런타임 클래스패스가
+> 깨지고, JUnit 엔진이 누락되어 모든 테스트가 `Cannot create Launcher without any TestEngine`으로
+> 실패한다. 대신 `testRuntimeOnly(files(...))`로 추가한다.
+
+> **`includes`는 프로덕션 패키지만 지정한다.** `includes=com.acme.*`처럼 테스트까지 포함하면
+> 테스트 클래스도 계측되어, `class-dir`(main만)에 없는 클래스에 대해 매 테스트마다
+> `Found coverage for class not provided` 경고가 쌓인다. 프로덕션 패키지로 좁히거나 `*Test`를 제외한다.
+
+### 1.2 정상 경고 (수집/convert)
+
+다음 경고는 산출물에 per-test 커버리지가 정상적으로 들어 있어도 출력된다 — 실패가 아니다:
+
+- `No test details found …` — details는 TIA 메타데이터로, 커버리지 산출과는 무관하다.
+- `Session with empty name detected, possibly indicating intermediate coverage`
+- `Found coverage for N classes that were not provided …` — 위 `includes` 항목 참고.
+
+첫 수집에서 `0 Details` / `N Results`는 실패로 오해하기 쉽지만, `testwise.json`에 per-test
+커버리지가 들어 있으면 정상이다.
 
 ## 2. 인덱싱 (베이스라인 스냅샷)
 
