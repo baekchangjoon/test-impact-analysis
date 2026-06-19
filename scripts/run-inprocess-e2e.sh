@@ -51,8 +51,13 @@ run_mode() {  # $1 = serial|forks|injvm
   if [ -f "$ov" ]; then
     cp "$ov" "$OUT/overlap_$mode.csv"
   else
-    echo "⚠️  overlap 파일 없음($ov) — 빈 파일로 생성" >&2
-    touch "$OUT/overlap_$mode.csv"
+    if [ "$mode" = "forks" ]; then
+      echo "⚠️  overlap 파일 없음($ov) — forks는 허용(테스트에서 읽지 않음)" >&2
+      touch "$OUT/overlap_$mode.csv"
+    else
+      echo "❌ $mode: overlap 파일 없음 — overlapFile 프로퍼티 전달 실패 의심" >&2
+      exit 1
+    fi
   fi
   echo "--- $mode done ---" >&2
 }
