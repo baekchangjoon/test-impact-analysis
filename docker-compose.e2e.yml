@@ -1,5 +1,5 @@
 # 컨테이너 기반 out-of-process 블랙박스 E2E.
-# sut: fixture-app + teamscale 에이전트(TESTWISE). tester: RestAssured 스위트 + 확장이 sut를 네트워크로 호출.
+# sut: fixture-app + pjacoco 에이전트(parallel per-test). tester: RestAssured 스위트 + 확장이 sut를 네트워크로 호출.
 # 컨테이너는 자체 네트워크 네임스페이스 → 호스트의 gradle-워커 아웃바운드 차단을 우회(설계의 out-of-process 토폴로지와 일치).
 name: tia-e2e
 services:
@@ -7,16 +7,15 @@ services:
     image: eclipse-temurin:17-jre
     volumes:
       - ./fixture-app/build/libs:/libs:ro
-      - ./tools/teamscale/teamscale-jacoco-agent/lib:/agent:ro
-      - ./fixture-app/build/classes/java/main:/classes:ro
+      - ./tools/pjacoco:/agent:ro
       - cov:/cov
     command:
       - java
-      - "-javaagent:/agent/teamscale-jacoco-agent.jar=mode=TESTWISE,includes=*io.tia.fixture.*,http-server-port=8123,class-dir=/classes,out=/cov"
+      - "-javaagent:/agent/jacocoagent-parallel.jar=destfile=/cov,port=6310,address=0.0.0.0,aggregate=false,includes=io.tia.fixture.*"
       - -jar
       - /libs/fixture-app.jar
       - --server.port=8080
-    expose: ["8080", "8123"]
+    expose: ["8080", "6310"]
 
   tester:
     image: eclipse-temurin:17-jdk
@@ -27,6 +26,7 @@ services:
     volumes:
       - .:/work
       - ${HOME}/.gradle:/root/.gradle      # 호스트 의존성/래퍼 캐시 재사용 (재다운로드 회피)
+      - ${HOME}/.m2:/root/.m2:ro           # pjacoco testkit(mavenLocal 게시) 해소용
       - cov:/cov
     entrypoint: ["bash", "/work/scripts/docker-e2e-tester.sh"]
 
