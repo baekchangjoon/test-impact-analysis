@@ -11,6 +11,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,18 +48,42 @@ class IndexCommandTest {
               "paths":[{"path":"io/tia/fixture","files":[{"fileName":"PricingService.java","coveredLines":"8-10"}]}]}]}""");
         Path expected = DbPaths.resolveDefault();        // 현재 JVM cwd 기준 실제 기본 경로
         boolean preexisting = Files.exists(expected);    // 사용자 실제 인덱스 보호 가드
+        // 충돌 없는 고유 커밋 식별자 — 이 테스트만의 행을 cleanup에서 정확히 지우기 위해 사용
+        final String TEST_COMMIT = "IDX_DEFAULT_REQ006";
         try {
             ByteArrayOutputStream err = new ByteArrayOutputStream();
             PrintStream prevErr = System.err; System.setErr(new PrintStream(err));
             int code = new CommandLine(new TiaCommand()).execute(
-                "index", "--report", report.toString(), "--repo", "fixture", "--commit", "cDEF");  // --db 없음
+                "index", "--report", report.toString(), "--repo", "fixture", "--commit", TEST_COMMIT);  // --db 없음
             System.setErr(prevErr);
             assertEquals(0, code);
             assertTrue(Files.exists(expected), "기본 DB 생성: " + expected);
             assertTrue(err.toString().contains("기본 인덱스 DB"), err.toString());
         } finally {
-            // 테스트가 새로 만든 경우에만 정리(기존 인덱스가 있었다면 건드리지 않음).
-            if (!preexisting) Files.deleteIfExists(expected);
+            if (preexisting) {
+                // 기존 DB가 있었다면: 이 테스트가 삽입한 행만 정확히 삭제 → 실제 인덱스 오염 방지
+                deleteTestCommitRows(expected, TEST_COMMIT);
+            } else {
+                // 이 테스트가 새로 만든 파일이라면: 파일 전체 삭제
+                Files.deleteIfExists(expected);
+            }
+        }
+    }
+
+    /**
+     * 기본 DB에서 특정 commit_sha의 coverage·builds 행만 삭제.
+     * preexisting DB가 있을 때 테스트 오염 방지용.
+     */
+    private static void deleteTestCommitRows(Path dbPath, String commitSha) throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             PreparedStatement delCov = conn.prepareStatement(
+                 "DELETE FROM coverage WHERE build_id IN (SELECT build_id FROM builds WHERE commit_sha=?)");
+             PreparedStatement delBuild = conn.prepareStatement(
+                 "DELETE FROM builds WHERE commit_sha=?")) {
+            delCov.setString(1, commitSha);
+            delCov.executeUpdate();
+            delBuild.setString(1, commitSha);
+            delBuild.executeUpdate();
         }
     }
 
