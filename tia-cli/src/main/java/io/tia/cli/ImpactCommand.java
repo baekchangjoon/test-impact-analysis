@@ -27,7 +27,15 @@ public class ImpactCommand implements Callable<Integer> {
 
     @Override public Integer call() throws Exception {
         CoverageSnapshot snap;
-        try (CoverageStore store = new CoverageStore(db)) { snap = store.load(commit); }
+        int buildCount;
+        try (CoverageStore store = new CoverageStore(db)) {
+            buildCount = store.distinctBuildCount(commit);   // try 블록 안에서 캡처(store 스코프 제한)
+            snap = store.load(commit);
+        }
+        if (buildCount > 1) {
+            System.err.println("INFO: commit " + commit + "에 build " + buildCount
+                + "개 → test_id별 최신 build 병합(멀티모듈/재인덱싱).");
+        }
 
         // 인덱스에 이 커밋의 베이스라인이 없으면(DB에 해당 커밋 데이터 없음) 선별을 신뢰할 수 없다.
         // 빈 선별(=아무것도 안 돌림)은 누락 위험이 크므로, 기본은 '전체 실행' 신호를 내고 성공한다(보수적, 누락 0).
