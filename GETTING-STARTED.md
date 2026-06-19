@@ -36,6 +36,17 @@
   per-test만 소비하므로 에이전트의 `aggregate`는 끈다(`aggregate=false`; 기본 ON이면 전체-실행 `aggregate.exec`가 함께 떨어진다).
   워크된 예: [petclinic-demo](petclinic-demo/README.md).
 
+> **병렬 수집(out-of-process).** pjacoco 에이전트를 **단일 SUT**에 부착하고 테스터를 병렬화하면
+> per-test 수집을 병렬로 할 수 있다 — 테스터 포크/스레드가 모두 같은 SUT control 포트로 향하므로
+> 충돌이 없고, pjacoco가 baggage `test.id`로 분리한다. 두 방식 모두 지원: Gradle `maxParallelForks>1`,
+> JUnit 5 in-JVM 병렬(`junit.jupiter.execution.parallel.enabled=true`). **동기 HTTP 호출 기준**이며,
+> 테스트가 작업을 자식 스레드/스레드풀로 위임하면 그 커버리지는 해당 test로 귀속되지 않을 수 있다.
+> `aggregate=false`를 둔다(per-test만 소비) — pjacoco 플러그인은 `pjacoco { aggregate.set(false) }`,
+> TIA 내장 헬퍼는 jvmarg `aggregate=false`. testId 키는 한 인덱스 안에서 한 형식만 쓴다
+> (pjacoco `ClassName#method`).
+> (TIA 내장 `attachCoverageAgent`는 에이전트를 Test JVM에 붙이는 **직렬** 브리지다 — 병렬은 위
+> 단일-SUT 토폴로지를 쓴다.)
+
 > 이미 `testwise.json`(또는 다른 도구의 동등 산출물)이 있으면 1단계는 건너뛴다 — 형식은
 > [petclinic-demo/README §testwise.json 형식](petclinic-demo/README.md#testwisejson-형식).
 

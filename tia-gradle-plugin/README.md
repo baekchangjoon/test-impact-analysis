@@ -57,10 +57,13 @@ dependencies {
 > 공개 배포 전까지는 아래 TIA 내장 헬퍼로 같은 계약을 직접 와이어한다. pjacoco가 Maven Central /
 > Gradle Plugin Portal에 올라오면 위 블록으로 전환하고 TIA 내장 헬퍼는 제거한다.
 
-**대안 — TIA 내장 헬퍼 (공개 배포 전 임시).** SUT 프로세스(HTTP 블랙박스)에 에이전트를 직접 붙이고 요청의
-test.id baggage로 per-test 귀속. 계약은 `io.pjacoco.agent.AgentOptions` 확인값:
+**대안 — TIA 내장 헬퍼 (공개 배포 전 임시).** 이 헬퍼는 에이전트를 **Test JVM**에 붙이는
+**직렬·in-JVM 부착 브리지**다 — 에이전트와 테스터가 같은 JVM에 있으므로 `maxParallelForks=1`이어야 한다.
+진짜 out-of-process **병렬** 수집은 pjacoco 에이전트를 **단일 SUT**에 붙이고 테스터를 병렬화하는
+위 권장 토폴로지를 사용한다.
+계약은 `io.pjacoco.agent.AgentOptions` 확인값:
 `destfile=<dir>`·`port=<ctrl 고정>`·`aggregate=false`(per-test만 소비 → 전체-실행 `aggregate.exec` 비활성)·`includes`.
-고정 포트라 `maxParallelForks=1`. 요청별 `baggage: test.id` 전파는 테스트 하니스가 담당.
+고정 포트·Test JVM 부착 시 `maxParallelForks=1`. 요청별 `baggage: test.id` 전파는 테스트 하니스가 담당.
 
 ```gradle
 io.tia.gradle.TiaPlugin.attachCoverageAgent(
