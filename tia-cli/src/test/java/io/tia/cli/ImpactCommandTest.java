@@ -170,6 +170,25 @@ class ImpactCommandTest {
     }
 
     @Test
+    @DisplayName("REQ-008: impact --db 생략 시 기본 DB INFO(stderr)")
+    void defaultDbWhenOmitted() throws Exception {
+        Path expected = DbPaths.resolveDefault();
+        boolean preexisting = Files.exists(expected);
+        try {
+            ByteArrayOutputStream err = new ByteArrayOutputStream();
+            PrintStream prevErr = System.err; System.setErr(new PrintStream(err));
+            // --db 없음, commit "REQ008_UNIQUE_NB" → no-baseline → exit 0
+            int code = new CommandLine(new TiaCommand()).execute(
+                "impact", "--commit", "REQ008_UNIQUE_NB");
+            System.setErr(prevErr);
+            assertEquals(0, code);
+            assertTrue(err.toString().contains("기본 인덱스 DB"), err.toString());
+        } finally {
+            if (!preexisting) Files.deleteIfExists(expected);
+        }
+    }
+
+    @Test
     @DisplayName("REQ-009: impact --db 명시 시 INFO 없음(기존 동작 보존)")
     void explicitDbNoInfo(@TempDir Path dir) throws Exception {
         Path db = dir.resolve("tia.db");
