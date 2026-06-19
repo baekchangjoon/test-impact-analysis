@@ -123,7 +123,7 @@ jobs:
           "$RUNNER_TEMP/bin/trivy" sbom --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 tia-cli/build/reports/bom.json
 
   docker-e2e:
-    name: Container E2E (real teamscale agent)
+    name: Container E2E (pjacoco)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -137,11 +137,11 @@ jobs:
       - name: Set up Gradle (cache)
         uses: gradle/actions/setup-gradle@v4
 
-      - name: teamscale 에이전트 다운로드
-        run: bash scripts/download-agent.sh
+      - name: pjacoco 빌드
+        run: bash scripts/setup-pjacoco.sh
 
       - name: SUT/CLI 아티팩트 + 테스트 의존성 캐시 워밍
-        run: ./gradlew :fixture-app:bootJar :fixture-app:classes :fixture-app:testClasses :tia-cli:installDist --no-daemon
+        run: ./gradlew :fixture-app:bootJar :fixture-app:classes :tia-cli:installDist :e2e:testClasses --no-daemon
 
       - name: 컨테이너 간 블랙박스 E2E (sut ↔ tester)
         run: docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester
