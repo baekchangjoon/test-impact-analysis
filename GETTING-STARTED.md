@@ -104,7 +104,15 @@
 > 저장하므로 어느 워크트리에서 조회해도 동일한 스냅샷이 반환된다. `$XDG_CACHE_HOME/tia/` 또는
 > 팀 공유 경로도 같은 방식으로 쓸 수 있다.
 >
-> (`--db` 기본값 자동화는 향후 CLI 개선 예정 — 현재는 `--db`로 명시적으로 경로를 전달한다.)
+> **`--db` 기본값.** `--db`를 생략하면 git 레포에선 `<git-common-dir>/tia/tia.db`(예: `.git/tia/tia.db`,
+> 모든 worktree 공유), 비 git 환경에선 `${XDG_CACHE_HOME:-~/.cache}/tia/tia.db`를 자동 사용한다.
+> 기본 경로를 쓸 때 각 커맨드는 stderr에 `INFO: 기본 인덱스 DB: <path>`를 한 줄 안내한다.
+> CI/컨테이너처럼 cwd가 불확실하거나 git이 없는 환경에선 `--db`로 명시 전달을 권장한다.
+
+```bash
+# (--db 생략 시 git-common-dir 기본 경로 자동 사용)
+"$CLI" index --report testwise.json --repo my-service --commit "$(git rev-parse HEAD)"
+```
 
 ## 3. 변경 영향 테스트 선별
 
