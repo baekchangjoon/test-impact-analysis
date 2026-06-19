@@ -18,12 +18,14 @@ public class IndexCommand implements Callable<Integer> {
     @Option(names = "--report", required = true) Path report;
     @Option(names = "--repo", required = true) String repo;
     @Option(names = "--commit", required = true) String commit;
-    @Option(names = "--db", required = true) Path db;
+    @Option(names = "--db") Path db;
 
     @Override public Integer call() throws Exception {
+        Path effectiveDb = (db != null) ? db : DbPaths.resolveDefault();
+        if (db == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         try (InputStream in = Files.newInputStream(report)) {
             List<TestCoverage> tests = new TestwiseReportParser().parse(in);
-            try (CoverageStore store = new CoverageStore(db)) {
+            try (CoverageStore store = new CoverageStore(effectiveDb)) {
                 store.save(new CoverageSnapshot(repo, commit, tests));
             }
             System.out.println("indexed " + tests.size() + " tests @ " + commit);

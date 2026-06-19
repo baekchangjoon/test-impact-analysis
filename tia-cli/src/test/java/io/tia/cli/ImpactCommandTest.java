@@ -169,6 +169,23 @@ class ImpactCommandTest {
         assertFalse(err.toString().contains("병합"), err.toString());
     }
 
+    @Test
+    @DisplayName("REQ-009: impact --db 명시 시 INFO 없음(기존 동작 보존)")
+    void explicitDbNoInfo(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (CoverageStore store = new CoverageStore(db)) {
+            store.save(new CoverageSnapshot("fixture", "c0", List.of(new TestCoverage("T", "PASSED",
+                Map.of("io/tia/fixture/A.java", RoaringBitmap.bitmapOf(1))))));
+        }
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        PrintStream prevErr = System.err; System.setErr(new PrintStream(err));
+        int code = new CommandLine(new TiaCommand()).execute(
+            "impact", "--db", db.toString(), "--commit", "OTHER");   // no-baseline → exit 0
+        System.setErr(prevErr);
+        assertEquals(0, code);
+        assertFalse(err.toString().contains("기본 인덱스 DB"), err.toString());
+    }
+
     private static void git(Path dir, String... args) throws Exception {
         String[] cmd = new String[args.length + 1];
         cmd[0] = "git";
