@@ -138,3 +138,23 @@ jobs:
 
       - name: 컨테이너 간 블랙박스 E2E (sut ↔ tester)
         run: docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from tester
+
+  parallel-e2e:
+    name: Parallel collection E2E (pjacoco)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: pjacoco 해소 + 병렬 E2E (실패 시 fail — skip 아님)
+        env:
+          PJACOCO_REF: main
+        run: bash scripts/run-parallel-e2e.sh
