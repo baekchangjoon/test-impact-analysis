@@ -10,6 +10,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -18,9 +19,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** 레포당 SQLite 스냅샷. 모든 레코드 키에 commit_sha 포함(설계 §6.1). */
 public final class CoverageStore implements AutoCloseable {
@@ -28,9 +31,11 @@ public final class CoverageStore implements AutoCloseable {
 
     public CoverageStore(Path dbFile) {
         try {
+            Path parent = dbFile.toAbsolutePath().getParent();
+            if (parent != null) Files.createDirectories(parent);
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toString());
             initSchema();
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (SQLException | IOException e) { throw new RuntimeException(e); }
     }
 
     private void initSchema() throws SQLException {
@@ -72,36 +77,56 @@ public final class CoverageStore implements AutoCloseable {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
-    /** 해당 커밋의 가장 최근 빌드 스냅샷을 로드. */
+    /** 해당 commit의 모든 build를 test_id별 최신-build-wins로 병합한 스냅샷. */
     public CoverageSnapshot load(String commitSha) {
         try {
-            long buildId = -1; String repo = null;
+            // 1단계: builds 열거(오름차순). repo는 마지막 행 = 최대 build_id의 값.
+            List<Long> buildIds = new ArrayList<>();
+            String repo = null;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT build_id, repo FROM builds WHERE commit_sha=? ORDER BY build_id DESC LIMIT 1")) {
+                    "SELECT build_id, repo FROM builds WHERE commit_sha=? ORDER BY build_id ASC")) {
                 ps.setString(1, commitSha);
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) return new CoverageSnapshot(null, commitSha, List.of());
-                    buildId = rs.getLong(1); repo = rs.getString(2);
+                    while (rs.next()) { buildIds.add(rs.getLong(1)); repo = rs.getString(2); }
                 }
             }
+            if (buildIds.isEmpty()) return new CoverageSnapshot(null, commitSha, List.of());
+
+            // 2단계: coverage를 build_id 오름차순으로 읽어 test_id별 최신 build로 병합.
+            // buildIds는 자체 DB의 AUTOINCREMENT long이라 IN 절 인라인이 안전.
+            String inClause = buildIds.stream().map(String::valueOf).collect(Collectors.joining(","));
             Map<String, Map<String, RoaringBitmap>> byTest = new LinkedHashMap<>();
             Map<String, String> resultByTest = new LinkedHashMap<>();
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT test_id, result, file, line_bitmap FROM coverage WHERE build_id=?")) {
-                ps.setLong(1, buildId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        String tid = rs.getString(1);
-                        resultByTest.put(tid, rs.getString(2));
-                        byTest.computeIfAbsent(tid, k -> new LinkedHashMap<>())
-                              .put(rs.getString(3), fromBytes(rs.getBytes(4)));
+            Map<String, Long> winningBuild = new HashMap<>();
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery(
+                    "SELECT build_id, test_id, result, file, line_bitmap FROM coverage " +
+                    "WHERE build_id IN (" + inClause + ") ORDER BY build_id ASC")) {
+                while (rs.next()) {
+                    long bid = rs.getLong(1);
+                    String tid = rs.getString(2);
+                    long w = winningBuild.getOrDefault(tid, -1L);   // 첫 만남이면 -1L → 항상 reset
+                    if (bid > w) {                                   // 더 높은 build → 기존 엔트리 리셋
+                        winningBuild.put(tid, bid);
+                        byTest.put(tid, new LinkedHashMap<>());
+                        resultByTest.put(tid, rs.getString(3));
                     }
+                    byTest.get(tid).put(rs.getString(4), fromBytes(rs.getBytes(5)));   // 같은 build면 누적
                 }
             }
             List<TestCoverage> tests = new ArrayList<>();
             for (Map.Entry<String, Map<String, RoaringBitmap>> e : byTest.entrySet())
                 tests.add(new TestCoverage(e.getKey(), resultByTest.get(e.getKey()), e.getValue()));
             return new CoverageSnapshot(repo, commitSha, tests);
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** 해당 commit의 distinct build 수(없으면 0). 상태 없는 쿼리 — thread-safe. */
+    public int distinctBuildCount(String commitSha) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(DISTINCT build_id) FROM builds WHERE commit_sha=?")) {
+            ps.setString(1, commitSha);
+            try (ResultSet rs = ps.executeQuery()) { rs.next(); return rs.getInt(1); }
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
