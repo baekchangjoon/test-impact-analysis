@@ -3,9 +3,36 @@ set -euo pipefail
 # 단일 pjacoco SUT(fixture-app)에 대해 테스터를 직렬/forks/in-JVM 3모드로 구동, 각 모드 격리 destfile로 수집,
 # tia convert로 testwise 생성, 마지막에 수용 비교 테스트(ParallelCollectionE2E) green 확인.
 
-# Java 17 강제 — 코드는 Java 17 바이트코드 (jenv 기본값이 11일 수 있음)
-export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+# Java 17 강제 — 코드는 Java 17 바이트코드 (macOS/Linux 이식 가능)
+# 우선순위:
+#   1) 이미 유효한 JAVA_HOME이 설정되어 있고 Java 17+ 이면 그대로 사용
+#   2) macOS: /usr/libexec/java_home -v 17 로 Java 17 선택
+#   3) 그 외: PATH의 java에서 JAVA_HOME 추론
+_need_java_home=1
+if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
+  _cur_ver="$("${JAVA_HOME}/bin/java" -version 2>&1 | head -1 | sed 's/.*version "\([0-9]*\).*/\1/')"
+  if [ "${_cur_ver:-0}" -ge 17 ] 2>/dev/null; then
+    _need_java_home=0
+  fi
+fi
+if [ "$_need_java_home" -eq 1 ]; then
+  if [ -x /usr/libexec/java_home ]; then
+    JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+  else
+    _java_bin="$(command -v java 2>/dev/null)"
+    [ -n "$_java_bin" ] || { echo "❌ java가 PATH에 없습니다" >&2; exit 1; }
+    # bin/java → bin → JAVA_HOME
+    JAVA_HOME="$(cd "$(dirname "$_java_bin")/.." && pwd)"
+  fi
+fi
+export JAVA_HOME
 JAVA_BIN="$JAVA_HOME/bin/java"
+# Java 버전 확인 — 17 이상이어야 함
+_java_ver="$("$JAVA_BIN" -version 2>&1 | head -1 | sed 's/.*version "\([0-9]*\).*/\1/')"
+if [ "${_java_ver:-0}" -lt 17 ] 2>/dev/null; then
+  echo "❌ Java 17 이상 필요 (현재: $("$JAVA_BIN" -version 2>&1 | head -1))" >&2
+  exit 1
+fi
 
 AGENT_JAR="$(bash scripts/setup-pjacoco.sh | sed -n 's/^PJACOCO_AGENT_JAR=//p')"
 [ -n "$AGENT_JAR" ] || { echo "❌ pjacoco 에이전트 미해소" >&2; exit 1; }
@@ -24,15 +51,19 @@ SUT_PID_FILE="$OUT/sut.pid"
 
 kill_sut() {
   if [ -f "$SUT_PID_FILE" ]; then
-    local pid
+    local pid waited
     pid="$(cat "$SUT_PID_FILE")"
     kill "$pid" 2>/dev/null || true
     rm -f "$SUT_PID_FILE"
-    # 포트 해제 대기
-    for i in $(seq 1 10); do
-      curl -sf "localhost:$PORT/price/F" >/dev/null 2>&1 || break
+    # 프로세스가 실제로 종료될 때까지 최대 10초 폴링
+    waited=0
+    while kill -0 "$pid" 2>/dev/null && [ $waited -lt 10 ]; do
       sleep 1
+      waited=$(( waited + 1 ))
     done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" 2>/dev/null || true
+    fi
   fi
 }
 
@@ -69,17 +100,26 @@ run_mode() {  # $1 = serial|forks|injvm
   echo "  [${mode}] SUT 준비 완료" >&2
 
   local t0
-  t0=$(python3 -c "import time; print(int(time.time()*1000))")
+  t0=$(( $(date +%s) * 1000 ))
   # --rerun 으로 Gradle 캐시 무효화 — 모드별로 SUT가 다르므로 항상 재실행 필요
   ./gradlew --no-daemon :e2e:parallelTesterTest --rerun -Pparallel.mode="$mode" \
       "-Dfixture.baseUrl=http://localhost:$PORT" \
       "-Dpjacoco.control-url=http://127.0.0.1:$CTRL" >&2
   local t1
-  t1=$(python3 -c "import time; print(int(time.time()*1000))")
+  t1=$(( $(date +%s) * 1000 ))
 
   kill "$pid" 2>/dev/null || true
   rm -f "$SUT_PID_FILE"
-  sleep 1   # .exec flush 보장 + 포트 해제
+  # 프로세스가 실제로 종료될 때까지 최대 10초 대기 (JaCoCo .exec 플러시 포함)
+  local waited=0
+  while kill -0 "$pid" 2>/dev/null && [ $waited -lt 10 ]; do
+    sleep 1
+    waited=$(( waited + 1 ))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+  sleep 1   # 소켓 해제 + .exec 최종 플러시 안정화
 
   "$CLI" convert --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
 
