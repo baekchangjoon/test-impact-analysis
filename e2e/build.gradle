@@ -67,6 +67,13 @@ tasks.register('inProcessTesterTest', Test) {
     outputs.upToDateWhen { false }
 }
 
+// in-process 수용 비교 테스트 전용 태스크 — tia.inprocess.artifacts 로 산출 디렉터리 지정. 오케스트레이터가 구동.
+tasks.register('inProcessE2ETest', Test) {
+    useJUnitPlatform { includeTags 'inprocess-e2e' }
+    systemProperties System.getProperties().findAll { it.key.toString().startsWith('tia.inprocess.') }
+    outputs.upToDateWhen { false }
+}
+
 // tia-core 클래스를 변형하고 E2E 테스트(io.tia.e2e.*)로 죽이는지 측정. ./gradlew :e2e:pitest
 evaluationDependsOn(':tia-core')
 pitest {
