@@ -110,7 +110,7 @@ run_mode() {  # $1 = serial|forks|injvm
 
   # SUT 동시성 프로브 — 테스터 종료 후, SUT 종료 전 [REQ-010]
   local max_concurrent
-  max_concurrent="$(curl -sf "localhost:$PORT/__concurrency__/max" 2>/dev/null || echo "0")"
+  max_concurrent="$(curl -sf "http://localhost:$PORT/__concurrency__/max" 2>/dev/null || { >&2 echo "⚠️ concurrency probe 실패 (SUT 미응답?) — 0으로 기록"; echo "0"; })"
 
   kill "$pid" 2>/dev/null || true
   rm -f "$SUT_PID_FILE"

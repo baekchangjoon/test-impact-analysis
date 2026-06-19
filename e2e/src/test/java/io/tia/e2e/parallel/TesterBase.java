@@ -17,7 +17,7 @@ abstract class TesterBase {
     static void wireBase() {
         String base = System.getProperty("fixture.baseUrl");
         assumeTrue(base != null, "fixture.baseUrl 미설정 — 오케스트레이터에서만 실행");
-        // baseURI는 모든 스레드가 같은 값으로 설정하므로 경합이 없음
+        // baseURI는 모든 스레드가 동일 값을 동시에 기록하는 write-write race이지만 값이 같으므로 무해
         RestAssured.baseURI = base;
         // PjacocoRestAssured.enable()은 전역 필터를 추가하므로 한 번만 호출
         synchronized (INIT_LOCK) {
