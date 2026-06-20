@@ -125,7 +125,7 @@ run_mode() {  # $1 = serial|forks|injvm
   fi
   sleep 1   # 소켓 해제 + .exec 최종 플러시 안정화
 
-  "$CLI" convert --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
+  "$CLI" convert --allow-incomplete --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
 
   # stdout: timing + concurrency (캡처 대상)
   echo "$mode:$((t1 - t0)):$max_concurrent"

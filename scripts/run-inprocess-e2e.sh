@@ -46,7 +46,7 @@ run_mode() {  # $1 = serial|forks|injvm
   exec_count=$(find "$cov" -name '*.exec' 2>/dev/null | wc -l | tr -d ' ')
   [ "$exec_count" -gt 0 ] || { echo "❌ $mode: .exec 파일 0 — 에이전트 미부착 의심" >&2; exit 1; }
   echo "--- convert $mode ($exec_count exec files) ---" >&2
-  "$CLI" convert --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
+  "$CLI" convert --allow-incomplete --exec-dir "$cov" --classes "$CLASSES" --out "$OUT/testwise_$mode.json" >&2
   # 수용 테스트가 기대하는 파일명으로 정리(overlap_<mode>.csv, underscore)
   if [ -f "$ov" ]; then
     cp "$ov" "$OUT/overlap_$mode.csv"

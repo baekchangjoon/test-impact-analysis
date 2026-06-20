@@ -22,7 +22,7 @@ $GW :tia-cli:installDist
 CLI=tia-cli/build/install/tia/bin/tia
 CLASSES=/work/fixture-app/build/classes/java/main
 mkdir -p /work/poc-out
-JAVA_HOME=/opt/java/openjdk "$CLI" convert \
+JAVA_HOME=/opt/java/openjdk "$CLI" convert --allow-incomplete \
   --exec-dir /cov \
   --classes "$CLASSES" \
   --out /work/poc-out/testwise.json
