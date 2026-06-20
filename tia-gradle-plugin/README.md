@@ -40,15 +40,15 @@ control-url 주입, 테스트별 start/stop, 요청의 `baggage: test.id` 전파
 TIA는 산출물(per-test `.exec`)을 `tia convert`로 받기만 하면 된다.
 
 ```gradle
-plugins { id 'io.pjacoco.gradle' version '1.1.0' }   // ※ 공개 배포(Maven Central/Plugin Portal) 후 사용 가능
+plugins { id 'io.pjacoco.gradle' version '1.2.0' }   // ※ 공개 배포(Maven Central/Plugin Portal) 후 사용 가능
 pjacoco {
     includes.set(['com.acme.*'])
     attachTo.set(['integrationTest'])
     aggregate.set(false)            // TIA는 per-test만 소비 → 전체-실행 aggregate.exec 끔
 }
 dependencies {
-    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.1.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.1.0'
+    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.2.0'
+    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.2.0'
 }
 // 이후: tia convert --exec-dir <pjacoco 출력 dir> --classes ... → testwise.json → tiaIndex
 ```
