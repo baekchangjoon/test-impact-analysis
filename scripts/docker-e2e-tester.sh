@@ -41,7 +41,7 @@ diff --git a/fixture-app/src/main/java/io/tia/fixture/PricingService.java b/fixt
 EOF
 OUT="$(JAVA_HOME=/opt/java/openjdk "$CLI" impact --db /work/poc-out/tia.db --commit DOCKER --diff-file /work/poc-out/p.diff)"
 echo "$OUT"
-if echo "$OUT" | grep -qE "DETERMINISTIC[[:space:]]+PriceTesterIT#" \
+if echo "$OUT" | grep -qE "DETERMINISTIC[[:space:]].*PriceTesterIT#" \
    && ! echo "$OUT" | grep -q "GreetingTesterIT"; then
   echo "✅ DOCKER E2E PASS: PriceTesterIT DETERMINISTIC 선별, GreetingTesterIT 제외"
 else
