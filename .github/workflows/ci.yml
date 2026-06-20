@@ -34,7 +34,7 @@ jobs:
       # mavenLocal에 게시한다(PUBLISHING.md). e2e 모듈의 pjacoco testkit 의존이 컴파일 시 해소된다.
       - name: pjacoco 소스 빌드 → mavenLocal (e2e testkit 의존 해소)
         env:
-          PJACOCO_REF: v1.2.0
+          PJACOCO_REF: v1.3.0
         run: bash scripts/setup-pjacoco.sh
 
       - name: 전체 테스트 + 집계 커버리지
@@ -163,7 +163,7 @@ jobs:
 
       - name: pjacoco 해소 + 병렬 E2E (실패 시 fail — skip 아님)
         env:
-          PJACOCO_REF: v1.2.0
+          PJACOCO_REF: v1.3.0
         run: bash scripts/run-parallel-e2e.sh
 
   inprocess-e2e:
@@ -183,5 +183,5 @@ jobs:
 
       - name: in-process E2E (pjacoco 소스 해소, 실패 시 fail)
         env:
-          PJACOCO_REF: v1.2.0
+          PJACOCO_REF: v1.3.0
         run: bash scripts/run-inprocess-e2e.sh

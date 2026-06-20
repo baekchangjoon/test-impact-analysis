@@ -19,7 +19,7 @@ fi
 
 ( cd "$PJACOCO_SRC" && ./gradlew --no-daemon :agent:shadowJar publishToMavenLocal ) >&2
 
-AGENT_JAR="$(find "$PJACOCO_SRC/agent/build/libs" -name 'jacocoagent-parallel*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print -quit)"
+AGENT_JAR="$(find "$PJACOCO_SRC/agent/build/libs" -name 'pjacoco-agent*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print -quit)"
 [ -n "$AGENT_JAR" ] || { echo "❌ pjacoco 에이전트 jar 빌드 실패" >&2; exit 1; }
 mkdir -p "$REPO_ROOT/tools/pjacoco"
 cp "$AGENT_JAR" "$REPO_ROOT/tools/pjacoco/jacocoagent-parallel.jar"
