@@ -43,7 +43,7 @@
 > | 테스트가 프로덕션 코드를 실행하는 방식 | 실행 스레드 | 수집 모델 |
 > |---|---|---|
 > | 직접 호출 / MockMvc / `@WebMvcTest` / `@SpringBootTest(webEnvironment=MOCK)` / WebTestClient(bindToApplicationContext) | 테스트 스레드 | **in-process** OK |
-> | `@SpringBootTest(RANDOM_PORT\|DEFINED_PORT)` + RestAssured/TestRestTemplate/WebTestClient(bindToServer) · WebSocket/STOMP · `@Async` | 워커/다른 스레드 | **out-of-process baggage 필수** |
+> | `@SpringBootTest(RANDOM_PORT` 또는 `DEFINED_PORT)` + RestAssured/TestRestTemplate/WebTestClient(bindToServer) · WebSocket/STOMP · `@Async` | 워커/다른 스레드 | **out-of-process baggage 필수** |
 >
 > in-process로 HTTP 블랙박스(RANDOM_PORT)를 수집하면 프로덕션 코드가 Tomcat 워커 스레드에서 돌아
 > 커버리지가 **침묵 손실**된다. 이 경우 pjacoco 에이전트가 WARN/카운터를 내고, sidecar에
