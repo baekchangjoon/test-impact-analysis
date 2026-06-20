@@ -16,6 +16,11 @@ TIA database (`tia.db`) or a `testwise.json` already produced by the build/CI pi
 (`tia convert` + `tia index`). Collecting per-test coverage (running the SUT under the
 coverage agent) is the build/plugin/CI's job, not this skill's.
 
+> **수집 모델 선택**: 인덱스를 만들 때 in/out-of-process는 "프로세스"가 아니라 **스레드 토폴로지**로
+> 고른다 — 프로덕션 코드가 테스트 스레드에서 돌면 in-process, 워커 스레드(`@SpringBootTest(RANDOM_PORT)`
+> +RestAssured/TestRestTemplate, WebSocket, `@Async`)면 out-of-process baggage. 잘못 고르면 커버리지가
+> 침묵 손실되고 `tia convert`가 막는다. 결정 트리: GETTING-STARTED.md §1.
+
 **No index yet?** Building the first `tia.db` is the real onboarding step. Don't report an
 empty result as success — point the user to the collection runbook instead:
 - **Gradle/JVM project:** [GETTING-STARTED §1 (collect → `testwise.json`)](../../GETTING-STARTED.md#1-per-test-커버리지-수집--testwisejson),

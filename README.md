@@ -128,6 +128,9 @@ $CLI convert --exec-dir <execDir> --classes build/classes/java/main --out testwi
 pjacoco(in-process·out-of-process 양쪽) 수집물을 인덱싱 입력으로 변환한다.
 `--exec-dir`에 per-test `.exec` 파일들이 있어야 한다(→ [GETTING-STARTED](GETTING-STARTED.md) §1).
 
+> `tia convert`는 in-process 손실 신호(sidecar `incompleteAttribution`/`droppedProbes`)가 있으면 기본
+> `exit 1`로 막는다(`--allow-incomplete`로 경고만). 0커버 테스트도 막으려면 `--fail-on-empty`(기본 off).
+
 ### 1. `index` — testwise 리포트를 SQLite 스냅샷으로 인덱싱
 
 ```bash

@@ -37,6 +37,31 @@
   per-test만 소비하므로 에이전트의 `aggregate`는 끈다(`aggregate=false`; 기본 ON이면 전체-실행 `aggregate.exec`가 함께 떨어진다).
   워크된 예: [petclinic-demo](petclinic-demo/README.md).
 
+> **수집 모델 결정(스레드 토폴로지 축).** "같은 JVM이냐"가 아니라 **"프로덕션 코드가 어느 스레드에서
+> 실행되나"**로 고른다:
+>
+> | 테스트가 프로덕션 코드를 실행하는 방식 | 실행 스레드 | 수집 모델 |
+> |---|---|---|
+> | 직접 호출 / MockMvc / `@WebMvcTest` / `@SpringBootTest(webEnvironment=MOCK)` / WebTestClient(bindToApplicationContext) | 테스트 스레드 | **in-process** OK |
+> | `@SpringBootTest(RANDOM_PORT\|DEFINED_PORT)` + RestAssured/TestRestTemplate/WebTestClient(bindToServer) · WebSocket/STOMP · `@Async` | 워커/다른 스레드 | **out-of-process baggage 필수** |
+>
+> in-process로 HTTP 블랙박스(RANDOM_PORT)를 수집하면 프로덕션 코드가 Tomcat 워커 스레드에서 돌아
+> 커버리지가 **침묵 손실**된다. 이 경우 pjacoco 에이전트가 WARN/카운터를 내고, sidecar에
+> `incompleteAttribution`이 찍히며, `tia convert`가 기본으로 **exit 1**(`--allow-incomplete`로 우회).
+>
+> **수집 fail-fast 레시피(소비자 하니스).** in-process 수집 중 SUT가 임베디드 웹서버를 띄우면 토폴로지
+> 미스매치다. 작은 리스너로 즉시 실패시킨다(opt-out `tia.inprocess.failOnWebServer=false`):
+> ```java
+> // src/test, testRuntimeOnly 로 등록
+> @org.springframework.context.event.EventListener
+> void onWebServer(org.springframework.boot.web.context.WebServerInitializedEvent e) {
+>     if (Boolean.parseBoolean(System.getProperty("tia.inprocess.failOnWebServer", "true")))
+>         throw new IllegalStateException("Embedded web server booted during in-process collection — "
+>             + "use the out-of-process baggage model for this module.");
+> }
+> ```
+> (TIA의 `scripts/run-inprocess-e2e.sh`는 서버를 띄우지 않는 올바른 토폴로지라 이 가드 대상이 아니다.)
+
 > **병렬 수집(out-of-process).** pjacoco 에이전트를 **단일 SUT**에 부착하고 테스터를 병렬화하면
 > per-test 수집을 병렬로 할 수 있다 — 테스터 포크/스레드가 모두 같은 SUT control 포트로 향하므로
 > 충돌이 없고, pjacoco가 baggage `test.id`로 분리한다. 두 방식 모두 지원: Gradle `maxParallelForks>1`,
