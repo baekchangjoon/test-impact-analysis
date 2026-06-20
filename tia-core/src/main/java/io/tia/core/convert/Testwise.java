@@ -1,5 +1,6 @@
 package io.tia.core.convert;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 
 /**
@@ -13,7 +14,9 @@ public final class Testwise {
 
     public record Document(List<Test> tests) {}
 
-    public record Test(String uniformPath, String result, List<PathCov> paths) {}
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Test(String uniformPath, String result, List<PathCov> paths,
+                       Boolean incompleteAttribution, Long droppedProbes) {}
 
     public record PathCov(String path, List<FileCov> files) {}
 

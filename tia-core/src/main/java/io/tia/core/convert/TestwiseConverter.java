@@ -50,7 +50,9 @@ public final class TestwiseConverter {
             for (Path exec : sorted) {
                 String name = exec.getFileName().toString();
                 String testId = name.substring(0, name.length() - ".exec".length());
-                tests.add(new Testwise.Test(testId, resultFor(exec), analyze(exec, classesDir)));
+                Sidecar sc = sidecarOf(exec);
+                tests.add(new Testwise.Test(testId, sc.result(), analyze(exec, classesDir),
+                        sc.incompleteAttribution() ? Boolean.TRUE : null, sc.droppedProbes()));
             }
         }
         return new Testwise.Document(tests);
@@ -95,21 +97,33 @@ public final class TestwiseConverter {
         }
     }
 
-    /** Optional companion {@code <testId>.json} carries the pass/fail result; default UNKNOWN. */
-    private String resultFor(Path execFile) {
+    /** Parsed companion {@code <testId>.json}: pass/fail result + phase-1 loss signals. */
+    public record Sidecar(String result, boolean incompleteAttribution, Long droppedProbes) {}
+
+    private Sidecar sidecarOf(Path execFile) {
         String s = execFile.toString();
         Path companion = Path.of(s.substring(0, s.length() - ".exec".length()) + ".json");
+        String result = "UNKNOWN";
+        boolean incomplete = false;
+        Long dropped = null;
         if (Files.exists(companion)) {
             try {
-                Object r = mapper.readValue(companion.toFile(), java.util.Map.class).get("result");
-                if (r != null) {
-                    return r.toString().toUpperCase();
-                }
-            } catch (IOException ignored) {
-                // fall through to UNKNOWN
-            }
+                @SuppressWarnings("unchecked")
+                java.util.Map<String,Object> m = mapper.readValue(companion.toFile(), java.util.Map.class);
+                Object r = m.get("result");
+                if (r != null) result = r.toString().toUpperCase();
+                incomplete = Boolean.TRUE.equals(m.get("incompleteAttribution"));
+                Object d = m.get("droppedProbes");
+                if (d instanceof Number n && n.longValue() > 0) dropped = n.longValue();   // 0/≤0 -> null
+            } catch (IOException ignored) { /* malformed -> no-loss */ }
         }
-        return "UNKNOWN";
+        return new Sidecar(result, incomplete, dropped);
+    }
+
+    /** A test is "lost" if the producer flagged incomplete attribution or any dropped probes. */
+    public static boolean isLoss(Testwise.Test t) {
+        return Boolean.TRUE.equals(t.incompleteAttribution())
+                || (t.droppedProbes() != null && t.droppedProbes() > 0);
     }
 
     /** {@code [1,2,3,5] -> "1-3,5"} (testwise coveredLines range syntax). */
