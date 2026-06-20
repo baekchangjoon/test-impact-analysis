@@ -2,7 +2,7 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'jacoco'
     group = 'io.tia'
-    version = '0.1.1'   // D1: 릴리스 버전 단일 소스 — Maven 좌표·POM·`tia --version`(generateVersionResource)을 모두 구동. 릴리스 태그도 이 값과 일치시킬 것.
+    version = '0.2.0'   // D1: 릴리스 버전 단일 소스 — Maven 좌표·POM·`tia --version`(generateVersionResource)을 모두 구동. 릴리스 태그도 이 값과 일치시킬 것.
     repositories { mavenCentral() }
     java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
     jacoco { toolVersion = '0.8.12' }
