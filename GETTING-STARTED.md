@@ -87,7 +87,8 @@
 ## 2. 인덱싱 (베이스라인 스냅샷)
 
 ```bash
-"$CLI" index --report testwise.json --repo my-service --commit "$(git rev-parse HEAD)" --db tia.db
+# --db 생략 → git-common-dir 기본 경로 자동 사용 (아래 박스 참조)
+"$CLI" index --report testwise.json --repo my-service --commit "$(git rev-parse HEAD)"
 ```
 
 > **인덱스 저장 위치 (`tia.db`).** `tia.db`는 **git에 커밋하지 않는다** — 바이너리 파일이라 diff가 의미없고,
@@ -109,18 +110,15 @@
 > 기본 경로를 쓸 때 각 커맨드는 stderr에 `INFO: 기본 인덱스 DB: <path>`를 한 줄 안내한다.
 > CI/컨테이너처럼 cwd가 불확실하거나 git이 없는 환경에선 `--db`로 명시 전달을 권장한다.
 
-```bash
-# (--db 생략 시 git-common-dir 기본 경로 자동 사용)
-"$CLI" index --report testwise.json --repo my-service --commit "$(git rev-parse HEAD)"
-```
-
 ## 3. 변경 영향 테스트 선별
+
+`index`와 같은 레포에서 실행하면 `--db` 없이도 같은 기본 경로(git-common-dir)로 수렴한다.
 
 ```bash
 # 워킹트리/브랜치 변경을 인덱싱 커밋과 교차 (two-dot git diff)
-"$CLI" impact --db tia.db --commit <baseline-sha>
+"$CLI" impact --commit <baseline-sha>
 # 또는 미리 만든 diff 파일로:
-"$CLI" impact --db tia.db --commit <baseline-sha> --diff-file change.diff
+"$CLI" impact --commit <baseline-sha> --diff-file change.diff
 ```
 출력: `DETERMINISTIC|CONSERVATIVE  <testId>` — 이 목록만 실행하면 된다. 베이스라인이 없으면
 `# tia:no-baseline`(→ 전체 실행 권장; `--strict`면 실패).
