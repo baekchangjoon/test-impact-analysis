@@ -80,14 +80,14 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| CLC-REQ-001 | incomplete 게이트 기본 fail | `ConvertGateTest#incompleteSidecar_failsByDefault` · `#droppedProbesOnly_failsByDefault` · `#noLoss_exit0` · `#failure_stillWritesTestwise` ; `TestwiseConverterLossTest#detectsLoss` | CLI + unit | 🔴 planned |
-| CLC-REQ-002 | --allow-incomplete opt-out | `ConvertGateTest#allowIncomplete_warnsExit0` | CLI | 🔴 planned |
-| CLC-REQ-003 | empty 게이트 opt-in & 독립 | `ConvertGateTest#empty_passesByDefault` · `#failOnEmpty_fails` · `#allowIncompleteWithFailOnEmpty_emptyStillFires` | CLI | 🔴 planned |
-| CLC-REQ-004 | testwise 전파 + NON_NULL | `TestwiseConverterLossTest#propagatesFlags` · `#propagatesDroppedProbesOnly` · `#omitsWhenNoLoss` | unit | 🔴 planned |
-| CLC-REQ-005 | index 파서 후방호환 | `TestwiseReportParserCompatTest#ignoresNewFields` | unit | 🔴 planned |
-| CLC-REQ-006 | 문서 결정 체크리스트 자동검증 | `DecisionChecklistDocTest#docsHaveTopologyTreeAndFlags` | unit | 🔴 planned |
+| CLC-REQ-001 | incomplete 게이트 기본 fail | `ConvertGateTest#incompleteSidecar_failsByDefault` · `#droppedProbesOnly_failsByDefault` · `#noLoss_exit0` · `#failure_stillWritesTestwise` ; `TestwiseConverterLossTest#detectsLoss` | CLI + unit | 🟢 green |
+| CLC-REQ-002 | --allow-incomplete opt-out | `ConvertGateTest#allowIncomplete_warnsExit0` | CLI | 🟢 green |
+| CLC-REQ-003 | empty 게이트 opt-in & 독립 | `ConvertGateTest#empty_passesByDefault` · `#failOnEmpty_fails` · `#allowIncompleteWithFailOnEmpty_emptyStillFires` | CLI | 🟢 green |
+| CLC-REQ-004 | testwise 전파 + NON_NULL | `TestwiseConverterLossTest#propagatesFlags` · `#propagatesDroppedProbesOnly` · `#omitsWhenNoLoss` | unit | 🟢 green |
+| CLC-REQ-005 | index 파서 후방호환 | `TestwiseReportParserCompatTest#ignoresNewFields` | unit | 🟢 green |
+| CLC-REQ-006 | 문서 결정 체크리스트 자동검증 | `DecisionChecklistDocTest#docsHaveTopologyTreeAndFlags` | unit | 🟢 green |
 
-Coverage: 0/6 green (0%) — target 100% (대상: Must 6개; Should/Could/Won't 없음, 연기 없음)
+Coverage: 6/6 green (100%) — target 100% (대상: Must 6개; Should/Could/Won't 없음, 연기 없음)
 
 ## 자기검토
 1. **고아 행위 없음**: spec §4(③-c-1 incomplete/empty→001/002/003, ③-c-2 전파→004, 파서→005, ③-a/③-b·
