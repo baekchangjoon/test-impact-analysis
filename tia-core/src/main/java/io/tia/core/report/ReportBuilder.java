@@ -2,6 +2,7 @@ package io.tia.core.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.tia.core.filter.FilterSet;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,9 +32,10 @@ public final class ReportBuilder {
     private static final String PREFIX_REPLACEMENT = "…/";   // "…/"
     private final ObjectMapper om = new ObjectMapper();
 
+    /** {@code filters} may be null → treated as {@link FilterSet#none()} (no filtering). */
     public record Inputs(Path testwise, Path scenarios, Path flaky, Path prodFiles,
                          String commit, String sut, String jacoco, Path testSrcRoot,
-                         String prefixStrip) {}
+                         String prefixStrip, FilterSet filters) {}
 
     /** Build the report HTML (template + injected model). */
     public String render(Inputs in) throws IOException {
@@ -45,10 +47,14 @@ public final class ReportBuilder {
 
     /** The model injected as {@code const D = …} — mirrors make_html.py's `model` dict. */
     public Map<String, Object> buildModel(Inputs in) throws IOException {
+        // null filters == no filtering [Inputs.filters javadoc]
+        FilterSet filters = (in.filters() != null) ? in.filters() : FilterSet.none();
         JsonNode root = om.readTree(in.testwise().toFile());
         Object scenarios = usable(in.scenarios(), "scenarios") ? om.readValue(in.scenarios().toFile(), Object.class) : new ArrayList<>();
-        Object flaky = usable(in.flaky(), "flaky") ? om.readValue(in.flaky().toFile(), Object.class) : null;
-        List<String> prod = usable(in.prodFiles(), "prod-files") ? readProd(in.prodFiles()) : new ArrayList<>();
+        Object flaky = usable(in.flaky(), "flaky") ? om.readValue(in.flaky().toFile(), Object.class) : null;   // flaky tab: opaque schema, NOT filtered [REQ-011 descope]
+        List<String> prod = usable(in.prodFiles(), "prod-files")
+                ? readProd(in.prodFiles()).stream().filter(filters::acceptsCode).toList()   // prod denominator respects code filters
+                : new ArrayList<>();
         Map<String, String> testSrc = walkTestSrc(in.testSrcRoot());
 
         // per-test + reverse index (rev: full path → list of test ids, insertion order)
@@ -56,6 +62,9 @@ public final class ReportBuilder {
         Map<String, List<String>> rev = new LinkedHashMap<>();
         for (JsonNode t : root.path("tests")) {
             String id = t.path("uniformPath").asText();
+            if (!filters.acceptsTest(id)) {
+                continue;   // excluded test row: drop entirely, never enters perTest/rev [REQ-011]
+            }
             String result = t.path("result").asText("UNKNOWN");
             List<FileCov> files = new ArrayList<>();
             for (JsonNode p : t.path("paths")) {
@@ -63,6 +72,9 @@ public final class ReportBuilder {
                 for (JsonNode f : p.path("files")) {
                     String fname = f.path("fileName").asText();
                     String full = pkg.isEmpty() ? fname : pkg + "/" + fname;
+                    if (!filters.acceptsCode(full)) {
+                        continue;   // excluded file: drop from this surviving test's list + reverse index [REQ-011]
+                    }
                     String covered = f.path("coveredLines").asText("");
                     files.add(new FileCov(full, pkg.replace("/", "."), fname, linesOf(covered), firstLine(covered)));
                     rev.computeIfAbsent(full, k -> new ArrayList<>()).add(id);
