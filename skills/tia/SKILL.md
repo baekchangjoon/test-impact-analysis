@@ -63,6 +63,11 @@ Pass `-` for optional `report` inputs you don't have; those tabs degrade gracefu
 
 ## Interpreting `impact` output
 
+`impact` and `flaky` support `--format text|summary|json|markdown` (default `text`, byte-frozen
+for existing scripts). Agents should prefer `--format json` — it's the versioned,
+machine-readable schema (`schemaVersion`, `tests[].id/confidence/reason`, `warnings`, …) meant
+for this kind of consumption, instead of parsing the default text output.
+
 Each selected test is printed with a confidence tag:
 - `DETERMINISTIC` — the changed line is in that test's recorded coverage → run it.
 - `CONSERVATIVE` — the change couldn't be mapped (new file / config) → included to be safe.
