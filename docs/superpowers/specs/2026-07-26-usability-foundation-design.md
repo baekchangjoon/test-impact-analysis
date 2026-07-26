@@ -75,13 +75,22 @@ filters:                    # 전체 선택
   글로브 작성 시 out-of-process id에는 패키지 세그먼트가 없다는 점을 문서에 명시한다.
 - 글로브 문법은 `**`/`*`/`?`를 지원하는 glob 문법이되, **OS와 무관하게 `/` 구분자 기준으로
   매칭**한다(플랫폼 기본 FileSystem의 separator에 의존하지 않도록 Unix-style 문법으로
-  matcher를 고정 생성).
+  matcher를 고정 생성). 이 어휘 밖의 문법(짝 안 맞는 `[`, `{a,b}` 브레이스 확장 등)은
+  "글로브 문법 오류"로 보고 fail-fast 대상이다(§2 검증 규칙).
 
 **해석 규칙**
 
-- **탐색:** `--config <path>` 명시가 최우선. 없으면 cwd에서 git 루트까지 상향 탐색으로
-  `tia.yml`을 찾는다. 못 찾으면 "설정 없음" — 필터 없이 기존 기본값으로 동작한다
-  (**완전 하위호환**: tia.yml이 없는 기존 사용자는 아무 변화도 겪지 않는다).
+- **탐색:** `--config <path>` 명시가 최우선이며, 이때 **상향 탐색은 완전히 우회**한다
+  (상위 디렉터리의 깨진 tia.yml이 있어도 파싱·검증하지 않는다). `--config`가 없으면
+  cwd에서 git 루트까지 상향 탐색으로 `tia.yml`을 찾는다. 못 찾으면 "설정 없음" — 필터
+  없이 기존 기본값으로 동작한다(**완전 하위호환**: tia.yml이 없는 기존 사용자는 아무
+  변화도 겪지 않는다).
+- **탐색 시작점 시임(테스트 가능성):** 로더는 탐색 시작 디렉터리를 **명시적 파라미터**로
+  받는다(프로덕션에서만 실제 cwd가 기본값). e2e 모듈은 JUnit 병렬 실행이라 JVM 전역
+  cwd에 의존하는 구현은 인프로세스 테스트가 불가능하기 때문이다(기존
+  `runGitDiff(ref, workingDir)` 패턴과 동일한 접근).
+- **상대 경로 해석:** tia.yml 안의 상대 경로(`db` 등)는 cwd가 아니라 **tia.yml이 있는
+  디렉터리 기준**으로 해석한다(하위 디렉터리에서 실행해도 같은 파일을 가리키도록).
 - **우선순위:** CLI 플래그 > `tia.yml` > 내장 기본값. 새 플래그
   `--include-code/--exclude-code/--include-test/--exclude-test`(반복 가능)는 tia.yml의
   해당 필터 목록을 **대체**한다(병합 아님 — 예측 가능성 우선. 예: 플래그로
@@ -100,12 +109,12 @@ filters:                    # 전체 선택
 
 **CLI 옵션 배선 (커맨드 × 신규 옵션)**
 
-| 옵션 | impact | flaky | report | convert/index |
-|---|---|---|---|---|
-| `--config <path>` | ✔ | ✔ | ✔ | ✔ (sut-name·db 등 기본값만 소비) |
-| `--include-code/--exclude-code` | ✔ | — | ✔ | — |
-| `--include-test/--exclude-test` | ✔ | ✔ | ✔ | — |
-| `--format` | ✔ | ✔ | — (HTML 전용) | — |
+| 옵션 | impact | flaky | report | index | convert |
+|---|---|---|---|---|---|
+| `--config <path>` | ✔ | ✔ | ✔ | ✔ (db 기본값만 소비) | — (tia.yml에서 소비할 값이 없음) |
+| `--include-code/--exclude-code` | ✔ | — | ✔ | — | — |
+| `--include-test/--exclude-test` | ✔ | ✔ | ✔ | — | — |
+| `--format` | ✔ | ✔ | — (HTML 전용) | — | — |
 
 공통 옵션은 picocli `@Mixin`으로 한 번만 선언해 커맨드별 중복을 피한다. `--config`는
 서브커맨드에서 동작하도록 mixin에 포함한다.
@@ -119,10 +128,11 @@ filters:                    # 전체 선택
 | 규칙 | 내용 |
 |---|---|
 | 기본 | `include` 비면 전체 포함. `exclude`가 `include`보다 우선 |
-| code 필터 — impact | **`DiffSummary`의 세 필드 모두**(`changedOldLinesByJavaFile`·`additionOnlyJavaFiles`·`unmappableFiles`)에서 제외 경로 항목을 제거한 뒤 `ImpactAnalyzer.select()`를 호출한다. 이래야 "전부 제외 → 0건" 규칙이 성립한다(신규파일·매핑불가 필드가 남으면 CONSERVATIVE가 잘못 발동). 제거된 파일마다 stderr에 `# WARN: excluded change ignored: <path>` 1줄 출력 |
+| include의 적용 범위 | `code.include`는 **매핑 가능한 코드 경로**(`changedOldLinesByJavaFile`·`additionOnlyJavaFiles`의 `.java` 키)에만 적용한다. **`unmappableFiles`(build.gradle·설정 등 비-Java)는 include 판정을 우회**하며 명시적 `exclude` 매칭으로만 제거된다 — include가 좁다고 빌드/설정 변경이 침묵 무시되어 CONSERVATIVE 안전망이 깨지는 것을 막기 위함 |
+| code 필터 — impact | **`DiffSummary`의 세 필드 모두**(`changedOldLinesByJavaFile`·`additionOnlyJavaFiles`·`unmappableFiles`)에서 제외 항목을 제거한 뒤 `ImpactAnalyzer.select()`를 호출한다(단 include의 적용 범위는 위 행). 이래야 "전부 제외 → 0건" 규칙이 성립한다(신규파일·매핑불가 필드가 남으면 CONSERVATIVE가 잘못 발동). 제거된 파일마다 stderr에 `# WARN: excluded change ignored: <path>` 1줄 출력. 역으로, **필터가 존재하되 매칭되지 않는** unmappable 변경은 필터 없음과 동일하게 CONSERVATIVE 전체 선택을 발동한다 |
 | code 필터 — report | 파일 축(역인덱스·blind spot 등)에 적용 |
 | test 필터 — impact | 선별 결과에 적용. 제외 테스트는 **Confidence 값과 무관하게**(DETERMINISTIC·LOW_CONFIDENCE·CONSERVATIVE 일괄) 출력하지 않고, CONSERVATIVE 전체 선택 집합에서도 제외 |
-| test 필터 — flaky | **집계 전에** 제외 테스트를 run-result에서 제거한다 — 전체 ratio의 분모(totalTests)·분자(flakyTests) 모두 필터 적용 후 집합으로 계산 |
+| test 필터 — flaky | **집계 전에** 제외 테스트를 run-result에서 제거한다 — 전체 ratio의 분모(totalTests)·분자(flakyTests) 모두 필터 적용 후 집합으로 계산. 필터 후 집합이 비면 ratio는 `0.0`으로 정의하고 stderr에 경고를 낸다(0-나눗셈/NaN 금지) |
 | test 필터 — report | 테스트 축에 적용 |
 | CONSERVATIVE 상호작용 | **포함된** 경로의 매핑 불가 변경(신규 파일·설정 등) → 기존대로 보수적 전체 선택(단, test 필터 적용 후 집합). 변경이 **전부 제외 경로**뿐이면 → 선별 0건 + WARN. 침묵으로 0건을 내지 않는다(거짓 "영향 없음" 면죄부 방지) |
 
