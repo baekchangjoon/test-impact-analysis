@@ -7,10 +7,10 @@
 ### REQ-001 — tia.yml 탐색과 부재 시 무변화
 - 유형: Functional
 - 우선순위: Must
-- 설명: `--config <path>`가 최우선이고, 없으면 cwd에서 git 루트까지 상향 탐색으로 `tia.yml`을 찾는다. 못 찾으면 필터 없이 기존 기본값으로 동작한다.
+- 설명: `--config <path>`가 최우선이며 이때 상향 탐색을 완전히 우회한다(상위의 깨진 tia.yml도 파싱하지 않음). 없으면 탐색 시작 디렉터리에서 git 루트까지 상향 탐색한다. 못 찾으면 필터 없이 기존 기본값으로 동작한다. 로더는 탐색 시작 디렉터리를 명시적 파라미터로 받는다(프로덕션만 실제 cwd 기본값 — e2e 병렬 실행에서 JVM cwd 의존 없이 테스트하기 위한 시임).
 - 수용기준:
-  - Given `--config`로 명시한 파일과 cwd 상위의 다른 `tia.yml`이 공존할 때, When `tia impact --config <path>` 실행, Then 명시한 파일의 설정만 적용된다.
-  - Given 하위 디렉터리 cwd와 git 루트의 `tia.yml`, When `--config` 없이 실행, Then 루트의 `tia.yml`이 발견·적용된다.
+  - Given `--config`로 명시한 파일과 탐색 경로 상의 **깨진** `tia.yml`이 공존할 때, When `tia impact --config <path>` 실행, Then 명시한 파일만 적용되고 깨진 파일은 파싱·검증되지 않는다(에러 없음).
+  - Given 하위 디렉터리(탐색 시작점 파라미터)와 git 루트의 `tia.yml`, When `--config` 없이 실행, Then 루트의 `tia.yml`이 발견·적용된다.
   - Given `tia.yml`이 어디에도 없음, When 기존 명령 실행, Then 출력·exit code가 도입 전과 동일하다.
 - 검증 레벨: E2E black-box (인프로세스 picocli 구동, `SpecAcceptanceE2ETest` 수준)
 
@@ -28,6 +28,7 @@
 - 설명: YAML 파싱 실패, 미지원 `version`, 알 수 없는 최상위 키, 글로브 문법 오류는 즉시 exit 1과 파일·위치·원인 메시지를 낸다.
 - 수용기준:
   - Given 깨진 YAML/`version: 99`/오타 키(`filtres:`)가 든 tia.yml 각각, When 아무 소비 명령 실행, Then exit 1이고 stderr에 파일 경로와 원인이 포함된다.
+  - Given 지원 어휘(`**`/`*`/`?`) 밖의 글로브(예: 짝 안 맞는 `[`)가 든 tia.yml, When 소비 명령 실행, Then exit 1이고 stderr에 문제의 글로브가 명시된다.
 - 검증 레벨: E2E black-box
 
 ### REQ-004 — code 글로브는 정규화(package-relative) 경로에 매칭
@@ -55,14 +56,16 @@
   - Given include·exclude 모두 빈 목록, When 필터 평가, Then 모든 항목이 포함된다.
 - 검증 레벨: unit (tia-core; E2E들의 전제로도 간접 검증)
 
-### REQ-007 — impact code 필터의 DiffSummary 전면 적용 + WARN
+### REQ-007 — impact code 필터의 DiffSummary 전면 적용 + WARN + CONSERVATIVE 보존
 - 유형: Functional
 - 우선순위: Must
-- 설명: code 필터는 `DiffSummary`의 `changedOldLinesByJavaFile`·`additionOnlyJavaFiles`·`unmappableFiles` 세 필드 모두에서 제외 항목을 제거한 뒤 판정하며, 제거된 파일마다 stderr에 `# WARN: excluded change ignored: <path>` 1줄을 낸다.
+- 설명: code 필터는 `DiffSummary`의 `changedOldLinesByJavaFile`·`additionOnlyJavaFiles`·`unmappableFiles` 세 필드 모두에서 제외 항목을 제거한 뒤 판정하며, 제거된 파일마다 stderr에 `# WARN: excluded change ignored: <path>` 1줄을 낸다. 단 `code.include`는 매핑 가능한 `.java` 경로에만 적용되고 `unmappableFiles`(build.gradle 등 비-Java)는 include 판정을 우회한다(명시적 exclude로만 제거). 필터가 존재해도 매칭되지 않는 변경의 CONSERVATIVE 발동은 필터 없음과 동일하다.
 - 수용기준:
   - Given 제외 경로의 **신규 파일만** 있는 diff, When `tia impact`, Then CONSERVATIVE 전체 선택이 발동하지 않는다.
   - Given 제외 경로 파일이 섞인 diff, When `tia impact`, Then 제거된 파일 수만큼 WARN 라인이 stderr에 나온다.
-- 검증 레벨: E2E black-box (+unit: 3필드 필터링)
+  - Given 좁은 `code.include`(예: `com/acme/**`)만 설정된 tia.yml과 `build.gradle`을 바꾼 diff, When `tia impact`, Then include 미매칭에도 불구하고 그 변경은 무시되지 않고 CONSERVATIVE 전체 선택이 발동한다.
+  - Given 어떤 변경에도 매칭되지 않는 exclude가 있는 tia.yml과 unmappable 변경 diff, When `tia impact`, Then 필터 없음과 동일하게 CONSERVATIVE 전체 선택이 발동한다(test 필터 적용 후 집합).
+- 검증 레벨: E2E black-box + unit(3필드 필터링: `DiffSummaryFilterTest#filtersAllThreeFields`)
 
 ### REQ-008 — 전부-제외 diff는 0건 + WARN + exit 0
 - 유형: Functional
@@ -84,9 +87,10 @@
 ### REQ-010 — flaky test 필터의 집계 전 적용
 - 유형: Functional
 - 우선순위: Must
-- 설명: flaky는 제외 테스트를 run-result 집계 **전에** 제거하고, 전체 ratio의 분모·분자를 필터 후 집합으로 계산한다.
+- 설명: flaky는 제외 테스트를 run-result 집계 **전에** 제거하고, 전체 ratio의 분모·분자를 필터 후 집합으로 계산한다. 필터 후 집합이 비면 ratio는 `0.0`이고 stderr 경고를 낸다(0-나눗셈/NaN 금지).
 - 수용기준:
   - Given flaky한 테스트 1개가 제외 글로브에 걸리는 run-result들, When `tia flaky`, Then 그 테스트는 목록에 없고 ratio·totalTests가 필터 후 집합 기준으로 계산된다.
+  - Given 모든 테스트가 제외되는 필터, When `tia flaky`, Then ratio `0.0`·totalTests `0`이 출력되고 stderr에 경고가 있으며 예외가 발생하지 않는다.
 - 검증 레벨: E2E black-box
 
 ### REQ-011 — report의 인프로세스 필터링
@@ -126,7 +130,7 @@
 - 우선순위: Must
 - 설명: `--format summary`는 선별/전체 카운트, Confidence별 집계, 파일→테스트 매핑 상위 목록, blind spot 경고, 무시된 변경 파일 수, 다음 행동 1줄을 사람용으로 출력한다. TTY에서만 ANSI 색, `NO_COLOR` 존중.
 - 수용기준:
-  - Given 선별이 존재하는 diff, When `tia impact --format summary`(파이프), Then 카운트·매핑·다음 행동 문구가 있고 ANSI 이스케이프가 없다.
+  - Given 선별·blind spot·필터 무시가 모두 존재하는 diff, When `tia impact --format summary`(파이프), Then 카운트·매핑·다음 행동 문구·blind spot 경고·무시된 변경 파일 수가 모두 있고 ANSI 이스케이프가 없다.
 - 검증 레벨: E2E black-box
 
 ### REQ-016 — markdown 뷰 (PR 코멘트 계약)
@@ -134,7 +138,7 @@
 - 우선순위: Must
 - 설명: `--format markdown`은 요약 테이블(선별 수·Confidence별·무시된 변경)과 `<details>` 접힘 상세를 출력한다.
 - 수용기준:
-  - Given 선별이 존재하는 diff, When `tia impact --format markdown`, Then Markdown 테이블 행과 `<details>` 블록이 stdout에 있다.
+  - Given 선별·필터 무시가 존재하는 diff, When `tia impact --format markdown`, Then Markdown 테이블 행(선별 수·Confidence별·무시된 변경 수 포함)과 `<details>` 블록이 stdout에 있다.
 - 검증 레벨: E2E black-box
 
 ### REQ-017 — 스트림 규약 (신규 경고 stderr / 데이터 stdout)
@@ -143,14 +147,16 @@
 - 설명: 신규 WARN은 전부 stderr, 포맷 데이터 출력은 전부 stdout이다(파이프 소비 보장).
 - 수용기준:
   - Given WARN이 발생하는 필터 시나리오, When `tia impact --format json 2>/dev/null`, Then stdout만으로 유효한 JSON 파싱이 된다.
+  - Given 같은 시나리오, When 기본 `--format text`로 실행, Then 신규 WARN은 stderr에만 있고 기존 `# 주의:`·`# tia:no-baseline` stdout 라인은 영향받지 않는다(REQ-012와 정합).
 - 검증 레벨: E2E black-box
 
 ### REQ-018 — exit code의 포맷 독립성
 - 유형: Non-functional (계약)
 - 우선순위: Must
-- 설명: 같은 시나리오라면 `--format` 값과 무관하게 exit code가 동일하다.
+- 설명: 같은 시나리오라면 `--format` 값과 무관하게 exit code가 동일하다. `impact`·`flaky` 두 커맨드 모두에 적용된다.
 - 수용기준:
-  - Given 동일 입력, When text/summary/json/markdown 각각 실행, Then 네 실행의 exit code가 같다.
+  - Given 동일 입력, When `impact`를 text/summary/json/markdown 각각으로 실행, Then 네 실행의 exit code가 같다.
+  - Given 동일 입력, When `flaky`를 네 포맷 각각으로 실행, Then 네 실행의 exit code가 같다.
 - 검증 레벨: E2E black-box
 
 ### REQ-019 — 기존 스위트 무변경 하위호환
@@ -179,21 +185,38 @@
 
 ### REQ-022 — CLI 옵션 배선 (커맨드 × 옵션 표 준수)
 - 유형: Functional
-- 우선순위: Should
-- 설명: design spec §2 표대로 각 커맨드에 `--config`·필터·`--format` 옵션이 배선되고(@Mixin), 표에 없는 조합은 노출되지 않는다.
+- 우선순위: Should — 신규 행위가 아닌 횡단 일관성 점검이라 Should로 두되, 연기하지 않고 분모에 포함한다
+- 설명: design spec §2 표대로 각 커맨드에 `--config`·필터·`--format` 옵션이 배선되고(@Mixin), 표에 없는 조합은 노출되지 않는다. `convert`에는 `--config`를 배선하지 않는다(tia.yml에서 소비할 값이 없음).
 - 수용기준:
-  - Given 각 서브커맨드, When `--help` 출력 확인, Then 표에 명시된 옵션이 존재하고 (예: report에 `--format` 없음) 표 밖 조합이 없다.
+  - Given 각 서브커맨드, When `--help` 출력 확인, Then 표에 명시된 옵션이 존재하고 표 밖 조합이 없다(예: report에 `--format` 없음, convert에 `--config` 없음).
 - 검증 레벨: CLI acceptance (picocli usage 검사)
 
-### REQ-023 — tia.yml 기본값(sut-name·db)의 CLI 적용
+### REQ-023 — tia.yml `db` 기본값의 CLI 적용
 - 유형: Functional
 - 우선순위: Must
-- 설명: tia.yml의 `sut-name`은 report의 `--sut-name` 기본값으로, `db`는 CLI의 `--db` 기본값으로 적용된다(플래그 명시가 항상 우선). `db` 미선언 시 기존 git-common-dir 기본값(`DbPaths.resolveDefault`)이 유지된다. Gradle 플러그인 주입은 SP2 범위.
+- 설명: tia.yml의 `db`는 `index`/`impact`의 `--db` 기본값으로 적용된다(플래그 명시가 항상 우선). 상대 경로는 tia.yml이 있는 디렉터리 기준으로 해석한다. `db` 미선언 시 기존 git-common-dir 기본값(`DbPaths.resolveDefault`)이 유지된다. Gradle 플러그인 주입은 SP2 범위.
 - 수용기준:
-  - Given tia.yml에 `db`가 선언됨, When `--db` 없이 `tia index`/`tia impact` 실행, Then tia.yml의 db 경로가 사용된다.
+  - Given tia.yml에 상대 경로 `db`가 선언됨, When 하위 디렉터리에서 `--db` 없이 `tia index`/`tia impact` 실행, Then tia.yml 디렉터리 기준으로 해석된 같은 db 파일이 사용된다.
+  - Given `--db` 플래그와 tia.yml `db`가 둘 다 있음, When 실행, Then 플래그 값이 이긴다.
+  - Given tia.yml에 `db` 미선언, When 실행, Then 기존 git-common-dir 기본값이 사용된다.
+- 검증 레벨: E2E black-box
+
+### REQ-024 — tia.yml `sut-name` 기본값의 report 적용
+- 유형: Functional
+- 우선순위: Must
+- 설명: tia.yml의 `sut-name`은 report의 `--sut-name` 기본값으로 적용된다(플래그 명시가 항상 우선).
+- 수용기준:
   - Given tia.yml에 `sut-name`이 선언됨, When `--sut-name` 없이 `tia report` 실행, Then 그 값이 리포트에 반영된다.
   - Given 플래그와 tia.yml이 둘 다 있음, When 실행, Then 플래그 값이 이긴다.
 - 검증 레벨: E2E black-box
+
+### REQ-025 — 사용자 문서의 필터 규칙 반영 (docs 게이트)
+- 유형: Non-functional (문서)
+- 우선순위: Must
+- 설명: GETTING-STARTED(및 관련 `--help` 텍스트)에 ① 플래그의 "목록 단위 대체(병합 아님)" 규칙 ② code 글로브가 package-relative 정규화 공간에 매칭된다는 함정 ③ exclude는 "TIA 범위 밖 선언"이라는 리스크를 명시한다(design spec §7 완화책의 이행).
+- 수용기준:
+  - Given SP1 구현 완료 상태, When GETTING-STARTED와 신규 옵션 `--help` 텍스트 확인, Then 위 세 항목이 모두 기재되어 있다.
+- 검증 레벨: build/docs 게이트 (PR 전 점검; 자동 테스트 아님)
 
 ## 추적 매트릭스
 
@@ -205,7 +228,7 @@
 | REQ-004 | code 글로브 정규화 공간 | FilterE2ETest#codeGlobMatchesCanonicalPath | E2E | 🔴 planned |
 | REQ-005 | testId `#` 정규화 | FilterE2ETest#hashTestIdNormalization | E2E | 🔴 planned |
 | REQ-006 | include/exclude 의미론 | GlobFilterTest#excludeWins / #emptyIncludeMeansAll | unit | 🔴 planned |
-| REQ-007 | DiffSummary 전면 필터 + WARN | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile | E2E | 🔴 planned |
+| REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🔴 planned |
 | REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🔴 planned |
 | REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🔴 planned |
 | REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation | E2E | 🔴 planned |
@@ -216,11 +239,19 @@
 | REQ-015 | summary 뷰 | FormatE2ETest#impactSummaryPipedNoAnsi | E2E | 🔴 planned |
 | REQ-016 | markdown 뷰 | FormatE2ETest#impactMarkdownTableAndDetails | E2E | 🔴 planned |
 | REQ-017 | 스트림 규약 | FormatE2ETest#stderrWarnStdoutData | E2E | 🔴 planned |
-| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent | E2E | 🔴 planned |
+| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent_impact / _flaky | E2E | 🔴 planned |
 | REQ-019 | 기존 스위트 무변경 green | SpecAcceptanceE2ETest + scripts/run-inprocess-e2e.sh + 컨테이너 E2E | E2E | 🔴 planned |
 | REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🔴 planned |
 | REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🔴 planned |
 | REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsPerCommandTable | CLI | 🔴 planned |
-| REQ-023 | tia.yml 기본값(sut-name·db) 적용 | ConfigE2ETest#ymlDbDefault / #ymlSutNameDefault / #flagBeatsYml | E2E | 🔴 planned |
+| REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🔴 planned |
+| REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🔴 planned |
+| REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🔴 planned |
 
-Coverage: 0/23 green (0%) — target 100% (대상: Must 22 + 미연기 Should 1 = 23)
+Coverage: 0/25 green (0%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
+
+## design spec E2E 항목 ↔ REQ 매핑
+
+design spec §6의 번호 붙은 E2E 시나리오는 다음 REQ가 커버한다: ①(in-process id 필터)
+→ REQ-009, ②(out-of-process `#` id 형태) → REQ-005, ③(JSON 계약) → REQ-013,
+④(제외-변경 WARN) → REQ-008, ⑤(하위호환) → REQ-012·REQ-019.
