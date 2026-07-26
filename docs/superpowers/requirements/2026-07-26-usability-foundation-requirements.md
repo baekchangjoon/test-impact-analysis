@@ -232,7 +232,7 @@
 | REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🟢 green(Task 5) |
 | REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🟢 green(Task 5) |
 | REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🟢 green(Task 7) |
-| REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
+| REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🟢 green(Task 8) |
 | REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🟢 green(Task 6 — impact `--format` 도입 후에도 byte-identical 확인) |
 | REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🟢 green(Task 6) |
 | REQ-014 | flaky json 계약 | FormatE2ETest#flakyJsonSchema | E2E | 🟢 green(Task 7) |
@@ -243,15 +243,17 @@
 | REQ-019 | 기존 스위트 무변경 green | SpecAcceptanceE2ETest + scripts/run-inprocess-e2e.sh + 컨테이너 E2E | E2E | 🔴 planned |
 | REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🔴 planned |
 | REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🔴 planned |
-| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟡 red(convert·impact green(Task 5/6), flaky/report는 Task 7~8 배선 대기) |
+| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟢 green(Task 8 — report 배선 완료로 5/5 서브커맨드 green) |
 | REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🟢 green(Task 5) |
-| REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
+| REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🟢 green(Task 8) |
 | REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🔴 planned |
 
-Coverage: 9/25 green (36%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
+Coverage: 20/25 green (80%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
 (Task 4: 19개 REQ의 수용 테스트가 작성되어 red 상태로 전환됨 — 🟡 표시. Task 5: ConfigMixin +
-impact/index 배선으로 REQ-001·002·003·004·005·007·008·009·023 9건 green 전환. 나머지 green 전환은
-Task 6~8의 CLI 배선 완료 후.)
+impact/index 배선으로 REQ-001·002·003·004·005·007·008·009·023 9건 green 전환. Task 6: impact
+--format 배선으로 REQ-012·013·015·016·017 green 전환. Task 7: flaky 배선으로 REQ-010·014·018
+green 전환. Task 8: report 인프로세스 필터 + tia.yml sut-name 배선으로 REQ-011·022·024 green
+전환. 잔여 red(REQ-006·019·020·021·025)는 SP1 범위 밖(후속/build-gate 항목).)
 
 ## design spec E2E 항목 ↔ REQ 매핑
 
