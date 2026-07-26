@@ -211,7 +211,7 @@ YAML 파싱 실패·미지원 `version`·알 수 없는 최상위 키·글로브
 3. **`exclude`는 "이 경로/테스트는 TIA 판정 범위 밖"이라는 선언이다.** 제외한 경로의 변경은
    TIA가 영향 분석에서 아예 빼버리므로, **그 경로의 회귀는 TIA가 잡아주지 못한다.** 생성 코드나
    DTO 노이즈를 줄이려는 의도라도, exclude 범위가 넓을수록 회귀 누출 위험이 커진다 — 필터가
-   실제로 변경을 무시할 때마다 `impact`가 stderr에 `WARN: excluded change ignored: <path>`를
+   실제로 변경을 무시할 때마다 `impact`가 stderr에 `# WARN: excluded change ignored: <path>`를
    출력하니 그 경고를 무시하지 말 것.
 
 ## 플레이키(부가)

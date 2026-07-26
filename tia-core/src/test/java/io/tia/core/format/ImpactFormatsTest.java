@@ -27,7 +27,7 @@ class ImpactFormatsTest {
         testsByFile.put("com/acme/Unused.java", List.of());   // blind spot 후보
         FilterSet filters = FilterSet.of(List.of(), List.of("com/acme/gen/**"), List.of(), List.of());
         return new ImpactFormats.Payload("C0", tests, false, List.of(),
-                List.of("com/acme/gen/G.java"), testsByFile, filters);
+                List.of("com/acme/gen/G.java"), testsByFile, filters, 5);
     }
 
     @Test
@@ -61,6 +61,7 @@ class ImpactFormatsTest {
     void summaryPlainHasBlindSpotIgnoredCountAndNextStepsNoAnsi() {
         String out = ImpactFormats.summary(payload(), false);
 
+        assertTrue(out.contains("영향 테스트 2/5개 선별"), "선별/전체 카운트 표기(2/5)가 있어야 함: " + out);
         assertTrue(out.toLowerCase().contains("blind spot"), out);
         assertTrue(out.contains("무시"), out);
         assertTrue(out.contains("다음"), out);
