@@ -19,7 +19,8 @@
 - 신규 경고(WARN)는 전부 **stderr**, 포맷 데이터 출력은 전부 **stdout** [REQ-017].
 - 글로브는 OS 무관 `/` 구분 문자열 매칭. 지원 어휘는 `**`/`*`/`?` 뿐 — 그 밖(짝 안 맞는 `[` 등)은 설정 오류로 exit 1 [REQ-003/021].
 - tia.yml 오류는 즉시 exit 1 + 파일·원인 stderr 메시지. 침묵 무시 금지 [REQ-003].
-- E2E는 e2e 모듈 인프로세스 picocli 패턴(`CommandLine(new TiaCommand()).execute(...)` + stdout/stderr 캡처). e2e 모듈은 JUnit 병렬 실행이므로 **JVM cwd·전역 상태에 의존하는 테스트 금지** — 탐색 시작점은 명시 파라미터/히든 옵션으로 주입.
+- E2E는 e2e 모듈 인프로세스 picocli 패턴(`CommandLine(new TiaCommand()).execute(...)` + stdout/stderr 캡처). 기본 `:e2e:test` 태스크는 **직렬** 실행이다(병렬은 별도 태그 태스크 `parallelTesterTest`/`inProcessTesterTest`만 opt-in). 다만 미래 병렬화 대비 + JVM 전역 상태(cwd, System.out/err 스왑) 의존 최소화를 위해: 신규 E2E 클래스에 `@Execution(ExecutionMode.SAME_THREAD)`를 명시하고, 탐색 시작점은 명시 파라미터/히든 옵션으로 주입한다(System.out/err 스왑은 전역 상태라 진짜 스레드 안전이 아님 — 알려진 한계로 명시, SP1 범위 밖).
+- 태스크 순서 근거: Task 1~3(순수 코어)은 design spec 인터페이스에서 직접 단위 명세 가능하므로 이너 루프를 먼저 돌린다. 아우터 루프 E2E(Task 4)는 CLI 배선(Task 5~8) 전에 작성되어 red가 보장된다 — E2E가 구현을 게이트한다는 이중루프 취지는 유지된다.
 - 각 E2E는 검증하는 REQ-ID를 `@DisplayName("REQ-0NN: …")`으로 참조.
 - 커밋 메시지에 `[REQ-0NN]` 표기(기존 레포 관례).
 - 구현 시작 전 `superpowers:using-git-worktrees`로 전용 워크트리+브랜치(`feat/sp1-usability-foundation`)를 만든다.
@@ -228,11 +229,15 @@ public final class TiaConfigLoader {
     private static final Set<String> FILTER_KEYS = Set.of("code", "test");
     private static final Set<String> LIST_KEYS = Set.of("include", "exclude");
 
-    /** explicitOrNull이 있으면 그 파일만 로드(상향 탐색·다른 파일 파싱 안 함) [REQ-001]. */
+    /** explicitOrNull이 있으면 그 파일만 로드(상향 탐색·다른 파일 파싱 안 함) [REQ-001].
+     *  상대 explicit 경로는 JVM cwd가 아니라 searchStart 기준으로 해석(전역 상태 비의존). */
     public static Optional<TiaConfig> load(Path explicitOrNull, Path searchStart) {
-        Path file = (explicitOrNull != null) ? explicitOrNull : discover(searchStart);
+        Path explicit = (explicitOrNull == null) ? null
+                : explicitOrNull.isAbsolute() ? explicitOrNull
+                : searchStart.resolve(explicitOrNull).normalize();
+        Path file = (explicit != null) ? explicit : discover(searchStart);
         if (file == null) return Optional.empty();
-        if (explicitOrNull != null && !Files.isRegularFile(file))
+        if (explicit != null && !Files.isRegularFile(file))
             throw new TiaConfigException("tia.yml not found: " + file);
         return Optional.of(parse(file));
     }
@@ -377,6 +382,22 @@ class GlobFilterTest {
         assertTrue(f.acceptsCode("com/a/b/Svc.java"));          // `*`는 `/` 못 넘음
         FilterSet g = FilterSet.of(List.of(), List.of("com/**/Svc.java"), List.of(), List.of());
         assertFalse(g.acceptsCode("com/a/b/Svc.java"));          // `**`는 넘음
+        assertFalse(g.acceptsCode("com/Svc.java"));              // `**/`는 0개 세그먼트도 허용
+    }
+
+    @Test void doubleStarSlashMatchesRootLevel() {   // 글로브 표준 의미론 (리뷰 소견 반영)
+        FilterSet f = FilterSet.of(List.of(), List.of("**/gen/**"), List.of(), List.of());
+        assertFalse(f.acceptsCode("gen/Foo.java"));              // 루트 레벨 gen도 매칭
+        assertFalse(f.acceptsCode("a/b/gen/Foo.java"));
+        assertTrue(f.acceptsCode("agen/Foo.java"));              // 세그먼트 경계 존중
+    }
+
+    @Test void unixSyntaxFixedMatcher() {   // [REQ-021] 매트릭스 지정 테스트명
+        FilterSet f = FilterSet.of(List.of(), List.of("com/*"), List.of(), List.of());
+        // 백슬래시는 구분자가 아니라 미지원 문법(fail-fast) — OS separator에 의존하지 않음
+        assertThrows(TiaConfigException.class,
+                () -> FilterSet.of(List.of("com\\acme\\**"), List.of(), List.of(), List.of()));
+        assertFalse(f.acceptsCode("com/X.java"));   // `/` 고정 구분 매칭
     }
 
     @Test void unsupportedGlobSyntaxFailsFast() {   // [REQ-003] 지원 어휘 밖
@@ -416,20 +437,38 @@ public final class GlobMatcher {
         return patterns.stream().anyMatch(p -> p.matcher(slashPath).matches());
     }
 
+    /** 표준 글로브 의미론: `**​/` = 0개 이상 세그먼트(루트 포함), `/**` = 0개 이상 하위, `*`는 `/` 못 넘음. */
     private static Pattern toRegex(String glob) {
         StringBuilder re = new StringBuilder();
-        for (int i = 0; i < glob.length(); i++) {
+        int i = 0;
+        while (i < glob.length()) {
             char c = glob.charAt(i);
-            switch (c) {
-                case '*' -> {
-                    if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') { re.append(".*"); i++; }
-                    else re.append("[^/]*");
+            if (c == '*' && i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
+                boolean atStart = (i == 0);
+                boolean afterSlash = (i > 0 && glob.charAt(i - 1) == '/');
+                if ((atStart || afterSlash) && i + 2 < glob.length() && glob.charAt(i + 2) == '/') {
+                    re.append("(?:[^/]+/)*");   // `**/` (선두/세그먼트 시작) → 0+개 세그먼트
+                    i += 3;
+                    continue;
                 }
+                if (i + 2 == glob.length() && afterSlash) {
+                    re.setLength(re.length() - Pattern.quote("/").length());   // 직전에 붙은 `/` 리터럴 제거
+                    re.append("(?:/.*)?");      // 끝의 `/**` → 자기 자신 또는 하위 전부
+                    i += 2;
+                    continue;
+                }
+                re.append(".*");                // 그 밖의 `**`
+                i += 2;
+                continue;
+            }
+            switch (c) {
+                case '*' -> re.append("[^/]*");
                 case '?' -> re.append("[^/]");
                 case '[', ']', '{', '}', '\\' -> throw new TiaConfigException(
                         "지원하지 않는 글로브 문법 '" + c + "' in \"" + glob + "\" (지원: ** * ?)");
                 default -> re.append(Pattern.quote(String.valueOf(c)));
             }
+            i++;
         }
         return Pattern.compile(re.toString());
     }
@@ -626,7 +665,36 @@ public final class DiffFilter {
 - Consumes: 기존 `TiaCommand`, e2e 리소스 `/spec-testwise.json`(testId `io/tia/fixture/ApiSmokeTest/testPrice`·`testGreeting`; PricingService{6,7,8}, GreetingService{6,7}, TextUtil{6}), `SpecAcceptanceE2ETest`의 run/캡처 패턴.
 - Produces: 이후 Task 5~8의 완료 기준(green 목표). **이 태스크의 테스트는 작성 시점에 실패(red)가 정상 — 약화·주석처리 금지.**
 
-- [ ] **Step 1: 공통 헬퍼 포함 E2E 작성.** 각 클래스는 `SpecAcceptanceE2ETest`와 같은 패턴: `@TempDir Path work;` + 아래 헬퍼를 클래스마다 복사(테스트 독립성 우선, e2e 병렬 안전).
+- [ ] **Step 1: 공통 헬퍼 포함 E2E 작성.** 각 클래스는 `SpecAcceptanceE2ETest`와 같은 패턴: `@Execution(ExecutionMode.SAME_THREAD)` 클래스 어노테이션 + `@TempDir Path work;` + 아래 헬퍼를 클래스마다 복사(테스트 독립성 우선 — System.out/err 스왑은 전역 상태이므로 SAME_THREAD가 안전장치).
+
+diff 헬퍼는 기존 `SpecAcceptanceE2ETest#modifyDiff(String fileName, int line, String content)`(3-인자)를 그대로 복사하고, 다음 2개를 추가로 정의한다:
+
+```java
+    /** 임의 경로의 .java 1라인 수정 diff (old-side 라인 공간). */
+    Path modifyDiffFor(String repoPath, int line) throws IOException {
+        String d = """
+                diff --git a/%1$s b/%1$s
+                index 1111111..2222222 100644
+                --- a/%1$s
+                +++ b/%1$s
+                @@ -%2$d,1 +%2$d,1 @@
+                -old
+                +new
+                """.formatted(repoPath, line);
+        Path f = work.resolve("change.diff");
+        Files.writeString(f, d);
+        return f;
+    }
+
+    /** 비-.java(unmappable) 파일 수정 diff — CONSERVATIVE 트리거용. */
+    Path unmappableDiff(String repoPath) throws IOException { return modifyDiffFor(repoPath, 1); }
+
+    Path writeYml(String yaml) throws IOException {
+        Path f = work.resolve("tia.yml");
+        Files.writeString(f, yaml);
+        return f;
+    }
+```
 
 ```java
     /** stdout/stderr 캡처 실행 헬퍼 — SpecAcceptanceE2ETest 패턴. */
@@ -705,22 +773,39 @@ public final class DiffFilter {
 
 `FormatE2ETest`: `impactJsonSchema`(REQ-013: jackson으로 파싱, `schemaVersion==1`·`command=="impact"`·`tests[0].id/confidence` 존재), `flakyJsonSchema`(REQ-014: `ratio`·`totalTests`·`flakyTests` 존재, `commit` 키 부재), `impactSummaryPipedNoAnsi`(REQ-015: blind spot·무시 수·다음 행동 문구 존재, `[` 부재), `impactMarkdownTableAndDetails`(REQ-016: `|` 테이블 행 + `<details>` + 무시 수), `stderrWarnStdoutData`(REQ-017: json을 stdout만으로 파싱 + text 포맷에서 WARN은 stderr·`# 주의:`는 stdout), `exitCodeFormatIndependent_impact`/`_flaky`(REQ-018: 4포맷 exit 동일).
 
-`CliWiringTest`(tia-cli): picocli `CommandSpec`으로 커맨드×옵션 표 검증(REQ-022) —
+`CliWiringTest`(tia-cli): picocli `CommandSpec`으로 커맨드×옵션 표 검증(REQ-022). **커맨드당 1개 `@Test`로 분리** — 배선이 태스크별로 진행되므로 부분 green을 표현할 수 있어야 한다(green 시점: convert=처음부터, index=Task 5, impact=Task 6, flaky=Task 7, report=Task 8):
 
 ```java
-    @Test void optionsPerCommandTable() {
-        CommandLine tia = new CommandLine(new TiaCommand());
-        assertTrue(hasOption(tia, "impact", "--config"));
-        assertTrue(hasOption(tia, "impact", "--format"));
-        assertTrue(hasOption(tia, "flaky", "--format"));
-        assertTrue(hasOption(tia, "report", "--config"));
-        assertTrue(hasOption(tia, "index", "--config"));
-        assertFalse(hasOption(tia, "convert", "--config"));   // 소비할 값 없음
-        assertFalse(hasOption(tia, "report", "--format"));    // HTML 전용
-        assertFalse(hasOption(tia, "flaky", "--include-code"));
-    }
     static boolean hasOption(CommandLine tia, String sub, String opt) {
         return tia.getSubcommands().get(sub).getCommandSpec().optionsMap().containsKey(opt);
+    }
+    static CommandLine tia() { return new CommandLine(new TiaCommand()); }
+
+    @Test void optionsForImpact() {
+        assertTrue(hasOption(tia(), "impact", "--config"));
+        assertTrue(hasOption(tia(), "impact", "--include-code"));
+        assertTrue(hasOption(tia(), "impact", "--include-test"));
+        assertTrue(hasOption(tia(), "impact", "--format"));
+    }
+    @Test void optionsForFlaky() {
+        assertTrue(hasOption(tia(), "flaky", "--config"));
+        assertTrue(hasOption(tia(), "flaky", "--include-test"));
+        assertTrue(hasOption(tia(), "flaky", "--format"));
+        assertFalse(hasOption(tia(), "flaky", "--include-code"));   // 표 밖 조합 금지
+    }
+    @Test void optionsForReport() {
+        assertTrue(hasOption(tia(), "report", "--config"));
+        assertTrue(hasOption(tia(), "report", "--include-code"));
+        assertTrue(hasOption(tia(), "report", "--include-test"));
+        assertFalse(hasOption(tia(), "report", "--format"));        // HTML 전용
+    }
+    @Test void optionsForIndex() {
+        assertTrue(hasOption(tia(), "index", "--config"));
+        assertFalse(hasOption(tia(), "index", "--include-code"));
+        assertFalse(hasOption(tia(), "index", "--include-test"));
+    }
+    @Test void optionsForConvert() {
+        assertFalse(hasOption(tia(), "convert", "--config"));       // 소비할 값 없음
     }
 ```
 
@@ -736,54 +821,72 @@ Expected: 전부 FAIL(미지원 옵션 → picocli usage exit 2 등). **컴파�
 **REQ-IDs:** REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-009, REQ-012, REQ-017(text 부분), REQ-022, REQ-023
 
 **Files:**
-- Create: `tia-cli/src/main/java/io/tia/cli/ConfigMixin.java`
+- Create: `tia-cli/src/main/java/io/tia/cli/ConfigMixin.java` (--config/--search-root만)
+- Create: `tia-cli/src/main/java/io/tia/cli/CodeFilterMixin.java`
+- Create: `tia-cli/src/main/java/io/tia/cli/TestFilterMixin.java`
 - Modify: `tia-cli/src/main/java/io/tia/cli/ImpactCommand.java`
 - Modify: `tia-cli/src/main/java/io/tia/cli/IndexCommand.java` (`--config` + db 기본값)
-- Test: green 대상 — `ConfigE2ETest`(REQ-024 제외), `FilterE2ETest`, `CliWiringTest`(report/flaky 항목 제외)
+- Test: green 대상 — `ConfigE2ETest`(REQ-024 제외), `FilterE2ETest`, `CliWiringTest#optionsForIndex`/`#optionsForConvert` (impact/flaky/report 배선은 Task 6~8에서 완성 — `#optionsForImpact`는 `--format`이 붙는 Task 6에 green)
 
 **Interfaces:**
 - Consumes: `TiaConfigLoader.load`, `FilterSet.of`, `DiffFilter.apply` (Task 1~3)
-- Produces (Task 6~8이 사용):
+- Produces (Task 6~8이 사용). **picocli `@Mixin`은 옵션 선택 배제가 불가하므로 축별 3개 믹스인으로 분할** — 커맨드별 조합은 설계 §2 표를 따른다(impact=Config+Code+Test, flaky=Config+Test, report=Config+Code+Test, index=Config만, convert=없음):
 
 ```java
+/** --config / --search-root 만. 모든 소비 커맨드(index 포함)가 사용. */
 public class ConfigMixin {
     @Option(names = "--config", description = "tia.yml 경로 (미지정 시 상향 탐색)") Path config;
     @Option(names = "--search-root", hidden = true,
             description = "탐색 시작 디렉터리(테스트 시임; 기본 cwd)") Path searchRoot;
+
+    public TiaConfig loadConfig() {   // TiaConfigException은 호출측이 잡아 exit 1 [REQ-003]
+        Path start = (searchRoot != null) ? searchRoot : Path.of("").toAbsolutePath();
+        return TiaConfigLoader.load(config, start).orElse(TiaConfig.empty());
+    }
+}
+
+/** --include-code / --exclude-code. impact·report 전용. */
+public class CodeFilterMixin {
     @Option(names = "--include-code") List<String> includeCode;
     @Option(names = "--exclude-code") List<String> excludeCode;
+}
+
+/** --include-test / --exclude-test. impact·flaky·report 전용. */
+public class TestFilterMixin {
     @Option(names = "--include-test") List<String> includeTest;
     @Option(names = "--exclude-test") List<String> excludeTest;
-
-    public record Resolved(TiaConfig config, FilterSet filters) {}
-
-    /** 플래그는 tia.yml의 해당 '목록'을 대체(병합 아님) [REQ-002]. TiaConfigException은 호출측이 잡아 exit 1. */
-    public Resolved resolve() {
-        Path start = (searchRoot != null) ? searchRoot : Path.of("").toAbsolutePath();
-        TiaConfig cfg = TiaConfigLoader.load(config, start).orElse(TiaConfig.empty());
-        FilterSet f = FilterSet.of(
-                includeCode != null ? includeCode : cfg.code().include(),
-                excludeCode != null ? excludeCode : cfg.code().exclude(),
-                includeTest != null ? includeTest : cfg.test().include(),
-                excludeTest != null ? excludeTest : cfg.test().exclude());
-        return new Resolved(cfg, f);
-    }
 }
 ```
 
-- [ ] **Step 1: ConfigMixin 구현** (위 코드 그대로 + import).
+`FilterSet` 합성은 `ConfigMixin`의 static 헬퍼로 둔다(플래그는 tia.yml의 해당 **목록을 대체**, null 믹스인은 "그 축의 플래그 없음" [REQ-002]):
+
+```java
+    static FilterSet filtersOf(TiaConfig cfg, CodeFilterMixin code, TestFilterMixin test) {
+        return FilterSet.of(
+                (code != null && code.includeCode != null) ? code.includeCode : cfg.code().include(),
+                (code != null && code.excludeCode != null) ? code.excludeCode : cfg.code().exclude(),
+                (test != null && test.includeTest != null) ? test.includeTest : cfg.test().include(),
+                (test != null && test.excludeTest != null) ? test.excludeTest : cfg.test().exclude());
+    }
+```
+
+- [ ] **Step 1: 믹스인 3종 구현** (위 코드 그대로 + import).
 - [ ] **Step 2: ImpactCommand 수정.** 기존 흐름을 유지하되:
 
 ```java
     @Mixin ConfigMixin configMixin;
+    @Mixin CodeFilterMixin codeFilter;
+    @Mixin TestFilterMixin testFilter;
 
     @Override public Integer call() throws Exception {
-        ConfigMixin.Resolved resolved;
-        try { resolved = configMixin.resolve(); }
-        catch (TiaConfigException e) { System.err.println("ERROR: " + e.getMessage()); return 1; }  // [REQ-003]
-        FilterSet filters = resolved.filters();
+        TiaConfig cfg;
+        FilterSet filters;
+        try {
+            cfg = configMixin.loadConfig();
+            filters = ConfigMixin.filtersOf(cfg, codeFilter, testFilter);
+        } catch (TiaConfigException e) { System.err.println("ERROR: " + e.getMessage()); return 1; }  // [REQ-003]
         Path effectiveDb = (db != null) ? db
-                : (resolved.config().db() != null) ? resolved.config().db()      // [REQ-023]
+                : (cfg.db() != null) ? cfg.db()                                  // [REQ-023]
                 : DbPaths.resolveDefault();
         // …기존 로드/no-baseline 로직 그대로 (출력 문자열 불변 [REQ-012])…
         DiffSummary rawDiff = new GitDiffParser().parse(diffText);
@@ -798,9 +901,9 @@ public class ConfigMixin {
 ```
 
 주의: **필터 미사용 시(빈 FilterSet + tia.yml 없음) 출력이 기존과 바이트 동일**해야 한다 — `visible`은 이 경우 `r.impacted()`와 동일 리스트가 되고 WARN 0줄.
-- [ ] **Step 3: IndexCommand 수정** — `@Mixin ConfigMixin`(필터는 미사용, db 기본값만: `db != null ? db : cfg.db() != null ? cfg.db() : DbPaths.resolveDefault()`) + 같은 `TiaConfigException` 처리.
+- [ ] **Step 3: IndexCommand 수정** — `@Mixin ConfigMixin`만(필터 믹스인 없음), db 기본값: `db != null ? db : cfg.db() != null ? cfg.db() : DbPaths.resolveDefault()` + 같은 `TiaConfigException` 처리.
 - [ ] **Step 4: green 확인** — Run: `./gradlew :e2e:test --tests 'io.tia.e2e.config.ConfigE2ETest' --tests 'io.tia.e2e.filter.FilterE2ETest' :tia-cli:test`
-Expected: REQ-024(sut-name)·format 관련 외 전부 PASS. 기존 `SpecAcceptanceE2ETest`·`ImpactCommandTest`·`IndexCommandTest`도 무변경 PASS [REQ-012 1차 확인].
+Expected: REQ-024(sut-name)·format 관련 외 전부 PASS. `CliWiringTest`는 `#optionsForIndex`·`#optionsForConvert`만 green(나머지는 Task 6~8에서). 기존 `SpecAcceptanceE2ETest`·`ImpactCommandTest`·`IndexCommandTest`도 무변경 PASS [REQ-012 1차 확인].
 - [ ] **Step 5: Commit + 매트릭스 🟡→🟢 갱신** — `git commit -m "feat(cli): ConfigMixin + impact/index 배선 — tia.yml·필터·db 기본값 [REQ-001..009/023]"`
 
 ---
@@ -810,33 +913,162 @@ Expected: REQ-024(sut-name)·format 관련 외 전부 PASS. 기존 `SpecAcceptan
 **REQ-IDs:** REQ-013, REQ-015, REQ-016, REQ-017, REQ-018(impact)
 
 **Files:**
+- Create: `tia-cli/src/main/java/io/tia/cli/OutputFormat.java` (공용 enum — impact·flaky 공유, 중복 선언 금지)
 - Create: `tia-core/src/main/java/io/tia/core/format/FileImpact.java`
 - Create: `tia-core/src/main/java/io/tia/core/format/ImpactFormats.java`
 - Modify: `tia-cli/src/main/java/io/tia/cli/ImpactCommand.java` (`--format` 옵션)
-- Test: `tia-core/src/test/java/io/tia/core/format/ImpactFormatsTest.java` (골든 검증) + `FormatE2ETest`(impact 절반)
+- Test: `tia-core/src/test/java/io/tia/core/format/ImpactFormatsTest.java` (골든 검증) + `FormatE2ETest`(impact 절반) + `CliWiringTest#optionsForImpact`
 
 **Interfaces:**
-- Consumes: `ImpactResult`, `CoverageSnapshot`, `DiffSummary`, `FilterSet`
-- Produces:
+- Consumes: `ImpactResult`, `CoverageSnapshot`, `DiffSummary`, `FilterSet`, `TestCoverage.linesFor(file)`
+- Produces: 아래 구현 코드의 공개 시그니처. **`tests[].reason`은 Confidence→고정 문자열 매핑**으로 채운다(코어 모델 무변경): DETERMINISTIC→`"covered-line intersects diff"`, CONSERVATIVE→`"conservative select-all"`, LOW_CONFIDENCE→`"low-confidence"`.
+
+- [ ] **Step 1: 실패하는 단위 테스트** — `ImpactFormatsTest`: ① `json()` 결과를 jackson 파싱해 `schemaVersion/command/commit/appliedFilters/tests[].{id,confidence,reason}/ignoredChangedFiles/warnings` 필드 검증(reason은 위 매핑 값) ② `summary(p,false)`에 카운트 라인·`blind spot`·`무시` 문구·`다음` 안내·ANSI 부재 ③ `summaryColorEmitsAnsi`: `summary(p,true)`에 `[` 존재(E2E 하네스는 TTY 분기를 못 타므로 단위로 고정) ④ `markdown()`에 `|` 테이블(선별·Confidence별·무시 수)·`<details>` 포함. 테스트 데이터는 ImpactedTest 2개(DETERMINISTIC/CONSERVATIVE)+ignored 1개+blind spot 파일 1개.
+- [ ] **Step 2: red 확인** — `./gradlew :tia-core:test --tests 'io.tia.core.format.*'`
+- [ ] **Step 3: 구현.**
+
+`OutputFormat.java` (tia-cli):
 
 ```java
+package io.tia.cli;
+
+/** impact·flaky 공용 --format 값. */
+enum OutputFormat { text, summary, json, markdown }
+```
+
+`FileImpact.java`:
+
+```java
+package io.tia.core.format;
+
+import io.tia.core.model.CoverageSnapshot;
+import io.tia.core.model.DiffSummary;
+import io.tia.core.model.TestCoverage;
+import org.roaringbitmap.RoaringBitmap;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** 변경 파일 → 그 변경 라인을 커버하는 테스트 목록(빈 리스트 = blind spot 후보). */
 public final class FileImpact {
-    /** 변경 파일별 교차 테스트 목록(빈 리스트 = blind spot). 키는 changedOldLinesByJavaFile 순서. */
-    public static Map<String, List<String>> testsByChangedFile(CoverageSnapshot snap, DiffSummary diff)
-}
-public final class ImpactFormats {
-    public record Payload(String commit, List<ImpactedTest> tests, boolean conservative,
-                          List<String> reasons, List<String> ignoredFiles,
-                          Map<String, List<String>> testsByFile, FilterSet filters) {}
-    public static String json(Payload p)        // §4 스키마: schemaVersion=1, command="impact" [REQ-013]
-    public static String summary(Payload p, boolean ansiColor)   // [REQ-015]
-    public static String markdown(Payload p)    // [REQ-016]
+    private FileImpact() {}
+
+    public static Map<String, List<String>> testsByChangedFile(CoverageSnapshot snap, DiffSummary diff) {
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        diff.changedOldLinesByJavaFile().forEach((file, lines) -> {
+            List<String> hits = new ArrayList<>();
+            for (TestCoverage t : snap.tests())
+                if (!RoaringBitmap.and(t.linesFor(file), lines).isEmpty()) hits.add(t.testId());
+            out.put(file, List.copyOf(hits));
+        });
+        return out;
+    }
 }
 ```
 
-- [ ] **Step 1: 실패하는 단위 테스트** — `ImpactFormatsTest`: ① `json()` 결과를 jackson 파싱해 `schemaVersion/command/commit/appliedFilters/tests[].{id,confidence,reason}/ignoredChangedFiles/warnings` 필드 검증 ② `summary(p,false)`에 카운트 라인·`blind spot`·`무시` 문구·`다음` 안내·ANSI 부재 ③ `markdown()`에 `|` 테이블(선별·Confidence별·무시 수)·`<details>` 포함. 테스트 데이터는 ImpactedTest 2개(DETERMINISTIC/CONSERVATIVE)+ignored 1개+blind spot 파일 1개.
-- [ ] **Step 2: red 확인** — `./gradlew :tia-core:test --tests 'io.tia.core.format.*'`
-- [ ] **Step 3: 구현.** `json()`은 `ObjectMapper.createObjectNode()`로 §4 스키마 그대로(`warnings`는 `"excluded change ignored: <path>"` 문자열 목록). `summary()` 레이아웃(무색 기준):
+`ImpactFormats.java`:
+
+```java
+package io.tia.core.format;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.tia.core.filter.FilterSet;
+import io.tia.core.model.Confidence;
+import io.tia.core.model.ImpactedTest;
+
+import java.util.List;
+import java.util.Map;
+
+/** impact 결과의 summary/json/markdown 렌더 [REQ-013/015/016]. text는 CLI 기존 경로가 담당(동결). */
+public final class ImpactFormats {
+    private ImpactFormats() {}
+    private static final ObjectMapper OM = new ObjectMapper();
+    private static final String BOLD = "[1m", RESET = "[0m";
+
+    public record Payload(String commit, List<ImpactedTest> tests, boolean conservative,
+                          List<String> reasons, List<String> ignoredFiles,
+                          Map<String, List<String>> testsByFile, FilterSet filters) {}
+
+    static String reasonOf(Confidence c) {   // 코어 모델 무변경 — 매핑으로 채움 [REQ-013]
+        return switch (c) {
+            case DETERMINISTIC -> "covered-line intersects diff";
+            case CONSERVATIVE -> "conservative select-all";
+            case LOW_CONFIDENCE -> "low-confidence";
+        };
+    }
+
+    public static String json(Payload p) {
+        ObjectNode root = OM.createObjectNode();
+        root.put("schemaVersion", 1);
+        root.put("command", "impact");
+        root.put("commit", p.commit());
+        root.set("appliedFilters", filtersNode(p.filters()));
+        ArrayNode tests = root.putArray("tests");
+        for (ImpactedTest t : p.tests()) {
+            ObjectNode n = tests.addObject();
+            n.put("id", t.testId());
+            n.put("confidence", t.confidence().name());
+            n.put("reason", reasonOf(t.confidence()));
+        }
+        ArrayNode ignored = root.putArray("ignoredChangedFiles");
+        p.ignoredFiles().forEach(ignored::add);
+        ArrayNode warnings = root.putArray("warnings");
+        p.ignoredFiles().forEach(f -> warnings.add("excluded change ignored: " + f));
+        p.reasons().forEach(warnings::add);
+        return root.toPrettyString();
+    }
+
+    public static String summary(Payload p, boolean ansiColor) {
+        long det = p.tests().stream().filter(t -> t.confidence() == Confidence.DETERMINISTIC).count();
+        long con = p.tests().stream().filter(t -> t.confidence() == Confidence.CONSERVATIVE).count();
+        StringBuilder sb = new StringBuilder();
+        String count = "영향 테스트 " + p.tests().size() + "개 선별 (DETERMINISTIC " + det
+                + " · CONSERVATIVE " + con + ")   @ " + p.commit();
+        sb.append(ansiColor ? BOLD + count + RESET : count).append('\n');
+        if (!p.testsByFile().isEmpty()) {
+            sb.append("파일별:\n");
+            p.testsByFile().forEach((file, tests) -> sb.append("  ").append(file).append(" → ")
+                    .append(tests.isEmpty() ? "(blind spot: 이 변경을 커버하는 테스트 없음)"
+                                            : String.join(", ", tests)).append('\n'));
+        }
+        sb.append("필터로 무시된 변경 파일: ").append(p.ignoredFiles().size()).append("개\n");
+        sb.append("다음: 선별된 테스트만 실행하세요. blind spot 파일은 테스트 보강을 검토하세요.\n");
+        return sb.toString();
+    }
+
+    public static String markdown(Payload p) {
+        long det = p.tests().stream().filter(t -> t.confidence() == Confidence.DETERMINISTIC).count();
+        long con = p.tests().stream().filter(t -> t.confidence() == Confidence.CONSERVATIVE).count();
+        StringBuilder sb = new StringBuilder();
+        sb.append("| 선별 | DETERMINISTIC | CONSERVATIVE | 무시된 변경 |\n");
+        sb.append("|---|---|---|---|\n");
+        sb.append("| ").append(p.tests().size()).append(" | ").append(det).append(" | ")
+          .append(con).append(" | ").append(p.ignoredFiles().size()).append(" |\n\n");
+        sb.append("<details><summary>선별 목록</summary>\n\n");
+        for (ImpactedTest t : p.tests())
+            sb.append("- `").append(t.testId()).append("` — ").append(t.confidence()).append('\n');
+        sb.append("\n</details>\n");
+        return sb.toString();
+    }
+
+    private static ObjectNode filtersNode(FilterSet f) {
+        ObjectNode n = OM.createObjectNode();
+        ObjectNode code = n.putObject("code");
+        code.set("include", OM.valueToTree(f.codeInclude()));
+        code.set("exclude", OM.valueToTree(f.codeExclude()));
+        ObjectNode test = n.putObject("test");
+        test.set("include", OM.valueToTree(f.testInclude()));
+        test.set("exclude", OM.valueToTree(f.testExclude()));
+        return n;
+    }
+}
+```
+
+`summary()` 레이아웃(무색 기준):
 
 ```
 영향 테스트 3/12개 선별 (DETERMINISTIC 2 · CONSERVATIVE 1)   @ <commit>
@@ -848,12 +1080,11 @@ public final class ImpactFormats {
 ```
 
 `ansiColor=true`면 카운트에 `[1m` 등 적용; CLI에서 `System.console() != null && System.getenv("NO_COLOR") == null`일 때만 true [REQ-015]. `markdown()`: 헤더 테이블(`| 선별 | DETERMINISTIC | CONSERVATIVE | 무시된 변경 |`) + `<details><summary>선별 목록</summary>` 내 테스트별 줄.
-- [ ] **Step 4: ImpactCommand에 `--format` 배선**
+- [ ] **Step 4: ImpactCommand에 `--format` 배선** (공용 `OutputFormat` 사용 — 커맨드별 enum 중복 선언 금지)
 
 ```java
-    enum Format { text, summary, json, markdown }
     @Option(names = "--format", defaultValue = "text",
-            description = "출력 형식: ${COMPLETION-CANDIDATES} (기본 text = 기존 출력)") Format format;
+            description = "출력 형식: ${COMPLETION-CANDIDATES} (기본 text = 기존 출력)") OutputFormat format;
 ```
 
 `format == text`면 **기존 출력 경로 그대로**(바이트 동일 [REQ-012]); 그 외엔 Payload를 만들어 해당 포맷터의 문자열만 stdout으로 출력. no-baseline(`# tia:no-baseline`) 경로는 text 전용 마커이므로, 비-text 포맷에선 `warnings`에 `"no-baseline"`을 담은 스키마 출력 + 동일 exit code [REQ-018].
@@ -872,15 +1103,73 @@ public final class ImpactFormats {
 - Test: `tia-core/src/test/java/io/tia/core/format/FlakyFormatsTest.java` + `FlakyFilterE2ETest`·`FormatE2ETest`(flaky 절반)
 
 **Interfaces:**
-- Consumes: `FlakyAnalyzer.aggregate(List<RunResult>)`, `RunResult(Map<String,Boolean> passedByTest)`, `FilterSet.acceptsTest`
-- Produces: `FlakyFormats.json/summary/markdown(FlakyReport r, FilterSet filters)` — json은 §4 flaky 스키마(`ratio`·`totalTests`·`flakyTests[]`, **`commit` 없음**) [REQ-014].
+- Consumes: `FlakyAnalyzer.aggregate(List<RunResult>)`, `RunResult(Map<String,Boolean> passedByTest)`, `FilterSet.acceptsTest`, `OutputFormat` (Task 6)
+- Produces: 아래 `FlakyFormats` — json은 §4 flaky 스키마(`ratio`·`totalTests`·`flakyTests[]`, **`commit` 없음**) [REQ-014].
 
-- [ ] **Step 1: 실패하는 단위 테스트** — `FlakyFormatsTest`: json 파싱해 스키마 필드 존재+`commit` 부재 확인.
+`FlakyFormats.java`:
+
+```java
+package io.tia.core.format;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.tia.core.filter.FilterSet;
+import io.tia.core.flaky.FlakyReport;
+
+import java.util.List;
+
+/** flaky 결과의 summary/json/markdown 렌더 [REQ-014]. commit 개념 없음 — 키 자체를 넣지 않는다. */
+public final class FlakyFormats {
+    private FlakyFormats() {}
+    private static final ObjectMapper OM = new ObjectMapper();
+
+    public static String json(FlakyReport r, FilterSet filters, List<String> warnings) {
+        ObjectNode root = OM.createObjectNode();
+        root.put("schemaVersion", 1);
+        root.put("command", "flaky");
+        ObjectNode f = root.putObject("appliedFilters");
+        ObjectNode test = f.putObject("test");
+        test.set("include", OM.valueToTree(filters.testInclude()));
+        test.set("exclude", OM.valueToTree(filters.testExclude()));
+        root.put("ratio", r.ratio());
+        root.put("totalTests", r.totalTests());
+        ArrayNode flaky = root.putArray("flakyTests");
+        r.flakyTests().forEach(flaky::add);
+        ArrayNode w = root.putArray("warnings");
+        warnings.forEach(w::add);
+        return root.toPrettyString();
+    }
+
+    public static String summary(FlakyReport r, boolean ansiColor) {
+        String head = String.format("flaky %d/%d개 (ratio %.3f)", r.flakyTests().size(), r.totalTests(), r.ratio());
+        StringBuilder sb = new StringBuilder(ansiColor ? "[1m" + head + "[0m" : head).append('\n');
+        r.flakyTests().forEach(t -> sb.append("  FLAKY ").append(t).append('\n'));
+        sb.append("다음: FLAKY 테스트는 원인 격리(재시도·인프라) 전까지 게이트에서 제외를 검토하세요.\n");
+        return sb.toString();
+    }
+
+    public static String markdown(FlakyReport r) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("| flaky | total | ratio |\n|---|---|---|\n");
+        sb.append("| ").append(r.flakyTests().size()).append(" | ").append(r.totalTests())
+          .append(" | ").append(String.format("%.3f", r.ratio())).append(" |\n\n");
+        sb.append("<details><summary>flaky 목록</summary>\n\n");
+        r.flakyTests().forEach(t -> sb.append("- `").append(t).append("`\n"));
+        sb.append("\n</details>\n");
+        return sb.toString();
+    }
+}
+```
+
+- [ ] **Step 1: 실패하는 단위 테스트** — `FlakyFormatsTest`: json 파싱해 스키마 필드 존재+`commit` 키 **부재** 확인.
 - [ ] **Step 2: FlakyCommand 수정**
 
 ```java
     @Mixin ConfigMixin configMixin;
-    @Option(names = "--format", defaultValue = "text", ...) Format format;   // ImpactCommand와 동일 enum 별도 선언
+    @Mixin TestFilterMixin testFilter;   // code 필터 믹스인 없음 — 설계 §2 표 [REQ-022]
+    @Option(names = "--format", defaultValue = "text",
+            description = "출력 형식: ${COMPLETION-CANDIDATES}") OutputFormat format;
 
     // resolve() → TiaConfigException catch → exit 1
     // 집계 '전' 필터 [REQ-010]:
@@ -911,14 +1200,20 @@ public final class ImpactFormats {
 - Test: `tia-core/src/test/java/io/tia/core/report/ReportBuilderTest.java`(케이스 추가) + `ReportFilterE2ETest`
 
 - [ ] **Step 1: 실패 테스트** — `ReportBuilderTest`에 추가: 제외 testId·제외 prod 파일이 렌더 HTML에 부재. `ReportFilterE2ETest` red 재확인.
-- [ ] **Step 2: 구현.** `ReportBuilder.Inputs`에 `FilterSet filters` 필드 추가(기존 생성 호출부는 `FilterSet.none()` 전달로 컴파일 유지). testwise 파싱 직후 `filters.acceptsTest(testId)`로 테스트 행 제거, prod-files 목록에 `filters.acceptsCode(path)` 적용, flaky 목록에도 `acceptsTest` 적용. `ReportCommand`:
+- [ ] **Step 2: 구현.** `ReportBuilder.Inputs`(9필드 positional record)의 **마지막 위치**에 `FilterSet filters` 필드를 추가한다. 갱신할 호출부는 정확히 3곳: ① `ReportCommand.java`(26-28행 부근의 `new ReportBuilder.Inputs(...)`) ② `ReportBuilderTest`의 private `inputs(...)` 헬퍼 ③ 같은 테스트 파일의 두 번째 raw `new ReportBuilder.Inputs(...)` 호출 — 테스트 쪽 2곳은 `FilterSet.none()` 전달. 필터 적용 지점(`buildModel` 내부):
+  - testwise 파싱 직후 `filters.acceptsTest(testId)`로 테스트 행 제거
+  - **살아남은 테스트의 `perTestModel[].files`와 역인덱스(`rev`/`reverseModel`)에도 `filters.acceptsCode(file)` 적용** — 제외 파일이 남의 테스트 파일 목록·역인덱스에 남아 렌더되면 REQ-011 위반
+  - prod-files 목록에 `filters.acceptsCode(path)` 적용(blind spot 분모)
+  - **flaky 탭은 필터하지 않는다** — `--flaky` 입력이 opaque `Object`로 파싱되는 무스키마 구조라 SP1에서 필터 대상에서 제외(요구사항명세 REQ-011에 명시). `ReportCommand`:
 
 ```java
     @Mixin ConfigMixin configMixin;
+    @Mixin CodeFilterMixin codeFilter;
+    @Mixin TestFilterMixin testFilter;
     @Option(names = "--sut-name", description = "리포트 타이틀의 SUT 이름 (기본: tia.yml sut-name, 없으면 SUT)") String sut;  // defaultValue 제거
-    // call(): resolve() catch → 1;
+    // call(): loadConfig()/filtersOf() try-catch → exit 1;
     String effectiveSut = (sut != null) ? sut
-            : (resolved.config().sutName() != null) ? resolved.config().sutName() : "SUT";   // [REQ-024]
+            : (cfg.sutName() != null) ? cfg.sutName() : "SUT";   // [REQ-024]
 ```
 
 - [ ] **Step 3: green 확인** — `./gradlew :tia-core:test :e2e:test --tests 'io.tia.e2e.filter.ReportFilterE2ETest' --tests 'io.tia.e2e.config.ConfigE2ETest'` → REQ-011·REQ-024 PASS

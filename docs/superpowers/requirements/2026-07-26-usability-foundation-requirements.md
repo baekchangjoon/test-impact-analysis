@@ -96,9 +96,9 @@
 ### REQ-011 — report의 인프로세스 필터링
 - 유형: Functional
 - 우선순위: Must
-- 설명: report는 파일 입력(testwise·prod-files·flaky)을 파싱한 뒤 렌더링 직전에 code/test 필터를 적용한다(입력 파일 무변경).
+- 설명: report는 파일 입력(testwise·prod-files)을 파싱한 뒤 렌더링 직전에 code/test 필터를 적용한다(입력 파일 무변경). 필터는 테스트 행뿐 아니라 **살아남은 테스트의 파일 목록과 역인덱스 축**에도 적용된다. **flaky 탭은 SP1 필터 대상에서 제외** — `--flaky` 입력이 스키마 없는 opaque 구조로 파싱되기 때문(명시적 descope).
 - 수용기준:
-  - Given 제외 테스트·제외 코드 경로가 든 testwise/prod-files, When `tia report` 실행, Then 생성된 HTML에 제외 테스트·제외 파일이 나타나지 않고 입력 파일은 바뀌지 않는다.
+  - Given 제외 테스트·제외 코드 경로가 든 testwise/prod-files, When `tia report` 실행, Then 생성된 HTML에 제외 테스트가 나타나지 않고, 제외 파일이 역인덱스·per-test 파일 목록에도 나타나지 않으며, 입력 파일은 바뀌지 않는다.
 - 검증 레벨: E2E black-box (HTML 내용 검사)
 
 ### REQ-012 — 기본 text 출력 동결 (byte-identical)
@@ -112,7 +112,7 @@
 ### REQ-013 — impact `--format json` 계약
 - 유형: Functional
 - 우선순위: Must
-- 설명: impact의 json 출력은 `schemaVersion`·`command`·`commit`·`appliedFilters`·`tests[]{id,confidence,reason}`·`ignoredChangedFiles`·`warnings` 필드를 가진 버전드 스키마다.
+- 설명: impact의 json 출력은 `schemaVersion`·`command`·`commit`·`appliedFilters`·`tests[]{id,confidence,reason}`·`ignoredChangedFiles`·`warnings` 필드를 가진 버전드 스키마다. `reason`은 Confidence→고정 문자열 매핑(DETERMINISTIC→"covered-line intersects diff" 등)으로 채운다(코어 모델 무변경).
 - 수용기준:
   - Given 인덱싱된 db와 diff, When `tia impact --format json`, Then stdout이 유효한 JSON이고 위 필드가 존재하며 `schemaVersion == 1`.
 - 검증 레벨: E2E black-box
@@ -231,7 +231,7 @@
 | REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🔴 planned |
 | REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🔴 planned |
 | REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🔴 planned |
-| REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation | E2E | 🔴 planned |
+| REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🔴 planned |
 | REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🔴 planned |
 | REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🔴 planned |
 | REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🔴 planned |

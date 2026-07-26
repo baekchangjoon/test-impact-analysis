@@ -86,9 +86,10 @@ filters:                    # 전체 선택
   없이 기존 기본값으로 동작한다(**완전 하위호환**: tia.yml이 없는 기존 사용자는 아무
   변화도 겪지 않는다).
 - **탐색 시작점 시임(테스트 가능성):** 로더는 탐색 시작 디렉터리를 **명시적 파라미터**로
-  받는다(프로덕션에서만 실제 cwd가 기본값). e2e 모듈은 JUnit 병렬 실행이라 JVM 전역
-  cwd에 의존하는 구현은 인프로세스 테스트가 불가능하기 때문이다(기존
-  `runGitDiff(ref, workingDir)` 패턴과 동일한 접근).
+  받는다(프로덕션에서만 실제 cwd가 기본값). 기본 `:e2e:test`는 직렬이지만 별도 태그
+  태스크는 JUnit 병렬을 켜므로, JVM 전역 cwd에 의존하지 않는 시임이 안전하다(기존
+  `runGitDiff(ref, workingDir)` 패턴과 동일한 접근). 상대 `--config` 경로도 cwd가 아닌
+  탐색 시작점 기준으로 해석한다.
 - **상대 경로 해석:** tia.yml 안의 상대 경로(`db` 등)는 cwd가 아니라 **tia.yml이 있는
   디렉터리 기준**으로 해석한다(하위 디렉터리에서 실행해도 같은 파일을 가리키도록).
 - **우선순위:** CLI 플래그 > `tia.yml` > 내장 기본값. 새 플래그
@@ -116,8 +117,10 @@ filters:                    # 전체 선택
 | `--include-test/--exclude-test` | ✔ | ✔ | ✔ | — | — |
 | `--format` | ✔ | ✔ | — (HTML 전용) | — | — |
 
-공통 옵션은 picocli `@Mixin`으로 한 번만 선언해 커맨드별 중복을 피한다. `--config`는
-서브커맨드에서 동작하도록 mixin에 포함한다.
+공통 옵션은 picocli `@Mixin`으로 선언해 커맨드별 중복을 피하되, `@Mixin`은 옵션 선택
+배제가 불가하므로 **축별 3개 믹스인**(Config: `--config`/`--search-root` · CodeFilter ·
+TestFilter)으로 분할하고 커맨드별로 위 표에 맞게 조합한다(index는 Config만, flaky는
+Config+TestFilter).
 
 ## 3. 필터 의미론 (소비 단계, query-time)
 
@@ -138,8 +141,11 @@ filters:                    # 전체 선택
 
 **`ReportCommand`의 필터 적용 방식:** report는 DB 조회가 아니라 파일 입력
 (`--testwise`/`--scenarios`/`--flaky`/`--prod-files`)을 소비한다. 따라서 report의 필터는
-**파싱된 testwise·prod-files·flaky 데이터를 렌더링 직전에 인프로세스로 거르는** 방식으로
-적용한다(입력 파일은 무변경). 이를 위해 report에도 `--config`·필터 옵션을 추가한다(§2 표).
+**파싱된 testwise·prod-files 데이터를 렌더링 직전에 인프로세스로 거르는** 방식으로
+적용한다(입력 파일은 무변경). 테스트 행 제거뿐 아니라 살아남은 테스트의 파일 목록·역인덱스
+축에도 code 필터를 적용해야 제외 파일이 HTML에 남지 않는다. **flaky 탭은 SP1 필터 대상에서
+제외**한다 — `--flaky` 입력이 스키마 없는 opaque 구조로 파싱되기 때문(명시적 descope).
+이를 위해 report에도 `--config`·필터 옵션을 추가한다(§2 표).
 
 **명시적 리스크 (문서·출력 양쪽에 고지):** `exclude`는 "이 경로/테스트는 TIA 판정 범위
 밖"이라는 사용자 선언이다. 제외 경로의 회귀는 TIA가 잡아주지 않는다. 그래서 제외로 인해
@@ -157,7 +163,10 @@ exit code 의미는 포맷과 무관하게 동일하다.
   필터로 무시된 변경 파일 수, "다음에 할 일" 안내 1줄. TTY면 ANSI 색 사용, 파이프면 자동
   무색(`NO_COLOR` 존중).
 - **`json`** — 버전드 기계 판독 스키마. SP4(MCP·스킬)의 소비 계약이므로 필드 제거·의미
-  변경은 `schemaVersion` 증가로만 한다.
+  변경은 `schemaVersion` 증가로만 한다. `tests[].reason`은 Confidence→고정 문자열
+  매핑으로 채운다(현 코어 모델에 per-test 사유가 없으므로 — DETERMINISTIC→
+  "covered-line intersects diff", CONSERVATIVE→"conservative select-all",
+  LOW_CONFIDENCE→"low-confidence").
 
 impact:
 
