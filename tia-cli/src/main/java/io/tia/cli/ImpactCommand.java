@@ -1,5 +1,9 @@
 package io.tia.cli;
 
+import io.tia.core.config.TiaConfig;
+import io.tia.core.config.TiaConfigException;
+import io.tia.core.filter.DiffFilter;
+import io.tia.core.filter.FilterSet;
 import io.tia.core.impact.ImpactAnalyzer;
 import io.tia.core.model.CoverageSnapshot;
 import io.tia.core.model.DiffSummary;
@@ -8,14 +12,20 @@ import io.tia.core.model.ImpactedTest;
 import io.tia.core.parse.GitDiffParser;
 import io.tia.core.store.CoverageStore;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 @Command(name = "impact", description = "diff와 커버리지 매핑을 교차해 영향 테스트 선별")
 public class ImpactCommand implements Callable<Integer> {
+    @Mixin ConfigMixin configMixin;
+    @Mixin CodeFilterMixin codeFilter;
+    @Mixin TestFilterMixin testFilter;
+
     @Option(names = "--db") Path db;
     @Option(names = "--commit", required = true) String commit;
     @Option(names = "--diff-file", description = "unified diff 파일 (미지정 시 --git-ref로 git diff 실행)") Path diffFile;
@@ -26,8 +36,25 @@ public class ImpactCommand implements Callable<Integer> {
     static final String NO_BASELINE_MARKER = "# tia:no-baseline";
 
     @Override public Integer call() throws Exception {
-        Path effectiveDb = (db != null) ? db : DbPaths.resolveDefault();
-        if (db == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
+        TiaConfig cfg;
+        FilterSet filters;
+        try {
+            cfg = configMixin.loadConfig();
+            filters = ConfigMixin.filtersOf(cfg, codeFilter, testFilter);
+        } catch (TiaConfigException e) {   // [REQ-003]
+            // 글로브 컴파일 오류(FilterSet.of)는 파일 경로를 모른 채 던져지므로, 메시지에 아직
+            // 없으면 --config 경로를 보태 "stderr에 파일 경로·원인 포함" 요건을 만족시킨다.
+            String detail = e.getMessage();
+            if (configMixin.config != null && !detail.contains(configMixin.config.toString()))
+                detail = configMixin.config + ": " + detail;
+            System.err.println("ERROR: " + detail);
+            return 1;
+        }
+
+        Path effectiveDb = (db != null) ? db
+                : (cfg.db() != null) ? cfg.db()          // [REQ-023]
+                : DbPaths.resolveDefault();
+        if (db == null && cfg.db() == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         CoverageSnapshot snap;
         int buildCount;
         try (CoverageStore store = new CoverageStore(effectiveDb)) {
@@ -56,11 +83,16 @@ public class ImpactCommand implements Callable<Integer> {
             ? Files.readString(diffFile)
             : runGitDiff(base, null);   // null = 현재 작업 디렉터리(레포)에서 git diff
 
-        DiffSummary diff = new GitDiffParser().parse(diffText);
-        ImpactResult r = new ImpactAnalyzer().select(snap, diff);
-        System.out.println("# 매핑 기준 커밋: " + commit + "  (영향 테스트 " + r.impacted().size() + "개"
+        DiffSummary rawDiff = new GitDiffParser().parse(diffText);
+        DiffFilter.Result filtered = DiffFilter.apply(rawDiff, filters);
+        for (String f : filtered.ignoredFiles())
+            System.err.println("# WARN: excluded change ignored: " + f);   // stderr [REQ-017]
+        ImpactResult r = new ImpactAnalyzer().select(snap, filtered.diff());
+        List<ImpactedTest> visible = r.impacted().stream()
+                .filter(t -> filters.acceptsTest(t.testId())).toList();    // [REQ-009]
+        System.out.println("# 매핑 기준 커밋: " + commit + "  (영향 테스트 " + visible.size() + "개"
             + (r.conservativeSelectAll() ? ", 보수적 전체 선택" : "") + ")");
-        for (ImpactedTest t : r.impacted())
+        for (ImpactedTest t : visible)
             System.out.println(t.confidence() + "\t" + t.testId());
         for (String reason : r.reasons())
             System.out.println("# 주의: " + reason);

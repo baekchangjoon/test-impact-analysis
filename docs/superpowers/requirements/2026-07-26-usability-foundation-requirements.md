@@ -222,15 +222,15 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| REQ-001 | tia.yml 탐색·부재 시 무변화 | ConfigE2ETest#configFlagPrecedence / #upwardDiscovery / #absentYmlUnchanged | E2E | 🟡 red(테스트 작성 완료, Task 5 배선 대기) |
-| REQ-002 | 플래그의 목록 단위 대체 | ConfigE2ETest#flagReplacesListNotMerge | E2E | 🟡 red(테스트 작성 완료, Task 5 배선 대기) |
-| REQ-003 | 검증 실패 fail-fast | ConfigE2ETest#invalidYmlFailsFast | E2E | 🟡 red(테스트 작성 완료, Task 5 배선 대기) |
-| REQ-004 | code 글로브 정규화 공간 | FilterE2ETest#codeGlobMatchesCanonicalPath | E2E | 🟡 red(테스트 작성 완료, Task 6 배선 대기) |
-| REQ-005 | testId `#` 정규화 | FilterE2ETest#hashTestIdNormalization | E2E | 🟡 red(테스트 작성 완료, Task 6 배선 대기) |
+| REQ-001 | tia.yml 탐색·부재 시 무변화 | ConfigE2ETest#configFlagPrecedence / #upwardDiscovery / #absentYmlUnchanged | E2E | 🟢 green(Task 5) |
+| REQ-002 | 플래그의 목록 단위 대체 | ConfigE2ETest#flagReplacesListNotMerge | E2E | 🟢 green(Task 5) |
+| REQ-003 | 검증 실패 fail-fast | ConfigE2ETest#invalidYmlFailsFast | E2E | 🟢 green(Task 5) |
+| REQ-004 | code 글로브 정규화 공간 | FilterE2ETest#codeGlobMatchesCanonicalPath | E2E | 🟢 green(Task 5) |
+| REQ-005 | testId `#` 정규화 | FilterE2ETest#hashTestIdNormalization | E2E | 🟢 green(Task 5) |
 | REQ-006 | include/exclude 의미론 | GlobFilterTest#excludeWins / #emptyIncludeMeansAll | unit | 🔴 planned |
-| REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🟡 red(E2E 작성 완료·unit은 기존 green, Task 6 배선 대기) |
-| REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🟡 red(테스트 작성 완료, Task 6 배선 대기) |
-| REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🟡 red(테스트 작성 완료, Task 6 배선 대기) |
+| REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🟢 green(Task 5) |
+| REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🟢 green(Task 5) |
+| REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🟢 green(Task 5) |
 | REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🟡 red(테스트 작성 완료, Task 7 배선 대기) |
 | REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
 | REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🔴 planned |
@@ -244,12 +244,14 @@
 | REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🔴 planned |
 | REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🔴 planned |
 | REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟡 red(convert만 처음부터 green, 나머지 Task 5~8 배선 대기) |
-| REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🟡 red(테스트 작성 완료, Task 5 배선 대기) |
+| REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🟢 green(Task 5) |
 | REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
 | REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🔴 planned |
 
-Coverage: 0/25 green (0%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
-(Task 4: 19개 REQ의 수용 테스트가 작성되어 red 상태로 전환됨 — 🟡 표시. green 전환은 Task 5~8의 CLI 배선 완료 후.)
+Coverage: 9/25 green (36%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
+(Task 4: 19개 REQ의 수용 테스트가 작성되어 red 상태로 전환됨 — 🟡 표시. Task 5: ConfigMixin +
+impact/index 배선으로 REQ-001·002·003·004·005·007·008·009·023 9건 green 전환. 나머지 green 전환은
+Task 6~8의 CLI 배선 완료 후.)
 
 ## design spec E2E 항목 ↔ REQ 매핑
 

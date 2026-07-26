@@ -1,10 +1,13 @@
 package io.tia.cli;
 
+import io.tia.core.config.TiaConfig;
+import io.tia.core.config.TiaConfigException;
 import io.tia.core.model.CoverageSnapshot;
 import io.tia.core.model.TestCoverage;
 import io.tia.core.parse.TestwiseReportParser;
 import io.tia.core.store.CoverageStore;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 import java.io.InputStream;
@@ -15,14 +18,25 @@ import java.util.concurrent.Callable;
 
 @Command(name = "index", description = "testwise 리포트를 SQLite 스냅샷으로 인덱싱")
 public class IndexCommand implements Callable<Integer> {
+    @Mixin ConfigMixin configMixin;
+
     @Option(names = "--report", required = true) Path report;
     @Option(names = "--repo", required = true) String repo;
     @Option(names = "--commit", required = true) String commit;
     @Option(names = "--db") Path db;
 
     @Override public Integer call() throws Exception {
-        Path effectiveDb = (db != null) ? db : DbPaths.resolveDefault();
-        if (db == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
+        TiaConfig cfg;
+        try {
+            cfg = configMixin.loadConfig();
+        } catch (TiaConfigException e) {   // [REQ-003]
+            System.err.println("ERROR: " + e.getMessage());
+            return 1;
+        }
+        Path effectiveDb = (db != null) ? db
+                : (cfg.db() != null) ? cfg.db()          // [REQ-023]
+                : DbPaths.resolveDefault();
+        if (db == null && cfg.db() == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         try (InputStream in = Files.newInputStream(report)) {
             List<TestCoverage> tests = new TestwiseReportParser().parse(in);
             try (CoverageStore store = new CoverageStore(effectiveDb)) {
