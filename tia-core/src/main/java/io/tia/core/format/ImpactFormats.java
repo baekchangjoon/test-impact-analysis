@@ -18,7 +18,8 @@ public final class ImpactFormats {
 
     public record Payload(String commit, List<ImpactedTest> tests, boolean conservative,
                           List<String> reasons, List<String> ignoredFiles,
-                          Map<String, List<String>> testsByFile, FilterSet filters) {}
+                          Map<String, List<String>> testsByFile, FilterSet filters,
+                          int totalTests) {}
 
     static String reasonOf(Confidence c) {   // 코어 모델 무변경 — 매핑으로 채움 [REQ-013]
         return switch (c) {
@@ -53,7 +54,7 @@ public final class ImpactFormats {
         long det = p.tests().stream().filter(t -> t.confidence() == Confidence.DETERMINISTIC).count();
         long con = p.tests().stream().filter(t -> t.confidence() == Confidence.CONSERVATIVE).count();
         StringBuilder sb = new StringBuilder();
-        String count = "영향 테스트 " + p.tests().size() + "개 선별 (DETERMINISTIC " + det
+        String count = "영향 테스트 " + p.tests().size() + "/" + p.totalTests() + "개 선별 (DETERMINISTIC " + det
                 + " · CONSERVATIVE " + con + ")   @ " + p.commit();
         sb.append(ansiColor ? BOLD + count + RESET : count).append('\n');
         if (!p.testsByFile().isEmpty()) {

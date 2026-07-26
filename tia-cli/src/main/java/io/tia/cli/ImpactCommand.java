@@ -75,7 +75,7 @@ public class ImpactCommand implements Callable<Integer> {
                 System.out.println(NO_BASELINE_MARKER);
             } else {   // 비-text 포맷: 동일 스키마 + warnings에 "no-baseline" [REQ-018]
                 ImpactFormats.Payload payload = new ImpactFormats.Payload(commit, List.of(), false,
-                        List.of("no-baseline"), List.of(), java.util.Map.of(), filters);
+                        List.of("no-baseline"), List.of(), java.util.Map.of(), filters, 0);
                 System.out.println(render(format, payload));
             }
             System.err.println("WARN: '" + commit + "' 의 TIA 베이스라인이 " + effectiveDb
@@ -110,7 +110,8 @@ public class ImpactCommand implements Callable<Integer> {
 
         ImpactFormats.Payload payload = new ImpactFormats.Payload(commit, visible, r.conservativeSelectAll(),
                 r.reasons(), filtered.ignoredFiles(),
-                FileImpact.testsByChangedFile(snap, filtered.diff(), filters::acceptsTest), filters);
+                FileImpact.testsByChangedFile(snap, filtered.diff(), filters::acceptsTest), filters,
+                snap.tests().size());
         System.out.println(render(format, payload));
         return 0;
     }

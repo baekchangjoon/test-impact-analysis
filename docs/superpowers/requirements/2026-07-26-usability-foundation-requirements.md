@@ -130,7 +130,7 @@
 - 우선순위: Must
 - 설명: `--format summary`는 선별/전체 카운트, Confidence별 집계, 파일→테스트 매핑 상위 목록, blind spot 경고, 무시된 변경 파일 수, 다음 행동 1줄을 사람용으로 출력한다. TTY에서만 ANSI 색, `NO_COLOR` 존중.
 - 수용기준:
-  - Given 선별·blind spot·필터 무시가 모두 존재하는 diff, When `tia impact --format summary`(파이프), Then 카운트·매핑·다음 행동 문구·blind spot 경고·무시된 변경 파일 수가 모두 있고 ANSI 이스케이프가 없다.
+  - Given 선별·blind spot·필터 무시가 모두 존재하는 diff, When `tia impact --format summary`(파이프), Then 선별/전체 카운트("N/M개 선별" 형식)·매핑·다음 행동 문구·blind spot 경고·무시된 변경 파일 수가 모두 있고 ANSI 이스케이프가 없다.
 - 검증 레벨: E2E black-box
 
 ### REQ-016 — markdown 뷰 (PR 코멘트 계약)
