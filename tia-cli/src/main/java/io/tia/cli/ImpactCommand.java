@@ -109,7 +109,8 @@ public class ImpactCommand implements Callable<Integer> {
         }
 
         ImpactFormats.Payload payload = new ImpactFormats.Payload(commit, visible, r.conservativeSelectAll(),
-                r.reasons(), filtered.ignoredFiles(), FileImpact.testsByChangedFile(snap, filtered.diff()), filters);
+                r.reasons(), filtered.ignoredFiles(),
+                FileImpact.testsByChangedFile(snap, filtered.diff(), filters::acceptsTest), filters);
         System.out.println(render(format, payload));
         return 0;
     }
