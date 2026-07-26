@@ -130,7 +130,7 @@
 - 우선순위: Must
 - 설명: `--format summary`는 선별/전체 카운트, Confidence별 집계, 파일→테스트 매핑 상위 목록, blind spot 경고, 무시된 변경 파일 수, 다음 행동 1줄을 사람용으로 출력한다. TTY에서만 ANSI 색, `NO_COLOR` 존중.
 - 수용기준:
-  - Given 선별·blind spot·필터 무시가 모두 존재하는 diff, When `tia impact --format summary`(파이프), Then 카운트·매핑·다음 행동 문구·blind spot 경고·무시된 변경 파일 수가 모두 있고 ANSI 이스케이프가 없다.
+  - Given 선별·blind spot·필터 무시가 모두 존재하는 diff, When `tia impact --format summary`(파이프), Then 선별/전체 카운트("N/M개 선별" 형식)·매핑·다음 행동 문구·blind spot 경고·무시된 변경 파일 수가 모두 있고 ANSI 이스케이프가 없다.
 - 검증 레벨: E2E black-box
 
 ### REQ-016 — markdown 뷰 (PR 코멘트 계약)
@@ -222,33 +222,41 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| REQ-001 | tia.yml 탐색·부재 시 무변화 | ConfigE2ETest#configFlagPrecedence / #upwardDiscovery / #absentYmlUnchanged | E2E | 🔴 planned |
-| REQ-002 | 플래그의 목록 단위 대체 | ConfigE2ETest#flagReplacesListNotMerge | E2E | 🔴 planned |
-| REQ-003 | 검증 실패 fail-fast | ConfigE2ETest#invalidYmlFailsFast | E2E | 🔴 planned |
-| REQ-004 | code 글로브 정규화 공간 | FilterE2ETest#codeGlobMatchesCanonicalPath | E2E | 🔴 planned |
-| REQ-005 | testId `#` 정규화 | FilterE2ETest#hashTestIdNormalization | E2E | 🔴 planned |
-| REQ-006 | include/exclude 의미론 | GlobFilterTest#excludeWins / #emptyIncludeMeansAll | unit | 🔴 planned |
-| REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🔴 planned |
-| REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🔴 planned |
-| REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🔴 planned |
-| REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🔴 planned |
-| REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🔴 planned |
-| REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🔴 planned |
-| REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🔴 planned |
-| REQ-014 | flaky json 계약 | FormatE2ETest#flakyJsonSchema | E2E | 🔴 planned |
-| REQ-015 | summary 뷰 | FormatE2ETest#impactSummaryPipedNoAnsi | E2E | 🔴 planned |
-| REQ-016 | markdown 뷰 | FormatE2ETest#impactMarkdownTableAndDetails | E2E | 🔴 planned |
-| REQ-017 | 스트림 규약 | FormatE2ETest#stderrWarnStdoutData | E2E | 🔴 planned |
-| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent_impact / _flaky | E2E | 🔴 planned |
-| REQ-019 | 기존 스위트 무변경 green | SpecAcceptanceE2ETest + scripts/run-inprocess-e2e.sh + 컨테이너 E2E | E2E | 🔴 planned |
-| REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🔴 planned |
-| REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🔴 planned |
-| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsPerCommandTable | CLI | 🔴 planned |
-| REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🔴 planned |
-| REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🔴 planned |
-| REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🔴 planned |
+| REQ-001 | tia.yml 탐색·부재 시 무변화 | ConfigE2ETest#configFlagPrecedence / #upwardDiscovery / #absentYmlUnchanged | E2E | 🟢 green(Task 5) |
+| REQ-002 | 플래그의 목록 단위 대체 | ConfigE2ETest#flagReplacesListNotMerge | E2E | 🟢 green(Task 5) |
+| REQ-003 | 검증 실패 fail-fast | ConfigE2ETest#invalidYmlFailsFast | E2E | 🟢 green(Task 5) |
+| REQ-004 | code 글로브 정규화 공간 | FilterE2ETest#codeGlobMatchesCanonicalPath | E2E | 🟢 green(Task 5) |
+| REQ-005 | testId `#` 정규화 | FilterE2ETest#hashTestIdNormalization | E2E | 🟢 green(Task 5) |
+| REQ-006 | include/exclude 의미론 | GlobFilterTest#excludeWins / #emptyIncludeMeansAll | unit | 🟢 green(Task 9 최종 대조 — 실제로는 Task 5 구현분, 매트릭스 갱신 누락 정정) |
+| REQ-007 | DiffSummary 전면 필터 + WARN + CONSERVATIVE 보존 | FilterE2ETest#excludedNewFileNoConservative / #warnPerIgnoredFile / #unmappableBypassesInclude / #nonMatchingFilterKeepsConservative + DiffSummaryFilterTest#filtersAllThreeFields | E2E+unit | 🟢 green(Task 5) |
+| REQ-008 | 전부-제외 → 0건+WARN+exit0 | FilterE2ETest#allExcludedDiffZeroSelection | E2E | 🟢 green(Task 5) |
+| REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🟢 green(Task 5) |
+| REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🟢 green(Task 7) |
+| REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🟢 green(Task 8) |
+| REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🟢 green(Task 6 — impact `--format` 도입 후에도 byte-identical 확인) |
+| REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🟢 green(Task 6) |
+| REQ-014 | flaky json 계약 | FormatE2ETest#flakyJsonSchema | E2E | 🟢 green(Task 7) |
+| REQ-015 | summary 뷰 | FormatE2ETest#impactSummaryPipedNoAnsi | E2E | 🟢 green(Task 6, impact 전용 — flaky summary는 Task 7 범위 밖) |
+| REQ-016 | markdown 뷰 | FormatE2ETest#impactMarkdownTableAndDetails | E2E | 🟢 green(Task 6, impact 전용) |
+| REQ-017 | 스트림 규약 | FormatE2ETest#stderrWarnStdoutData | E2E | 🟢 green(Task 6) |
+| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent_impact / _flaky | E2E | 🟢 green(Task 7) |
+| REQ-019 | 기존 스위트 무변경 green | SpecAcceptanceE2ETest + scripts/run-inprocess-e2e.sh + 컨테이너 E2E | E2E | 🟢 green(Task 9 — `./gradlew test` 전 모듈 0 failures/errors 확인, `SpecAcceptanceE2ETest` 7건 무변경 green. `scripts/setup-pjacoco.sh && scripts/run-inprocess-e2e.sh` 재실행 exit 0·`✅ inprocess-e2e PASS`. **컨테이너 E2E는 이번 태스크에서 미실행** — 이 작업 환경에서 로컬 실행이 필수는 아니라고 판단해 스킵했고 `.github/workflows/ci.yml`이 PR/main마다 커버함. 침묵 스킵 아님 — 이 각주로 명시) |
+| REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🟢 green(Task 9 — `THIRD-PARTY-NOTICES.md`·`licenses/`에 jackson-dataformat-yaml 2.17.2·snakeyaml 2.2(둘 다 Apache-2.0, 기존 `licenses/Apache-2.0.txt` 재사용) 추가. `./gradlew :tia-cli:dependencies --configuration runtimeClasspath \| grep -i yaml`로 실제 좌표·버전 확인. `./gradlew :tia-cli:cyclonedxBom` 로컬 재현 — `bom.json`에 두 컴포넌트 자동 반영 확인, 릴리스 워크플로 수정 불필요) |
+| REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🟢 green(Task 9 최종 대조 — 실제로는 Task 5 구현분, 매트릭스 갱신 누락 정정) |
+| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟢 green(Task 8 — report 배선 완료로 5/5 서브커맨드 green) |
+| REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🟢 green(Task 5) |
+| REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🟢 green(Task 8) |
+| REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🟢 green(Task 9 — `GETTING-STARTED.md`에 "## tia.yml 설정" 절 신설: 스키마 예시 + 3항목 전부 명시(① 플래그 목록 단위 대체 ② code 글로브 package-relative 정규화 공간·`src/main/java/` 함정 ③ exclude = TIA 판정 범위 밖 선언·회귀 미탐지 리스크). `--help` 텍스트(`CodeFilterMixin`/`TestFilterMixin`의 `@Option` description)는 ①(대체)만 한 줄로 이미 언급 — ②③은 설계 의도대로 GETTING-STARTED가 상세 설명을 전담(design spec §7: "문서·init이 생성하는 주석으로 완화"), --help 자체에 장문 추가는 이번 태스크 범위 아님) |
 
-Coverage: 0/25 green (0%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
+Coverage: 25/25 green (100%) — target 100% (대상: Must 24 + 미연기 Should 1 = 25)
+(Task 4: 19개 REQ의 수용 테스트가 작성되어 red 상태로 전환됨 — 🟡 표시. Task 5: ConfigMixin +
+impact/index 배선으로 REQ-001·002·003·004·005·007·008·009·023 9건 green 전환. Task 6: impact
+--format 배선으로 REQ-012·013·015·016·017 green 전환. Task 7: flaky 배선으로 REQ-010·014·018
+green 전환. Task 8: report 인프로세스 필터 + tia.yml sut-name 배선으로 REQ-011·022·024 green
+전환. Task 9(본 문서 갱신): REQ-006·021(GlobFilterTest 유닛 — Task 5에서 이미 구현·통과했으나
+매트릭스 갱신이 누락돼 있던 것을 이번에 정정)·REQ-019(전체 회귀 + in-process 수집 E2E 재확인,
+컨테이너 E2E는 명시적 스킵)·REQ-020(NOTICES·licenses·SBOM 동기화)·REQ-025(GETTING-STARTED
+tia.yml 절 신설) green 전환 — 25/25 100%.)
 
 ## design spec E2E 항목 ↔ REQ 매핑
 

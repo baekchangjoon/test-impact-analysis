@@ -119,6 +119,11 @@ java -jar tia-cli/build/libs/tia.jar --help     # → tia <ver>
 $CLI --help          # convert | index | impact | flaky | report
 ```
 
+`impact`·`flaky`는 `--format text|summary|json|markdown`(기본 `text` = 기존 출력 그대로)을
+지원하고, `impact`·`flaky`·`report`·`index`는 레포 루트의 `tia.yml`(또는 `--config <path>`)로
+필터·`db`·`sut-name` 기본값을 선언할 수 있다 — 스키마·글로브 함정·`--include-*`/`--exclude-*`
+플래그의 대체(병합 아님) 규칙은 **[GETTING-STARTED §tia.yml 설정](GETTING-STARTED.md#tiayml-설정)** 참조.
+
 ### 0. `convert` — per-test `.exec` → testwise JSON (jacoco core, subprocess 없음)
 
 ```bash

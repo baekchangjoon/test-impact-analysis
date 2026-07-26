@@ -2,11 +2,13 @@ package io.tia.core.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.tia.core.filter.FilterSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +25,8 @@ class ReportBuilderTest {
               {"uniformPath":"BTest#b","result":"PASSED","paths":[{"path":"com/x","files":[{"fileName":"A.java","coveredLines":"1-3,5"}]}]},
               {"uniformPath":"ATest#a","result":"PASSED","paths":[{"path":"com/x","files":[{"fileName":"A.java","coveredLines":"1-2"}]}]}
             ]}""");
-        return new ReportBuilder.Inputs(tw, scenarios, flaky, prod, "deadbeefcafe", "acme-svc", "jacoco", null, "");
+        return new ReportBuilder.Inputs(tw, scenarios, flaky, prod, "deadbeefcafe", "acme-svc", "jacoco", null, "",
+                FilterSet.none());
     }
 
     @Test
@@ -75,8 +78,52 @@ class ReportBuilderTest {
         Path tw = tmp.resolve("tw.json");
         Files.writeString(tw, """
             {"tests":[{"uniformPath":"T#m","result":"PASSED","paths":[{"path":"org/acme/app","files":[{"fileName":"X.java","coveredLines":"1"}]}]}]}""");
-        var in = new ReportBuilder.Inputs(tw, null, null, null, "c", "s", "jacoco", null, "org/acme/");
+        var in = new ReportBuilder.Inputs(tw, null, null, null, "c", "s", "jacoco", null, "org/acme/",
+                FilterSet.none());
         JsonNode d = om.valueToTree(new ReportBuilder().buildModel(in));
         assertEquals("…/app/X.java", d.get("perTest").get(0).get("files").get(0).get("f").asText());
+    }
+
+    @Test
+    void filtersExcludeTestRowsAndFilesFromSurvivingTestsReverseIndexAndProdList(@TempDir Path tmp) throws Exception {
+        Path tw = tmp.resolve("testwise.json");
+        Files.writeString(tw, """
+            {"tests":[
+              {"uniformPath":"BTest#b","result":"PASSED","paths":[{"path":"com/x","files":[
+                {"fileName":"A.java","coveredLines":"1-3,5"},
+                {"fileName":"Excluded.java","coveredLines":"1"}
+              ]}]},
+              {"uniformPath":"ExcludedTest#e","result":"PASSED","paths":[{"path":"com/x","files":[{"fileName":"A.java","coveredLines":"1-2"}]}]}
+            ]}""");
+        Path prod = tmp.resolve("prod.txt");
+        Files.writeString(prod, "com/x/A.java\ncom/x/Excluded.java\n");
+
+        FilterSet filters = FilterSet.of(List.of(), List.of("com/x/Excluded.java"),
+                List.of(), List.of("**/ExcludedTest/*"));
+        var in = new ReportBuilder.Inputs(tw, null, null, prod, "deadbeefcafe", "acme-svc", "jacoco", null, "",
+                filters);
+        Map<String, Object> model = new ReportBuilder().buildModel(in);
+        JsonNode d = om.valueToTree(model);
+
+        // excluded testId dropped from perTest rows entirely
+        assertEquals(1, d.get("perTest").size());
+        assertEquals("BTest#b", d.get("perTest").get(0).get("id").asText());
+
+        // excluded file dropped from the surviving test's file list
+        List<String> survivingFiles = new java.util.ArrayList<>();
+        d.get("perTest").get(0).get("files").forEach(f -> survivingFiles.add(f.get("f").asText()));
+        assertFalse(survivingFiles.contains("com/x/Excluded.java"), "excluded file leaked into surviving test's files");
+        assertTrue(survivingFiles.contains("com/x/A.java"));
+
+        // excluded file dropped from the reverse index too
+        List<String> reverseFiles = new java.util.ArrayList<>();
+        d.get("reverse").forEach(r -> reverseFiles.add(r.get("file").asText()));
+        assertFalse(reverseFiles.contains("com/x/Excluded.java"), "excluded file leaked into reverse index");
+
+        // excluded file dropped from prod-files (blind-spot denominator)
+        assertEquals(1, d.get("nProd").asInt(), "excluded file must not count toward prod denominator");
+        List<String> blind = new java.util.ArrayList<>();
+        d.get("blind").forEach(b -> blind.add(b.asText()));
+        assertFalse(blind.contains("com/x/Excluded.java"), "excluded file must not appear as a blind spot either");
     }
 }

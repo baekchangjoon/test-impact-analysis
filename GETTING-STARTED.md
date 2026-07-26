@@ -148,6 +148,11 @@
 출력: `DETERMINISTIC|CONSERVATIVE  <testId>` — 이 목록만 실행하면 된다. 베이스라인이 없으면
 `# tia:no-baseline`(→ 전체 실행 권장; `--strict`면 실패).
 
+> **출력 형식.** 기본값(`text`, 위 예시)은 기존 스크립트가 파싱하는 형식 그대로 동결돼 있다.
+> 사람이 읽기 좋은 요약은 `--format summary`, PR 코멘트용은 `--format markdown`, 에이전트/스크립트
+> 소비용은 `--format json`을 쓴다(`flaky`도 동일 옵션 지원). 아래 [tia.yml 설정](#tiayml-설정)의
+> code/test 필터도 `impact`·`flaky`·`report`에 함께 적용된다.
+
 ## 4. (선택) 인터랙티브 리포트
 
 ```bash
@@ -162,6 +167,52 @@
   Job Summary + `selected`/`run-all` 출력. [docker/README](docker/README.md).
 - **Gradle 플러그인**: `tiaIndex`/`tiaImpact`/`tiaReport` 태스크 + 에이전트 와이어링. [가이드](tia-gradle-plugin/README.md).
 - **Agent Skill**: Claude·Kiro·Antigravity 등에서 "이 변경에 영향받는 테스트?"를 자연어로. [SKILL.md](skills/tia/SKILL.md).
+
+## tia.yml 설정
+
+레포 루트에 `tia.yml` 하나를 두면 `impact`/`flaky`/`report`/`index`가 `--config <path>` 없이도
+git 루트까지 상향 탐색으로 찾아 읽는다(`--config`를 명시하면 그 파일만 쓰고 상향 탐색은
+완전히 건너뛴다). **`tia.yml`이 없으면 아무 것도 바뀌지 않는다** — 기존 사용자는 이 절을
+몰라도 지금까지와 동일하게 동작한다.
+
+```yaml
+# tia.yml — 레포 루트
+version: 1                  # 필수. 미지원 값이면 exit 1
+sut-name: my-service        # report --sut-name 기본값 (선택)
+# db: /shared/tia.db        # --db 기본값 (선택). 미선언 시 기존 git-common-dir 기본값 사용 —
+                             # 워크트리-상대 경로는 워크트리 간 DB 분열을 일으키므로 권장하지 않음
+                             # (위 "인덱스 저장 위치" 박스 참조)
+filters:
+  code:                     # 프로덕션 코드
+    include: ["com/acme/**"]
+    exclude: ["**/generated/**", "**/*Dto.java"]
+  test:                     # 테스트
+    include: []             # 비면 전체
+    exclude: ["**/*Slow*"]
+```
+
+YAML 파싱 실패·미지원 `version`·알 수 없는 최상위 키·글로브 문법 오류는 모두 **즉시 exit 1**과
+파일·위치·원인 메시지를 낸다 — 침묵 무시하지 않는다.
+
+**반드시 알아야 할 세 가지:**
+
+1. **CLI 플래그는 tia.yml 목록을 "대체"한다 — 병합이 아니다.** `--include-code`/`--exclude-code`/
+   `--include-test`/`--exclude-test`(반복 가능)를 하나라도 주면, 그 축의 목록 전체가 플래그 값으로
+   바뀐다. 예: tia.yml에 `code.include`와 `code.exclude`가 둘 다 있어도 `--exclude-code`만 주면
+   `code.exclude`만 대체되고 `code.include`는 tia.yml 값이 그대로 유지된다 — 두 목록을 합치는
+   게 아니다. "일부만 추가하려고" 플래그를 줬는데 나머지 목록이 사라진 것처럼 보인다면 이 규칙
+   때문이다.
+2. **code 글로브는 `src/main/java/` 같은 소스 경로가 아니라 package-relative 정규화 경로에
+   매칭한다.** 예를 들어 실제 파일이 `src/main/java/com/acme/pricing/PricingService.java`여도
+   글로브는 `com/acme/pricing/PricingService.java`(정규화된 키)에 매칭해야 한다.
+   `src/main/java/com/acme/**` 같은 글로브는 **아무 것도 매칭하지 않는다** — 가장 흔한 함정이다.
+   test 글로브도 마찬가지로 testId 공간에 매칭하며, `#`는 매칭 전 `/`로 치환된다(예:
+   `AuthApiBlackBoxIT#login...` → `AuthApiBlackBoxIT/login...`).
+3. **`exclude`는 "이 경로/테스트는 TIA 판정 범위 밖"이라는 선언이다.** 제외한 경로의 변경은
+   TIA가 영향 분석에서 아예 빼버리므로, **그 경로의 회귀는 TIA가 잡아주지 못한다.** 생성 코드나
+   DTO 노이즈를 줄이려는 의도라도, exclude 범위가 넓을수록 회귀 누출 위험이 커진다 — 필터가
+   실제로 변경을 무시할 때마다 `impact`가 stderr에 `# WARN: excluded change ignored: <path>`를
+   출력하니 그 경고를 무시하지 말 것.
 
 ## 플레이키(부가)
 

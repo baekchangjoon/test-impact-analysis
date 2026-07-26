@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "uniformPath": "AuthApiBlackBoxIT#loginReturns400",
+      "result": "PASSED",
+      "paths": [
+        { "path": "auth", "files": [
+          { "fileName": "AuthApi.java", "coveredLines": "5-6" }
+        ]}
+      ]
+    }
+  ]
+}
