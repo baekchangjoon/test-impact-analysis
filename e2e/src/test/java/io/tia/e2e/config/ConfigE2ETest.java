@@ -107,6 +107,18 @@ class ConfigE2ETest {
     }
 
     @Test
+    @DisplayName("REQ-003: bad-glob tia.yml은 index 등 필터를 소비하지 않는 명령에서도 exit 1 + 파일 경로 포함(로더 단계 검증)")
+    void invalidGlobFailsFastOnIndexToo() throws Exception {
+        Path yml = writeYml("version: 1\nfilters:\n  code:\n    exclude: [\"[unterminated\"]\n");
+        Path report = work.resolve("index-badglob-testwise.json");
+        copyResource("/spec-testwise.json", report);
+        Exec r = run("index", "--report", report.toString(), "--repo", "fixture", "--commit", "C0",
+                "--db", work.resolve("badglob.db").toString(), "--config", yml.toString());
+        assertEquals(1, r.code(), r.err());
+        assertTrue(r.err().contains(yml.toString()), r.err());
+    }
+
+    @Test
     @DisplayName("REQ-002: --exclude-test 플래그가 tia.yml의 test.exclude 목록을 대체한다(병합 아님)")
     void flagReplacesListNotMerge() throws Exception {
         // yml은 testGreeting을 제외; 플래그는 testPrice를 제외 — 플래그가 이기면 yml의 exclude는 무효화된다.

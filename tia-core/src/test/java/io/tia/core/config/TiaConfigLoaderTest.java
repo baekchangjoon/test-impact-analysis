@@ -68,6 +68,20 @@ class TiaConfigLoaderTest {
                 () -> TiaConfigLoader.load(f, root)).getMessage().contains(f.toString()));
     }
 
+    @Test void badGlobInFiltersFailsFastWithFilePath() throws Exception {
+        // 로드 시점에 글로브 문법을 검증해야 index를 포함한 모든 소비 명령이 fail-fast [REQ-003].
+        Path f = write(root, """
+                version: 1
+                filters:
+                  code:
+                    exclude: ["[unterminated"]
+                """);
+        TiaConfigException e = assertThrows(TiaConfigException.class,
+                () -> TiaConfigLoader.load(f, root));
+        assertTrue(e.getMessage().contains(f.toString()), e.getMessage());
+        assertTrue(e.getMessage().contains("[unterminated"), e.getMessage());
+    }
+
     @Test void filtersParsedIntoLists() throws Exception {
         Path f = write(root, """
                 version: 1

@@ -41,13 +41,10 @@ public class ImpactCommand implements Callable<Integer> {
         try {
             cfg = configMixin.loadConfig();
             filters = ConfigMixin.filtersOf(cfg, codeFilter, testFilter);
-        } catch (TiaConfigException e) {   // [REQ-003]
-            // 글로브 컴파일 오류(FilterSet.of)는 파일 경로를 모른 채 던져지므로, 메시지에 아직
-            // 없으면 --config 경로를 보태 "stderr에 파일 경로·원인 포함" 요건을 만족시킨다.
-            String detail = e.getMessage();
-            if (configMixin.config != null && !detail.contains(configMixin.config.toString()))
-                detail = configMixin.config + ": " + detail;
-            System.err.println("ERROR: " + detail);
+        } catch (TiaConfigException e) {   // [REQ-003] — tia.yml 글로브 오류는 TiaConfigLoader가
+            // 이미 파일 경로를 포함해 던진다. CLI 플래그 글로브 오류(FilterSet.of)는 파일이 없는
+            // 게 정상이므로 여기서 경로를 보강하지 않는다.
+            System.err.println("ERROR: " + e.getMessage());
             return 1;
         }
 

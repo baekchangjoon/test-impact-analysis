@@ -3,6 +3,7 @@ package io.tia.core.config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.tia.core.filter.GlobMatcher;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,7 +79,21 @@ public final class TiaConfigLoader {
     private static TiaConfig.FilterLists filterLists(JsonNode node, Path file) {
         if (node == null) return TiaConfig.FilterLists.empty();
         rejectUnknownKeys(node, LIST_KEYS, file, "filters.*");
-        return new TiaConfig.FilterLists(strings(node.get("include")), strings(node.get("exclude")));
+        List<String> include = strings(node.get("include"));
+        List<String> exclude = strings(node.get("exclude"));
+        validateGlobs(include, file);
+        validateGlobs(exclude, file);
+        return new TiaConfig.FilterLists(include, exclude);
+    }
+
+    /** tia.yml의 글로브는 로드 시점에 문법을 검증 — 소비 명령(index 포함) 전체가 fail-fast [REQ-003].
+     *  CLI 플래그 글로브는 여기를 거치지 않고 FilterSet.of에서 그대로 검증(파일 경로가 없는 게 정상). */
+    private static void validateGlobs(List<String> globs, Path file) {
+        try {
+            GlobMatcher.compile(globs);
+        } catch (TiaConfigException e) {
+            throw new TiaConfigException("tia.yml 글로브 오류: " + file + " — " + e.getMessage(), e);
+        }
     }
 
     private static List<String> strings(JsonNode arr) {
