@@ -233,17 +233,17 @@
 | REQ-009 | test 필터 Confidence 일괄 | FilterE2ETest#excludedTestNeverOutput / #excludedFromConservativeSet | E2E | 🟢 green(Task 5) |
 | REQ-010 | flaky 집계 전 필터 | FlakyFilterE2ETest#excludedBeforeAggregation / #allExcludedRatioZero | E2E | 🟡 red(테스트 작성 완료, Task 7 배선 대기) |
 | REQ-011 | report 인프로세스 필터 | ReportFilterE2ETest#filteredAxesNotRendered | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🔴 planned |
-| REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-014 | flaky json 계약 | FormatE2ETest#flakyJsonSchema | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-015 | summary 뷰 | FormatE2ETest#impactSummaryPipedNoAnsi | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-016 | markdown 뷰 | FormatE2ETest#impactMarkdownTableAndDetails | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-017 | 스트림 규약 | FormatE2ETest#stderrWarnStdoutData | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
-| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent_impact / _flaky | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
+| REQ-012 | text 출력 동결 | SpecAcceptanceE2ETest (기존, 무변경) | E2E | 🟢 green(Task 6 — impact `--format` 도입 후에도 byte-identical 확인) |
+| REQ-013 | impact json 계약 | FormatE2ETest#impactJsonSchema | E2E | 🟢 green(Task 6) |
+| REQ-014 | flaky json 계약 | FormatE2ETest#flakyJsonSchema | E2E | 🟡 red(flaky --format 미배선, Task 7 대기) |
+| REQ-015 | summary 뷰 | FormatE2ETest#impactSummaryPipedNoAnsi | E2E | 🟢 green(Task 6, impact 전용 — flaky summary는 Task 7 범위 밖) |
+| REQ-016 | markdown 뷰 | FormatE2ETest#impactMarkdownTableAndDetails | E2E | 🟢 green(Task 6, impact 전용) |
+| REQ-017 | 스트림 규약 | FormatE2ETest#stderrWarnStdoutData | E2E | 🟢 green(Task 6) |
+| REQ-018 | exit code 포맷 독립 | FormatE2ETest#exitCodeFormatIndependent_impact / _flaky | E2E | 🟡 red(impact 쪽 green, flaky 쪽은 --format 미배선으로 red — Task 7 대기) |
 | REQ-019 | 기존 스위트 무변경 green | SpecAcceptanceE2ETest + scripts/run-inprocess-e2e.sh + 컨테이너 E2E | E2E | 🔴 planned |
 | REQ-020 | 라이선스 고지 동기화 | PR 전 build/docs 게이트 점검 (NOTICES·SBOM 대조) | build | 🔴 planned |
 | REQ-021 | 글로브 OS 독립 | GlobFilterTest#unixSyntaxFixedMatcher | unit | 🔴 planned |
-| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟡 red(convert만 처음부터 green, 나머지 Task 5~8 배선 대기) |
+| REQ-022 | CLI 옵션 배선 | CliWiringTest#optionsForImpact / #optionsForFlaky / #optionsForReport / #optionsForIndex / #optionsForConvert | CLI | 🟡 red(convert·impact green(Task 5/6), flaky/report는 Task 7~8 배선 대기) |
 | REQ-023 | tia.yml `db` 기본값 적용 | ConfigE2ETest#ymlDbDefaultRelativeToYml / #dbFlagBeatsYml / #noDbKeepsCommonDirDefault | E2E | 🟢 green(Task 5) |
 | REQ-024 | tia.yml `sut-name` 기본값 적용 | ConfigE2ETest#ymlSutNameDefault / #sutNameFlagBeatsYml | E2E | 🟡 red(테스트 작성 완료, Task 8 배선 대기) |
 | REQ-025 | 사용자 문서의 필터 규칙 반영 | PR 전 build/docs 게이트 점검 (GETTING-STARTED·--help 대조) | build | 🔴 planned |
