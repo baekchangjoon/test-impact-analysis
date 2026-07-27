@@ -100,12 +100,12 @@
 | SP5-REQ-005 | 실패 내성+권한 안내 | PrCommentScriptE2ETest#ghFailureWarnsWithPermissionHint | E2E | 🟢 green |
 | SP5-REQ-006 | 65,536자 절단+하드캡 | PrCommentScriptE2ETest#oversizedBodyTruncated / #oversizedHeadHardCapped | E2E | 🟢 green |
 | SP5-REQ-007 | 액션 스텝 배선 | action.yml 정적 검토 (구현 task 산출물 대조) | manual | 🟢 green |
-| SP5-REQ-008 | 탭 가이드 | ReportBuilderTest#tabGuidesRenderedFiveTimes + 전체 스위트 | unit | 🔴 planned |
-| SP5-REQ-009 | 빈 상태 1·2·5 (탭5 구분) | ReportBuilderTest#emptyStateHintsForSparseTabs / #fullCoverageBlindTabShowsPositiveMessage | unit | 🔴 planned |
-| SP5-REQ-010 | 소비자 문서 | PR 전 docs 게이트 점검 | build | 🟡 partial |
+| SP5-REQ-008 | 탭 가이드 | ReportBuilderTest#tabGuidesRenderedFiveTimes + 전체 스위트 | unit | 🟢 green |
+| SP5-REQ-009 | 빈 상태 1·2·5 (탭5 구분) | ReportBuilderTest#emptyStateHintsForSparseTabs / #fullCoverageBlindTabShowsPositiveMessage | unit | 🟢 green |
+| SP5-REQ-010 | 소비자 문서 | PR 전 docs 게이트 점검 | build | 🟢 green |
 
-Coverage: 7/10 green (70%) — target 100% (대상: Must 10 = 10; SP5-REQ-001/007은 수동 게이트로 검증 방법 명시).
-SP5-REQ-010 🟡 note: docker/README.md의 `pr-comment`/`github-token`+전제조건(permissions/포크 read-only)과
+Coverage: 10/10 green (100%) — target 100% (대상: Must 10 = 10; SP5-REQ-001/007은 수동 게이트로 검증 방법 명시).
+SP5-REQ-010: docker/README.md의 `pr-comment`/`github-token`+전제조건(permissions/포크 read-only)과
 GETTING-STARTED 입력 열거 문장 갱신은 Task 2에서 완료. 수용기준의 "README·GETTING-STARTED 인라인 가이드
-1줄 언급"은 인라인 **탭** 가이드(SP5-REQ-008 구현 산출물)를 가리키므로 Task 3(REQ-008 구현 후)에서 이어서
-완료한다 — Task 2 브리프에서 명시적으로 범위 제외.
+1줄 언급"(인라인 **탭** 가이드, SP5-REQ-008 구현 산출물)은 Task 3에서 README.md·GETTING-STARTED.md에
+각 1줄 추가로 완료.

@@ -43,6 +43,9 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 .flex{display:flex;gap:18px;flex-wrap:wrap}.grow{flex:1;min-width:280px}
 .blindgrid{columns:2;column-gap:24px}.blindgrid div{break-inside:avoid;padding:3px 0}
 .foot{color:var(--mut);font-size:12px;padding:20px 28px;border-top:1px solid var(--line)}
+.tab-guide{margin:0 0 12px;color:var(--mut)}.tab-guide summary{cursor:pointer;color:var(--fg);font-size:13px}
+.tab-guide p{margin:8px 0 0;font-size:13px;line-height:1.6}
+.empty-state{color:var(--mut);font-size:13px;padding:14px 0}
 </style></head><body>
 <header>
 <h1>Test-Impact-Analysis · <span id="sut"></span> black-box suite</h1>
@@ -52,12 +55,15 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 <nav id="nav"></nav>
 <main>
 <section id="s-pertest"><h2>1 · Per-test impact range</h2>
+<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 각 테스트가 실행 중 실제로 통과한 프로덕션 코드의 파일과 라인을 보여준다. 행을 클릭하면 그 테스트가 건드린 파일 목록이 펼쳐지고, 파일 링크를 열면 커버리지 리포트의 해당 위치로 이동한다. 도달 범위 값이 클수록 그 테스트가 넓은 영역을 검증한다는 뜻이며, 값이 유독 크면 테스트 하나가 너무 많은 책임을 지고 있지 않은지 점검해 볼 만하다. 검색창으로 특정 테스트를 빠르게 찾을 수 있다.</p></details>
 <p class="hint">각 블랙박스 테스트가 실제로 실행한 프로덕션 파일/라인. 행 클릭 시 파일 목록 펼침 — 파일명을 클릭하면 JaCoCo 커버리지 HTML의 해당 라인으로 이동. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
 <input class="search" id="ptq" placeholder="filter tests…"><div id="pttbl"></div></section>
 <section id="s-reverse"><h2>2 · Reverse selection index</h2>
+<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 프로덕션 파일을 기준으로 그 파일을 실행하는 테스트 목록을 보여주는 역방향 색인이다. 특정 파일을 고칠 때 함께 실행해야 할 테스트를 빠르게 파악할 수 있다. 연결된 테스트 수가 많은 파일일수록 변경 시 영향 범위가 넓은 핫스팟이므로 더 신중히 다뤄야 한다. 행을 펼치면 관련 테스트 목록이 나타나고, 각 항목을 열면 해당 테스트의 소스 위치로 이동한다.</p></details>
 <p class="hint">"이 파일을 고치면 이 테스트들을 돌려라." fan-in이 높을수록 변경 위험 큰 핫스팟. 행 클릭 시 테스트 목록 펼침 — 테스트명을 클릭하면 로컬 테스트 소스 파일을 연다. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
 <input class="search" id="rvq" placeholder="filter files…"><div id="rvtbl"></div></section>
 <section id="s-impact"><h2>3 · tia impact — diff 기반 테스트 선별</h2>
+<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 특정 변경(diff)이 어떤 테스트에 영향을 주는지 실제 커버리지 기록을 바탕으로 선별한 결과를 보여준다. 변경된 라인이 어떤 테스트의 기록과 정확히 겹치면 그 테스트만 실행하도록 정밀하게 추천하고, 겹치는 기록을 찾을 수 없는 변경은 안전을 위해 전체 테스트를 후보로 포함하는 보수적인 방식으로 처리한다. 절감률이 높을수록 실행을 건너뛸 수 있는 테스트가 많다는 뜻이며, 선별된 테스트가 하나도 없다면 그 변경이 어떤 테스트에도 닿지 않는 사각지대라는 신호다. 각 카드에서 변경 내용과 선별된 테스트 목록을 함께 확인하고, 보수적 선별이나 사각지대로 표시된 항목은 우선적으로 점검하는 것이 좋다.</p></details>
 <p class="hint"><b>베이스라인 커밋</b>(<code id="impact-base"></code> — <code>tia index</code>로 per-test 커버리지를 DB에 저장한 시점)에 <b>적용하려는 변경(diff)</b>을 비교하고, 그 변경 라인을 커버하는 테스트만 골라낸다.</p>
 <div class="note">📌 <b>무엇과 무엇을 비교하나?</b> <code>origin HEAD ↔ local HEAD</code> 같은 고정 비교가 <b>아니다</b>. 베이스라인은 위의 인덱싱된 커밋이고, 비교 대상은 "지금 평가하려는 diff" — 커밋 전 워킹트리, 브랜치 vs 베이스라인, PR diff 등 무엇이든 된다. <b>이 데모에서는</b> 시나리오마다 대상 파일/라인에 <code>// tia-probe</code> 한 줄을 넣은 <b>합성 diff</b>를 베이스라인과 비교했다(perturb-and-revert — 워킹트리 변경은 즉시 복원). <b>선별 규칙:</b> diff의 변경 라인 ∩ 각 테스트의 커버 라인 ≠ ∅ → 🎯 정밀 선별.</div>
 <div class="legend"><h3>용어 설명</h3><dl>
@@ -68,8 +74,11 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 <dt><span class="del">⚠ 0개 선별</span></dt><dd>어떤 테스트도 닿지 않는 파일을 변경 → 선별 0개. <b>커버리지 사각지대</b>(탭 5 참조).</dd>
 </dl></div>
 <div id="scen"></div></section>
-<section id="s-flaky"><h2>4 · Flaky detection</h2><div id="flaky"></div></section>
+<section id="s-flaky"><h2>4 · Flaky detection</h2>
+<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 테스트 스위트가 실제로 불안정한지, 그리고 그 불안정성을 잡아내는 검출 로직이 제대로 동작하는지를 함께 보여준다. 첫 번째 카드는 동일한 스위트를 여러 번 반복 실행해 결과가 바뀌는 테스트가 있는지 실측한 값이고, 두 번째 카드는 결과를 일부러 뒤집은 가상의 실행으로 검출 로직 자체가 살아있는지 검증하는 대조군이다. 두 값은 서로 다른 것을 재는 지표이므로 같을 필요가 없으며, 대조군이 조작한 사례를 정확히 잡아낼 때 비로소 첫 번째 카드의 낮은 수치를 신뢰할 수 있다. 표시되는 테스트가 많을수록 스위트 안정성에 대한 신뢰도가 떨어진다는 뜻이니 우선 조사 대상으로 삼는다.</p></details>
+<div id="flaky"></div></section>
 <section id="s-blind"><h2>5 · Coverage blind spots</h2>
+<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 테스트 스위트가 단 한 번도 실행하지 않은 프로덕션 코드 파일 목록을 보여준다. 이런 파일에 결함이 생기면 어떤 테스트도 이를 잡아내지 못하므로 커버리지의 진짜 사각지대를 의미한다. 목록에 자주 등장하는 영역이 있다면 새로운 테스트를 추가하거나 기존 테스트의 범위를 넓히는 것을 검토해야 한다. 반대로 이 목록이 비어 있다면 프로덕션 코드 전체가 최소 한 번 이상 테스트에 의해 실행되었다는 뜻이다.</p></details>
 <p class="hint" id="blindhint"></p><div class="blindgrid" id="blindlist"></div>
 <div class="note"><b>왜 중요한가:</b> 블랙박스 스위트는 <code>/api/**</code> REST 계층을 지키지만, 여기 나열된 파일들은 어떤 테스트도 건드리지 않는다. 이 파일들에 대한 <em>수정</em>은 정밀 선별(DETERMINISTIC)에서 0개를 반환한다(시나리오 E 참조).</div>
 </section>
@@ -142,6 +151,9 @@ function ptRows(q){q=(q||'').toLowerCase();
    <tr class="det" style="display:none"><td colspan="5"><div class="chips">${files||'<span class=gutter>no attributed coverage</span>'}</div></td></tr>`;
  }).join('')}
 function drawPt(){
+ if(!D.perTest.length){
+  document.getElementById('pttbl').innerHTML='<div class="empty-state">데이터가 없습니다 — testwise 입력이 비었거나 필터로 모두 제외되었습니다. testwise.json에 실행 결과를 채우거나 필터 범위를 넓히면 이 탭이 채워진다.</div>';
+  return;}
  document.getElementById('pttbl').innerHTML=
  `<table><thead>${headHtml(PT_COLS,ptSort)}</thead><tbody>${ptRows(document.getElementById('ptq').value)}</tbody></table>`;
  document.querySelectorAll('#pttbl tr.exp').forEach(r=>r.onclick=e=>{
@@ -161,6 +173,9 @@ function rvRows(q){q=(q||'').toLowerCase();
    <td><div class="bar"><i style="width:${100*r.n/max}%"></i></div></td></tr>
    <tr class="det" style="display:none"><td colspan="3"><div class="chips">${chips}</div></td></tr>`;}).join('');}
 function drawRv(){
+ if(!D.reverse.length){
+  document.getElementById('rvtbl').innerHTML='<div class="empty-state">데이터가 없습니다 — testwise 입력이 비었거나 필터로 모두 제외되었습니다. testwise.json에 실행 결과를 채우거나 필터 범위를 넓히면 이 탭이 채워진다.</div>';
+  return;}
  document.getElementById('rvtbl').innerHTML=`<table><thead>${headHtml(RV_COLS,rvSort)}</thead><tbody>${rvRows(document.getElementById('rvq').value)}</tbody></table>`;
  document.querySelectorAll('#rvtbl tr.exp').forEach(r=>r.onclick=e=>{
   if(e.target.closest('a'))return; const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
@@ -216,6 +231,12 @@ if(!D.flaky || !D.flaky.real){
 }
 
 // ---- 5. blind ----
-document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중 ${D.blind.length}개 파일이 어떤 블랙박스 테스트에도 닿지 않음 (${D.nCovered}개만 커버).`;
+if(D.nProd===0){
+ document.getElementById('blindhint').textContent='프로덕션 파일 목록이 없습니다 — prod-files 입력이 비었습니다. prod-files.txt를 채우면 이 탭이 사각지대를 계산해 보여준다.';
+}else if(D.blind.length===0){
+ document.getElementById('blindhint').textContent=`전체 커버 — 프로덕션 ${D.nProd}개 파일 모두 최소 한 번 이상 실행됨. 커버리지 사각지대가 없습니다.`;
+}else{
+ document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중 ${D.blind.length}개 파일이 어떤 블랙박스 테스트에도 닿지 않음 (${D.nCovered}개만 커버).`;
+}
 document.getElementById('blindlist').innerHTML=D.blind.map(f=>`<div><code>${esc(f)}</code></div>`).join('');
 </script></body></html>
