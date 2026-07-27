@@ -78,12 +78,12 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| SP2-REQ-001 | yml 기본값 주입 | TiaPluginTest#ymlDbSutNameConventions / #dslBeatsYml(db·sutName) / #reqMessageMentionsYml | integ | 🔴 planned |
-| SP2-REQ-002 | apply fail-fast | TiaPluginTest#brokenYmlFailsApply | integ | 🔴 planned |
+| SP2-REQ-001 | yml 기본값 주입 | TiaPluginTest#ymlDbSutNameConventions / #dslBeatsYml(db·sutName) / #reqMessageMentionsYml | integ | 🟢 green |
+| SP2-REQ-002 | apply fail-fast | TiaPluginTest#brokenYmlFailsApply | integ | 🟢 green |
 | SP2-REQ-003 | 글로브→클래스 패턴 | GlobToClassPatternTest#(8케이스, 실매처 — 중간 `**`/`?`·단일 `*`·기본 패키지·결합 포함) | unit | 🟢 green |
-| SP2-REQ-004 | FromConfig 전파 | TiaPluginTest#fromConfigAttachesIncludesExcludes / #noFiltersOmitsOptions / #absentYmlOmitsOptions / #coverageAgentJvmArgWithExcludes(unit) / 기존 5-인자 테스트 무수정 | integ+unit | 🟡 partial (TiaArgs 오버로드 unit만 green; FromConfig 배선은 Task 2) |
-| SP2-REQ-005 | 클래스패스 위생 | check 연결 verifyPluginClasspath 태스크 (자동 게이트) | build | 🔴 planned |
-| SP2-REQ-006 | 문서·주석 동기화 | PR 전 docs 게이트 점검 | build | 🔴 planned |
-| SP2-REQ-007 | 하위호환·CC 정합 | PluginCcSmokeFunctionalTest#ymlChangeReflectedUnderConfigurationCache + 전체 스위트 | functional | 🔴 planned |
+| SP2-REQ-004 | FromConfig 전파 | TiaPluginTest#fromConfigAttachesIncludesExcludes / #noFiltersOmitsOptions / #absentYmlOmitsOptions / #coverageAgentJvmArgWithExcludes(unit) / 기존 5-인자 테스트 무수정 | integ+unit | 🟢 green |
+| SP2-REQ-005 | 클래스패스 위생 | check 연결 verifyPluginClasspath 태스크 (자동 게이트) | build | 🟢 green |
+| SP2-REQ-006 | 문서·주석 동기화 | PR 전 docs 게이트 점검 | build | 🔴 planned (Task 3) |
+| SP2-REQ-007 | 하위호환·CC 정합 | PluginCcSmokeFunctionalTest#ymlChangeReflectedUnderConfigurationCache + 전체 스위트 | functional | 🟢 green |
 
-Coverage: 1/7 green, 1/7 partial (14%) — target 100% (대상: Must 7 = 7)
+Coverage: 6/7 green (86%) — target 100% (대상: Must 7 = 7). 잔여 SP2-REQ-006(문서·주석 동기화)은 Task 3.
