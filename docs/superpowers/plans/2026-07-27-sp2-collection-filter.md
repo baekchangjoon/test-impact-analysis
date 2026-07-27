@@ -31,20 +31,19 @@
 
 ### Task 1: GlobToClassPattern + TiaArgs 오버로드 (unit)
 
-**REQ-IDs:** SP2-REQ-003
+**REQ-IDs:** SP2-REQ-003, SP2-REQ-004(TiaArgs 오버로드 부분만 — FromConfig 배선은 Task 2), SP2-REQ-006(TiaArgs 계약 주석 부분)
 
-- [ ] 실패 테스트: `GlobToClassPatternTest` — REQ-003의 5케이스를 실매처(`new WildcardMatcher(pattern).matches(fqcn)`)로 단언 + `?` 통과 + `convertAll` 콜론 결합. red 확인.
-- [ ] 구현: spec §3 규칙 그대로. `TiaArgs`에 excludes 오버로드(기존 4-인자는 위임)·계약 주석 갱신. `build.gradle`에 `testImplementation 'org.jacoco:org.jacoco.core:0.8.12'`.
-- [ ] green + 기존 `TiaPluginTest` 무수정 green → Commit `feat(plugin): GlobToClassPattern — 유니온·$접미·콜론 결합, TiaArgs excludes [SP2-REQ-003]` + 매트릭스.
+- [ ] 실패 테스트: `GlobToClassPatternTest` — REQ-003의 8케이스를 실매처(`new WildcardMatcher(pattern).matches(fqcn)`; 결합 문자열째 매칭 포함)로 단언 + `TiaPluginTest#coverageAgentJvmArgWithExcludes`(오버로드 단독: includes+excludes / excludes만). red 확인.
+- [ ] 구현: spec §3 **일괄 과포함 5단계 규칙** 그대로(`convertOne`/`convertAll`). `TiaArgs`에 excludes 오버로드(기존 4-인자는 위임)·계약 주석 excludes 반영. `build.gradle`에 `testImplementation 'org.jacoco:org.jacoco.core:0.8.12'`.
+- [ ] green + 기존 `TiaPluginTest` 무수정 green → Commit `feat(plugin): GlobToClassPattern 일괄 과포함 변환 + TiaArgs excludes [SP2-REQ-003/004]` + 매트릭스.
 
-### Task 2: tia.yml 소비 + FromConfig (plugin)
+### Task 2: tia.yml 소비 + FromConfig + 위생 게이트 + CC 스모크 (plugin)
 
-**REQ-IDs:** SP2-REQ-001, SP2-REQ-002, SP2-REQ-004, SP2-REQ-005
+**REQ-IDs:** SP2-REQ-001, SP2-REQ-002, SP2-REQ-004, SP2-REQ-005, SP2-REQ-007(CC 스모크)
 
-- [ ] 실패 테스트: `TiaPluginTest` 케이스 추가(매트릭스 6개 — @TempDir+.git 마커+ProjectBuilder.withProjectDir; 깨진 yml apply 예외; FromConfig jvmArgs 검사). red 확인.
-- [ ] 구현: `build.gradle` tia-core 의존(제외 3그룹, spec §2 블록 그대로); `TiaPlugin.apply`에 로드(try: `TiaConfigLoader.load(null, projectDir)`; `TiaConfigException` → `GradleException`) 후 convention 주입(기존 convention 라인들 **뒤에서**); `attachCoverageAgentFromConfig(Project, Test, File, File, int)` — 재로드→`GlobToClassPattern.convertAll`→`TiaArgs` 5-인자 jvmArg(비면 각 옵션 생략); `req()` 메시지에 tia.yml 안내.
-- [ ] `./gradlew :tia-gradle-plugin:dependencies --configuration runtimeClasspath`로 REQ-005 확인(리포트 기록) + `./gradlew help --configuration-cache` 스모크(레포 루트 tia.yml 임시 생성 후 삭제 — 또는 @TempDir 소비 프로젝트로 확인, 방법 기록).
-- [ ] green + 전체 스위트 green → Commit `feat(plugin): tia.yml 소비(db·sut-name·fail-fast) + attachCoverageAgentFromConfig [SP2-REQ-001/002/004/005]` + 매트릭스.
+- [ ] 실패 테스트: `TiaPluginTest` 케이스 추가(매트릭스 — @TempDir+.git 마커+ProjectBuilder.withProjectDir; dslBeatsYml은 db·sutName 양쪽; absentYmlOmitsOptions 포함; 깨진 yml apply 예외; FromConfig jvmArgs 검사) + **`PluginCcSmokeFunctionalTest`**(GradleRunner 1건: @TempDir 소비 프로젝트에 settings.gradle+build.gradle(plugins { id 'io.tia' })+tia.yml A 생성, `--configuration-cache`로 값 출력 태스크 실행 → yml B 교체 재실행 → B 값 확인. `gradlePlugin { testSourceSets(sourceSets.test) }`+`testImplementation gradleTestKit()` 배선, `GradleRunner.withPluginClasspath()` 사용). red 확인.
+- [ ] 구현: `build.gradle` tia-core 의존(제외 3그룹, spec §2 블록) + **check 연결 `verifyPluginClasspath` 태스크**(runtimeClasspath 순회, 세 그룹 발견 시 실패); `TiaPlugin.apply` 로드(try: `TiaConfigLoader.load(null, projectDir)`; `TiaConfigException`→`GradleException`) 후 convention 주입(기존 convention 라인들 **뒤**); `attachCoverageAgentFromConfig(Project, Test, File, File, int)` — 재로드→`convertAll`→5-인자 jvmArg(비면 옵션 생략, yml 부재 동일); `req()` 메시지에 tia.yml을 대안 소스로 언급.
+- [ ] green(기능 스모크 포함) + `./gradlew :tia-gradle-plugin:check`(위생 게이트) + 전체 스위트 green → Commit `feat(plugin): tia.yml 소비·FromConfig·클래스패스 게이트·CC 스모크 [SP2-REQ-001/002/004/005/007]` + 매트릭스.
 
 ### Task 3: 문서·주석 동기화
 
