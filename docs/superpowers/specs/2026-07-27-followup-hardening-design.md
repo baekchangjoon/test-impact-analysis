@@ -139,11 +139,10 @@
 | FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🟢 green |
 | FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🟢 green |
 | FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡 — PR #32 run 30268995437 자기실증(green + 마커 코멘트 1건) | CI | 🟢 green |
-| FU-REQ-008 | demo 주간 잡 | demo-weekly.yml + dispatch 1회 기록 | CI | 🟡 작성됨 (dispatch 대기) |
+| FU-REQ-008 | demo 주간 잡 | demo-weekly.yml — 머지 후 dispatch run 30270039363 success 기록 | CI | 🟢 green |
 | FU-REQ-009 | 릴리스 노트 | docs 게이트(파일·Inputs 명시·README 링크) | docs | 🟢 green |
 
-Coverage: 8/9 green (89%) — FU-REQ-007은 PR #32에서 자기실증 완료(run 30268995437 green + `<!-- tia-impact-comment -->`
-마커 코멘트 1건 확인). 잔여는 FU-REQ-008 dispatch(머지 후 게이트)뿐.
+Coverage: 9/9 green (100%) — FU-REQ-008은 머지 후 dispatch run 30270039363 success로 마감(DoD 카브아웃 이행 완료).
 target: 머지 전 8/9(FU-REQ-008 제외) + 머지 후 FU-REQ-008 dispatch 기록으로 9/9 (대상: Must 9;
 tia-config 분리는 기각으로 매트릭스 제외)
 
