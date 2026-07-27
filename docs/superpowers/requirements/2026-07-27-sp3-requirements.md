@@ -102,9 +102,9 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| SP3-REQ-001 | init 생성·SP1 정합 | InitCommandE2ETest#nonInteractiveCreatesValidYml | E2E | 🔴 planned |
-| SP3-REQ-002 | init 가드·섀도잉 방지 | InitCommandE2ETest#subdirDetectsRootYml / #forceOverwritesAtRoot | E2E | 🔴 planned |
-| SP3-REQ-003 | init 비TTY usage | InitCommandE2ETest#nonTtyMissingTopologyExit2 | E2E | 🔴 planned |
+| SP3-REQ-001 | init 생성·SP1 정합 | InitCommandE2ETest#nonInteractiveCreatesValidYml | E2E | 🟢 green |
+| SP3-REQ-002 | init 가드·섀도잉 방지 | InitCommandE2ETest#subdirDetectsRootYml / #forceOverwritesAtRoot | E2E | 🟢 green |
+| SP3-REQ-003 | init 비TTY usage | InitCommandE2ETest#nonTtyMissingTopologyExit2 | E2E | 🟢 green |
 | SP3-REQ-004 | doctor 체크 계약 | DoctorCommandE2ETest#emptyDirWarnsAndSkips / #brokenYmlFails / #healthyProjectPasses | E2E | 🔴 planned |
 | SP3-REQ-005 | doctor 읽기 전용 | DoctorCommandE2ETest#doesNotCreateDbFile | E2E | 🔴 planned |
 | SP3-REQ-006 | doctor JSON·포맷 제한 | DoctorCommandE2ETest#jsonSchema / #summaryFormatRejected | E2E | 🔴 planned |
@@ -114,4 +114,4 @@
 | SP3-REQ-010 | CLI 배선 | CliWiringTest#optionsForInitDoctorDemo | CLI | 🔴 planned |
 | SP3-REQ-011 | 문서 재구성 | PR 전 docs 게이트 점검 | build | 🔴 planned |
 
-Coverage: 0/11 green (0%) — target 100% (대상: Must 11 = 11)
+Coverage: 3/11 green (27%) — target 100% (대상: Must 11 = 11)
