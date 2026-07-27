@@ -46,4 +46,26 @@ class CliWiringTest {
     @Test void optionsForConvert() {
         assertFalse(hasOption(tia(), "convert", "--config"));       // 소비할 값 없음
     }
+
+    /** SP3-REQ-010 — init/doctor/demo 배선: 세 서브커맨드 존재 + 표 밖 조합 부재. */
+    @Test void optionsForInitDoctorDemo() {
+        CommandLine tia = tia();
+        assertTrue(tia.getSubcommands().containsKey("init"));
+        assertTrue(tia.getSubcommands().containsKey("doctor"));
+        assertTrue(tia.getSubcommands().containsKey("demo"));
+
+        assertTrue(hasOption(tia, "doctor", "--config"));
+        assertTrue(hasOption(tia, "doctor", "--db"));
+
+        assertFalse(hasOption(tia, "init", "--exclude-code"));      // 시드는 include만
+        assertFalse(hasOption(tia, "init", "--config"));            // ConfigMixin 재사용 금지(누출 방지)
+
+        assertTrue(hasOption(tia, "demo", "--scripts-dir"));
+        assertTrue(hasOption(tia, "demo", "--out-dir"));
+        assertTrue(hasOption(tia, "demo", "--repo-root"));
+        assertTrue(tia.getSubcommands().get("demo").getCommandSpec()
+                .optionsMap().get("--repo-root").hidden(), "--repo-root는 히든 시임이어야 함");
+        assertFalse(hasOption(tia, "demo", "--db"));
+        assertFalse(hasOption(tia, "demo", "--include-code"));
+    }
 }

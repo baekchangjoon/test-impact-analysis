@@ -108,10 +108,10 @@
 | SP3-REQ-004 | doctor 체크 계약 | DoctorCommandE2ETest#emptyDirWarnsAndSkips / #brokenYmlFails / #healthyProjectPasses | E2E | 🟢 green |
 | SP3-REQ-005 | doctor 읽기 전용 | DoctorCommandE2ETest#doesNotCreateDbFile | E2E | 🟢 green |
 | SP3-REQ-006 | doctor JSON·포맷 제한 | DoctorCommandE2ETest#jsonSchema / #summaryFormatRejected | E2E | 🟢 green |
-| SP3-REQ-007 | demo 레포 전제 | DemoCommandE2ETest#outsideRepoExit1 | E2E | 🔴 planned |
-| SP3-REQ-008 | demo 파이프라인 | DemoCommandE2ETest#stubbedCollectRealIndexImpactReport | E2E | 🔴 planned |
-| SP3-REQ-009 | demo 실패 처리(양쪽) | DemoCommandE2ETest#failingStubShowsStderrAndDoctorHint / #zeroCoveredLinesFailsAtDiffStage | E2E | 🔴 planned |
-| SP3-REQ-010 | CLI 배선 | CliWiringTest#optionsForInitDoctorDemo | CLI | 🔴 planned |
+| SP3-REQ-007 | demo 레포 전제 | DemoCommandE2ETest#outsideRepoExit1 | E2E | 🟢 green |
+| SP3-REQ-008 | demo 파이프라인 | DemoCommandE2ETest#stubbedCollectRealIndexImpactReport | E2E | 🟢 green |
+| SP3-REQ-009 | demo 실패 처리(양쪽) | DemoCommandE2ETest#failingStubShowsStderrAndDoctorHint / #zeroCoveredLinesFailsAtDiffStage | E2E | 🟢 green |
+| SP3-REQ-010 | CLI 배선 | CliWiringTest#optionsForInitDoctorDemo | CLI | 🟢 green |
 | SP3-REQ-011 | 문서 재구성 | PR 전 docs 게이트 점검 | build | 🔴 planned |
 
-Coverage: 6/11 green (55%) — target 100% (대상: Must 11 = 11)
+Coverage: 10/11 green (91%) — target 100% (대상: Must 11 = 11)
