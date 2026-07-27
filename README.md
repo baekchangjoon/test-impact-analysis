@@ -322,6 +322,7 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 ## 문서
 
 - **[GETTING-STARTED.md](GETTING-STARTED.md)** — 내 프로젝트에 적용하는 5분 길잡이(수집→index→impact→report)
+- [RELEASE-NOTES.md](docs/RELEASE-NOTES.md) — 버전별 변경 요약 + 호환성 주의사항
 - [petclinic-demo](petclinic-demo/README.md) — 실제 블랙박스 스위트 end-to-end 예제 + "이미 커버리지가 있을 때"
 - [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) — HTML 리포트 5개 탭 해설
 - [배포 형태] [Gradle 플러그인](tia-gradle-plugin/README.md) · [Docker/Action](docker/README.md) · [Agent Skill](skills/tia/SKILL.md)
