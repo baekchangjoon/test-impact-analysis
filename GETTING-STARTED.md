@@ -17,6 +17,10 @@
 
 ### ① 클론 + 빌드
 
+**JDK 17 필요**(코드가 Java 17 바이트코드) — macOS는 `/usr/libexec/java_home -v 17`로 자동 선택되고,
+그 외 OS는 `JAVA_HOME`을 JDK 17로 지정한다(전체 사전 요구사항: 2부 [§0 설치](#0-설치-택1) 위
+[README 사전 요구사항](README.md#사전-요구사항)).
+
 ```bash
 git clone https://github.com/baekchangjoon/test-impact-analysis.git
 cd test-impact-analysis
@@ -355,6 +359,8 @@ YAML 파싱 실패·미지원 `version`·알 수 없는 최상위 키·글로브
    글로브는 `com/acme/pricing/PricingService.java`(정규화된 키)에 매칭해야 한다.
    `src/main/java/com/acme/**` 같은 글로브는 **아무 것도 매칭하지 않는다** — 가장 흔한 함정이다
    (`tia init`이 생성하는 `tia.yml` 주석도 이 함정을 경고한다).
+   test 글로브도 마찬가지로 testId 공간에 매칭하며, `#`는 매칭 전 `/`로 치환된다(예:
+   `AuthApiBlackBoxIT#login...` → `AuthApiBlackBoxIT/login...`).
 3. **`exclude`는 "이 경로/테스트는 TIA 판정 범위 밖"이라는 선언이다.** 제외한 경로의 변경은
    TIA가 영향 분석에서 아예 빼버리므로, **그 경로의 회귀는 TIA가 잡아주지 못한다.** 생성 코드나
    DTO 노이즈를 줄이려는 의도라도, exclude 범위가 넓을수록 회귀 누출 위험이 커진다 — 필터가
