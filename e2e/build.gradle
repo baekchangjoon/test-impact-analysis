@@ -9,7 +9,7 @@ dependencies {
     testImplementation(project(':fixture-app')) { transitive = false }
     testImplementation 'info.picocli:picocli:4.7.6'
     testImplementation 'org.roaringbitmap:RoaringBitmap:1.2.1'
-    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'   // FormatE2ETest: --format json 스키마 파싱(SP1)
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.8'   // FormatE2ETest: --format json 스키마 파싱(SP1)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
     testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.3.0'
