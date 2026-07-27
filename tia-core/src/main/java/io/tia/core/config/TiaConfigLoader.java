@@ -35,8 +35,9 @@ public final class TiaConfigLoader {
         return Optional.of(parse(file));
     }
 
-    /** searchStart부터 부모로 올라가며 tia.yml 탐색. `.git`이 있는 디렉터리(git 루트)까지 포함 후 중단. */
-    private static Path discover(Path searchStart) {
+    /** searchStart부터 부모로 올라가며 tia.yml 탐색. `.git`이 있는 디렉터리(git 루트)까지 포함 후 중단.
+     *  public: {@code tia init}(SP3)이 동일한 탐색으로 기존 tia.yml 경로를 가드 메시지에 노출하기 위해 재사용. */
+    public static Path discover(Path searchStart) {
         Path dir = searchStart.toAbsolutePath().normalize();
         while (dir != null) {
             Path candidate = dir.resolve(FILE_NAME);
