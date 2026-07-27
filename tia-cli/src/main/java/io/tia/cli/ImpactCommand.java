@@ -29,6 +29,9 @@ public class ImpactCommand implements Callable<Integer> {
     @Mixin TestFilterMixin testFilter;
 
     @Option(names = "--db") Path db;
+    @Option(names = "--working-dir", hidden = true,
+            description = "테스트/MCP 시임: 암시적 git diff·기본 DB 해석 기준 디렉터리(미지정 시 프로세스 cwd)")
+    Path workingDir;
     @Option(names = "--commit", required = true) String commit;
     @Option(names = "--diff-file", description = "unified diff 파일 (미지정 시 --git-ref로 git diff 실행)") Path diffFile;
     @Option(names = "--git-ref", description = "diff 베이스 ref (미지정 시 --commit). 라인 공간 정렬 위해 인덱싱 커밋과 일치해야 함 [설계 §6.2 4-B]") String gitRef;
@@ -54,7 +57,7 @@ public class ImpactCommand implements Callable<Integer> {
 
         Path effectiveDb = (db != null) ? db
                 : (cfg.db() != null) ? cfg.db()          // [REQ-023]
-                : DbPaths.resolveDefault();
+                : DbPaths.resolveDefault(workingDir);    // [SP4-REQ-004] null → 기존 동작과 동일
         if (db == null && cfg.db() == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         CoverageSnapshot snap;
         int buildCount;
@@ -88,7 +91,8 @@ public class ImpactCommand implements Callable<Integer> {
         String base = (gitRef == null) ? commit : gitRef;
         String diffText = (diffFile != null)
             ? Files.readString(diffFile)
-            : runGitDiff(base, null);   // null = 현재 작업 디렉터리(레포)에서 git diff
+            // [SP4-REQ-004] workingDir 미지정(null) → 현재 작업 디렉터리(레포)에서 git diff(기존 동작)
+            : runGitDiff(base, (workingDir != null) ? workingDir.toFile() : null);
 
         DiffSummary rawDiff = new GitDiffParser().parse(diffText);
         DiffFilter.Result filtered = DiffFilter.apply(rawDiff, filters);

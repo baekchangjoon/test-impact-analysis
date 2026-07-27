@@ -69,7 +69,7 @@
 | SP4-REQ-001 | initialize 협상 | McpCommandE2ETest#initializeEchoesSupportedVersion / #unsupportedVersionFallsBack | E2E | 🔴 planned |
 | SP4-REQ-002 | tools/list(+description) | McpCommandE2ETest#toolsListSchema | E2E | 🔴 planned |
 | SP4-REQ-003 | tia_impact JSON·git_ref | McpCommandE2ETest#impactReturnsSp1Json / #gitRefMappedToCliOption | E2E | 🔴 planned |
-| SP4-REQ-004 | working_dir 실효(+상대 db) | McpCommandE2ETest#workingDirGovernsDiffAndDb / #relativeDiffFileResolvedAgainstWorkingDir / #relativeDbResolvedAgainstWorkingDir + CliWiringTest(--working-dir hidden 단언) | E2E+CLI | 🔴 planned |
+| SP4-REQ-004 | working_dir 실효(+상대 db) | McpCommandE2ETest#workingDirGovernsDiffAndDb / #relativeDiffFileResolvedAgainstWorkingDir / #relativeDbResolvedAgainstWorkingDir + CliWiringTest(--working-dir hidden 단언) | E2E+CLI | 🟡 partial(Task 1: DbPaths.resolveDefault(workingDir)+gitCommonDir(workingDir) · ImpactCommand/DoctorCommand 히든 `--working-dir`(diff·기본 DB 해석 배선) 구현·green — DbPathsTest#workingDirGitRepoUsesItsCommonDir/#workingDirNonGitFallsBackToCacheHome, ImpactCommandTest#workingDirGovernsDiffAndDefaultDb, CliWiringTest#workingDirHiddenSeamOnImpactAndDoctor. McpCommandE2ETest(MCP 어댑터 경유·상대경로 db/diff_file 절대화)는 Task 2에서 완료) |
 | SP4-REQ-005 | tia_doctor FAIL≠isError | McpCommandE2ETest#doctorFailIsNotError(깨진 tia.yml 픽스처) | E2E | 🔴 planned |
 | SP4-REQ-006 | 오류·수명(+ping) | McpCommandE2ETest#unknownMethod32601 / #parseError32700ThenAlive / #unknownTool32602 / #missingRequired32602 / #execFailureIsError / #notificationNoResponse / #eofExitsZero / #pingReturnsEmptyObject | E2E | 🔴 planned |
 | SP4-REQ-007 | CLI 배선 | CliWiringTest#subcommandsIncludeMcp | CLI | 🔴 planned |

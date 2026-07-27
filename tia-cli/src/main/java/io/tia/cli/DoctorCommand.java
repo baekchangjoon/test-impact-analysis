@@ -31,6 +31,10 @@ public class DoctorCommand implements Callable<Integer> {
     @Option(names = "--db", description = "인덱스 DB 경로(미지정 시 tia.yml→기본값 해석)")
     Path db;
 
+    @Option(names = "--working-dir", hidden = true,
+            description = "테스트/MCP 시임: 기본 DB 해석 기준 디렉터리(미지정 시 프로세스 cwd). 체크 2/5/6은 --search-root 기준 유지")
+    Path workingDir;
+
     @Option(names = "--format", defaultValue = "text",
             description = "출력 형식: ${COMPLETION-CANDIDATES} (기본 text)")
     DoctorFormat format;
@@ -55,7 +59,7 @@ public class DoctorCommand implements Callable<Integer> {
 
         Path effectiveDb = (db != null) ? db
                 : (cfg.db() != null) ? cfg.db()
-                : DbPaths.resolveDefault();
+                : DbPaths.resolveDefault(workingDir);    // [SP4-REQ-004] null → 기존 동작과 동일
         boolean dbExists = Files.exists(effectiveDb);
         checks.add(dbExists
                 ? pass("index-db", "인덱스 DB 존재", "DB 파일 존재: " + effectiveDb)

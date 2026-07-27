@@ -26,6 +26,18 @@ class CliWiringTest {
         assertTrue(hasOption(tia(), "impact", "--include-test"));
         assertTrue(hasOption(tia(), "impact", "--format"));
     }
+
+    /** SP4-REQ-004 — impact/doctor의 --working-dir 시임: 존재 + hidden(테스트/MCP 전용, 일반 CLI 표면 미노출). */
+    @Test void workingDirHiddenSeamOnImpactAndDoctor() {
+        CommandLine tia = tia();
+        assertTrue(hasOption(tia, "impact", "--working-dir"));
+        assertTrue(tia.getSubcommands().get("impact").getCommandSpec()
+                .optionsMap().get("--working-dir").hidden(), "impact --working-dir는 히든 시임이어야 함");
+
+        assertTrue(hasOption(tia, "doctor", "--working-dir"));
+        assertTrue(tia.getSubcommands().get("doctor").getCommandSpec()
+                .optionsMap().get("--working-dir").hidden(), "doctor --working-dir는 히든 시임이어야 함");
+    }
     @Test void optionsForFlaky() {
         assertTrue(hasOption(tia(), "flaky", "--config"));
         assertTrue(hasOption(tia(), "flaky", "--include-test"));

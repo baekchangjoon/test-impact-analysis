@@ -235,6 +235,62 @@ class ImpactCommandTest {
         assertFalse(err.toString().contains("기본 인덱스 DB"), err.toString());
     }
 
+    @Test
+    @DisplayName("SP4-REQ-004: --working-dir 지정 시 암시적 git diff·기본 DB 해석이 모두 그 레포 기준")
+    void workingDirGovernsDiffAndDefaultDb(@TempDir Path repo) throws Exception {
+        git(repo, "init", "-q");
+        git(repo, "config", "user.email", "t@example.com");
+        git(repo, "config", "user.name", "tester");
+        Path src = repo.resolve("fixture-app/src/main/java/io/tia/fixture/PricingService.java");
+        Files.createDirectories(src.getParent());
+        Files.writeString(src, """
+            class PricingService {
+                int price() { return 100; }
+            }
+            """);
+        git(repo, "add", ".");
+        git(repo, "commit", "-q", "-m", "init");
+        String head = headCommit(repo);
+        Files.writeString(src, """
+            class PricingService {
+                int price() { return 200; }
+            }
+            """);   // unstaged change → visible only via git diff run inside `repo`
+
+        // 기본 DB 해석 경로(DbPaths.resolveDefault(repo))에 직접 인덱싱 — --db 생략 시 이 경로가 쓰여야 함.
+        Path expectedDb = DbPaths.resolveDefault(repo);
+        try (CoverageStore store = new CoverageStore(expectedDb)) {
+            store.save(new CoverageSnapshot("fixture", head, List.of(
+                new TestCoverage("T_price", "PASSED",
+                    Map.of("io/tia/fixture/PricingService.java", RoaringBitmap.bitmapOf(2))))));
+        }
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            PrintStream prev = System.out; System.setOut(new PrintStream(out));
+            // --db, --diff-file 모두 생략 → working-dir(repo) 기준 기본 DB + 암시적 git diff
+            int code = new CommandLine(new TiaCommand()).execute(
+                "impact", "--working-dir", repo.toString(), "--commit", head);
+            System.setOut(prev);
+
+            assertEquals(0, code);
+            String printed = out.toString();
+            assertFalse(printed.contains(ImpactCommand.NO_BASELINE_MARKER), printed);   // 공허 성공(0건) 아님
+            assertTrue(printed.contains("T_price"), printed);
+        } finally {
+            Files.deleteIfExists(expectedDb);   // repo 자체가 @TempDir이라 보통 불필요하지만 방어적으로 정리
+        }
+    }
+
+    private static String headCommit(Path dir) throws Exception {
+        Process p = new ProcessBuilder("git", "rev-parse", "HEAD").directory(dir.toFile())
+            .redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes()).trim();
+        if (p.waitFor() != 0) {
+            throw new IllegalStateException("git rev-parse HEAD failed: " + out);
+        }
+        return out;
+    }
+
     private static void git(Path dir, String... args) throws Exception {
         String[] cmd = new String[args.length + 1];
         cmd[0] = "git";
