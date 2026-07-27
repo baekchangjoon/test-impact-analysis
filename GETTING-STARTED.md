@@ -370,6 +370,15 @@ YAML 파싱 실패·미지원 `version`·알 수 없는 최상위 키·글로브
    실제로 변경을 무시할 때마다 `impact`가 stderr에 `# WARN: excluded change ignored: <path>`를
    출력하니 그 경고를 무시하지 말 것.
 
+**Gradle 플러그인의 수집 필터(SP2).** `io.tia` 플러그인의 `attachCoverageAgentFromConfig`는 같은
+`tia.yml`의 `filters.code`를 읽어 pjacoco 에이전트의 `includes`/`excludes`로 그대로 전파한다(상세는
+[tia-gradle-plugin/README](tia-gradle-plugin/README.md)). 이 **수집 필터는 위 소비 필터(`impact`가
+읽는 code/test 필터)와 별개**로 동작하지만 의미는 겹친다 — 수집 단계에서 좁힌 코드는 애초에 커버리지
+자체가 만들어지지 않으므로, 소비 단계의 CONSERVATIVE 판정으로도 잡을 수 없는 완전한 "범위 밖 선언"이다
+(exclude와 같은 부류의 리스크이며, 같은 `tia.yml` 한 곳에서 관리되므로 최소한 일관성은 유지된다). 또한
+같은 `tia.yml`의 `db`를 여러 서브프로젝트가 convention으로 공유하게 되므로, `tia` 태스크는
+**`--parallel`로 동시 실행하지 말 것** — SQLite 인덱스 DB에 동시 쓰기 충돌이 날 수 있다.
+
 ### 플레이키(부가)
 
 ```bash

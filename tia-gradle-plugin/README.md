@@ -28,6 +28,35 @@ tia {
 
 CLI는 `tiaCli` configuration에서 해소된다(기본 `io.tia:tia-cli:<project.version>`, `tia.cliCoordinates`로 오버라이드). PATH의 `tia`에 의존하지 않는다.
 
+## tia.yml 소비 — db·sut-name 기본값 (SP2)
+
+플러그인 `apply` 시점에 **프로젝트 디렉터리 기준 상향 탐색**으로 `tia.yml`을 읽어(CLI와 같은
+`TiaConfigLoader`) `db`·`sutName`의 기본값(convention)을 채운다. 우선순위는 **DSL 명시
+(`tia { db = ... }`) > tia.yml > 플러그인 내장 기본값**(`sutName`은 기본 `project.name`)이다.
+`tia.yml`이 아예 없으면 무변화 — 기존 사용자는 이 절을 몰라도 지금까지와 동일하게 동작한다.
+
+```gradle
+plugins { id 'io.tia' version '<ver>' }
+// 레포 루트(또는 상위 디렉터리)의 tia.yml에 db/sut-name이 있으면 아래 DSL은 생략 가능
+tia {
+    commit = '<baseline-sha>'
+    testwise = 'testwise.json'
+    // db, sutName은 tia.yml 값이 자동 주입됨 — DSL로 명시하면 그 값이 tia.yml보다 우선
+}
+```
+
+**apply-시점 fail-fast.** `tia.yml`이 존재하지만 파싱/검증에 실패하면(예: 미지원 `version`, 잘못된
+글로브 문법) `apply` 시점에 곧바로 `GradleException`으로 빌드를 실패시킨다 — CLI의 fail-fast
+계약과 동일한 의미론이다. **주의:** apply-시점 실패는 태스크 실행 시점 실패보다 파급 범위가 훨씬
+넓다 — `gradle clean`, `gradle tasks`, IntelliJ 등 IDE의 Gradle 싱크까지, 그 프로젝트를
+**구성(configure)만 해도** 전부 실패한다. 이는 의도적 선택이다 — 깨진 설정을 태스크 실행까지
+기다리지 않고 구성 단계에서 가능한 한 빨리 드러내기 위함이다.
+
+> **같은 데몬에서 즉시 재빌드 시 stale 주의.** `tia.yml`을 고치자마자 같은 Gradle 데몬으로 바로
+> 재빌드하면, 파일시스템 워처(VFS)가 변경을 아직 못 잡아 이전 값으로 평가될 수 있다(configuration
+> cache와는 별개로 데몬 자체의 워처 지연). 값이 안 바뀐 것 같으면 `--no-watch-fs`로 재실행하거나
+> 잠시 후 다시 시도한다.
+
 ## D3.1 커버리지 에이전트 와이어링 — 두 모델
 
 per-test 수집은 에이전트마다 모델이 다르다. 플러그인은 각각의 attach 헬퍼를 제공한다(에이전트 jar은 §5.3대로 사용자 제공).
@@ -71,6 +100,25 @@ io.tia.gradle.TiaPlugin.attachCoverageAgent(
     t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
 // 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json
 ```
+
+**`attachCoverageAgentFromConfig` — tia.yml 기반 수집 필터 (SP2).** `includes`를 직접 문자열로
+넘기는 대신, 같은 `tia.yml`의 `filters.code`(SP1 소비 필터와 동일 설정)를 읽어 에이전트
+`includes=`/`excludes=`로 그대로 전파한다(경로 글로브 → JaCoCo 클래스 패턴 변환은
+`GlobToClassPattern` — 일괄 과포함 규칙이라 원본 글로브가 잡던 소스는 항상 매칭된다). `tia.yml`을
+매 호출마다 다시 읽으므로(순수·저비용 재로드) 캐시 무효화를 신경 쓸 필요가 없다.
+
+```gradle
+io.tia.gradle.TiaPlugin.attachCoverageAgentFromConfig(
+    project, t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310)
+// tia.yml의 filters.code.include/exclude를 변환해 includes=/excludes= 로 부착한다.
+// filters.code가 비어 있거나 tia.yml 자체가 없으면 두 옵션 모두 생략(에이전트 기본값 사용, 에러 없음).
+```
+
+> **5-인자 → FromConfig 마이그레이션 노트.** 기존 5-인자 `attachCoverageAgent(test, jar, destDir,
+> port, includes)`는 시그니처·동작 모두 그대로다(명시한 `includes`가 항상 우선하며, **`excludes`는
+> 전파하지 않는다**). `tia.yml`의 `filters.code.exclude`를 에이전트 수집에도 반영하려면
+> `attachCoverageAgentFromConfig`로 옮겨야 한다 — 5-인자 메서드는 어떤 경우에도 `excludes=` 옵션을
+> 방출하지 않는다.
 
 ### (b) in-process — pjacoco in-process (권장)
 
