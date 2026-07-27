@@ -46,11 +46,16 @@ empty result as success — point the user to the collection runbook instead:
 Always invoke the CLI through the wrapper so resolution/prechecks apply. The examples use
 a path relative to the skill folder and the local-build fallback resolves from the repo
 root — to stay CWD-independent, either put `tia` on `PATH`, set `$TIA_JAR`, or call the
-wrapper by its absolute path:
+wrapper by its absolute path.
+
+**Agents: prefer `--format json`** for `impact` (and `flaky`) — it's the versioned,
+machine-readable contract (`schemaVersion`, `tests[].id/confidence/reason`, `warnings`, …)
+meant for this kind of consumption; parse that instead of the default text output:
 
 ```bash
 # Which tests does this diff impact? (needs an indexed tia.db for the baseline commit)
-bash scripts/run-tia.sh impact --db tia.db --commit <baseline-sha> --diff-file change.diff
+bash scripts/run-tia.sh impact --db tia.db --commit <baseline-sha> --diff-file change.diff --format json
+# → {"schemaVersion":1,"tests":[{"id":"...","confidence":"DETERMINISTIC","reason":"..."}],"warnings":[]}
 # (omit --diff-file to diff the working tree vs --commit; see `… impact --help`)
 
 # Build the interactive HTML report from a testwise.json
@@ -63,12 +68,19 @@ bash scripts/run-tia.sh convert --exec-dir <dir> --classes <classesDir> --out te
 
 Pass `-` for optional `report` inputs you don't have; those tabs degrade gracefully.
 
+If the repo has a `tia.yml` (found by searching upward from the current directory), `impact`/
+`flaky`/`report`/`index` apply its filters and `db`/`sut-name` defaults automatically — no
+extra flags needed.
+
+**MCP clients without skill support:** register `tia mcp` as a stdio MCP server —
+`claude mcp add tia -- <tia 경로> mcp` — exposing `tia_impact`/`tia_doctor` as tools (the
+`tia doctor` diagnostics above apply the same whether invoked via CLI or MCP).
+
 ## Interpreting `impact` output
 
-`impact` and `flaky` support `--format text|summary|json|markdown` (default `text`, byte-frozen
-for existing scripts). Agents should prefer `--format json` — it's the versioned,
-machine-readable schema (`schemaVersion`, `tests[].id/confidence/reason`, `warnings`, …) meant
-for this kind of consumption, instead of parsing the default text output.
+`impact` and `flaky` also support `--format summary|markdown` for human-facing output
+(default `text`, byte-frozen for existing scripts) — see [above](#how-to-use) for the
+agent-preferred `json` format.
 
 Each selected test is printed with a confidence tag:
 - `DETERMINISTIC` — the changed line is in that test's recorded coverage → run it.
