@@ -61,7 +61,7 @@ public class ImpactCommand implements Callable<Integer> {
         if (db == null && cfg.db() == null) System.err.println("INFO: 기본 인덱스 DB: " + effectiveDb);
         CoverageSnapshot snap;
         int buildCount;
-        try (CoverageStore store = new CoverageStore(effectiveDb)) {
+        try (CoverageStore store = CoverageStore.openRead(effectiveDb)) {   // [FU-REQ-003] 읽기 전용 오픈
             buildCount = store.distinctBuildCount(commit);   // try 블록 안에서 캡처(store 스코프 제한)
             snap = store.load(commit);
         }
@@ -120,9 +120,9 @@ public class ImpactCommand implements Callable<Integer> {
         return 0;
     }
 
-    /** ansiColor는 TTY로 실행될 때만 true(파이프/CI/E2E는 항상 false) [REQ-015]. */
+    /** ansiColor는 TTY로 실행될 때만 true(파이프/CI/E2E는 항상 false) [REQ-015][FU-REQ-001]. */
     private static String render(OutputFormat format, ImpactFormats.Payload payload) {
-        boolean ansiColor = System.console() != null && System.getenv("NO_COLOR") == null;
+        boolean ansiColor = Tty.interactive() && System.getenv("NO_COLOR") == null;
         return switch (format) {
             case json -> ImpactFormats.json(payload);
             case summary -> ImpactFormats.summary(payload, ansiColor);

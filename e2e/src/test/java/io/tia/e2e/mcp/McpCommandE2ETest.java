@@ -297,6 +297,10 @@ class McpCommandE2ETest {
     @Test
     @DisplayName("SP4-REQ-005: 깨진 tia.yml working_dir(FAIL 확정 픽스처) → doctor JSON + isError=false")
     void doctorFailIsNotError(@TempDir Path work) throws Exception {
+        // [FU-REQ-005] 허메틱화: 픽스처를 bare git 레포로 만들어 기본 DB가 <work>/.git/tia/tia.db로
+        // 해석되게 한다(git init만, 커밋·config 불필요 — DbPathsTest#workingDirGitRepoUsesItsCommonDir가
+        // 커밋 0개로 동일 목표를 이미 실증). 이게 없으면 실 XDG 캐시 경로를 건드릴 수 있었다.
+        git(work, "init", "-q");
         Files.writeString(work.resolve("tia.yml"), "not: [valid: yaml: at all");
 
         Map<String, Object> args = new HashMap<>();

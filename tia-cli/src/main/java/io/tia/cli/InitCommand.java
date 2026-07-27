@@ -95,12 +95,14 @@ public class InitCommand implements Callable<Integer> {
     /** init 사전 감지가 분기하는 빌드 도구 — 다음 단계 안내 문구만 바뀐다(빌드파일 자동수정은 비범위). */
     enum BuildTool { GRADLE, MAVEN, UNKNOWN }
 
-    /** 비대화형(non-TTY)+미지정이면 picocli ParameterException(exit 2). 대화형이면 얇게 프롬프트. */
+    /** 비대화형(non-TTY)+미지정이면 picocli ParameterException(exit 2). 대화형이면 얇게 프롬프트.
+     *  [FU-REQ-001] 게이트는 Tty.interactive()로 판별하되(JDK22+ 대비), readLine을 위한 Console
+     *  객체 자체는 여전히 System.console()로 얻는다(비대칭 — interactive && console != null일 때만 프롬프트). */
     private Topology resolveTopology() {
         String raw = topology;
         if (raw == null) {
             Console console = System.console();
-            if (console == null) {
+            if (!Tty.interactive() || console == null) {
                 throw new CommandLine.ParameterException(spec.commandLine(),
                         "Missing required option: '--topology <in-process|out-of-process>'"
                         + " — 비대화형(non-TTY) 환경에서는 필수입니다.");

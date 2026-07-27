@@ -29,13 +29,60 @@ import java.util.stream.Collectors;
 public final class CoverageStore implements AutoCloseable {
     private final Connection conn;
 
+    /** 쓰기 오픈 — index 등 인덱싱 경로. busy_timeout=5000(커넥션 스코프) + journal_mode=WAL(파일
+     *  헤더에 영속되는 전환, best-effort) 적용 [FU-REQ-003]. */
     public CoverageStore(Path dbFile) {
+        this(dbFile, true);
+    }
+
+    /** 읽기 오픈 — doctor/impact 등 조회 전용 경로. busy_timeout=5000만 적용하고 journal_mode는
+     *  절대 건드리지 않는다 — 기존 non-WAL DB를 WAL로 전환하면 doctor의 "진단 도구가 사용자 DB를
+     *  변형하지 않는다"는 읽기 전용 불변식이 깨진다 [FU-REQ-003]. */
+    public static CoverageStore openRead(Path dbFile) {
+        return new CoverageStore(dbFile, false);
+    }
+
+    private CoverageStore(Path dbFile, boolean write) {
         try {
             Path parent = dbFile.toAbsolutePath().getParent();
             if (parent != null) Files.createDirectories(parent);
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toString());
+            applyBusyTimeout();
+            if (write) applyWalBestEffort();
             initSchema();
         } catch (SQLException | IOException e) { throw new RuntimeException(e); }
+    }
+
+    /** 모든 오픈에 적용 — 동시 접근 시 즉시 SQLITE_BUSY 대신 최대 5초 대기(커넥션 스코프, 파일 무변형). */
+    private void applyBusyTimeout() throws SQLException {
+        try (Statement s = conn.createStatement()) {
+            s.execute("PRAGMA busy_timeout=5000");
+        }
+    }
+
+    /** WAL 전환은 DB 파일 헤더에 영속되는 쓰기라서 쓰기 오픈에만 적용한다. 실패는 무시하고
+     *  busy_timeout만으로 계속 동작(best-effort — 예: 동시 오픈 중 전환 실패). */
+    private void applyWalBestEffort() {
+        try (Statement s = conn.createStatement()) {
+            s.execute("PRAGMA journal_mode=WAL");
+        } catch (SQLException ignored) {
+            // best-effort — 무시
+        }
+    }
+
+    /** 테스트 전용 시임(패키지 프라이빗): busy_timeout은 파일에 영속되지 않는 커넥션 스코프 설정이라
+     *  이 커넥션 자체에서 조회해야 한다 [FU-REQ-003 테스트]. */
+    int busyTimeoutMillis() {
+        try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery("PRAGMA busy_timeout")) {
+            return rs.next() ? rs.getInt(1) : -1;
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** 테스트 전용 시임(패키지 프라이빗): 현재 journal_mode 조회(파일에 영속된 실제 값을 반영). */
+    String journalMode() {
+        try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery("PRAGMA journal_mode")) {
+            return rs.next() ? rs.getString(1) : null;
+        } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
     private void initSchema() throws SQLException {
@@ -48,9 +95,15 @@ public final class CoverageStore implements AutoCloseable {
         }
     }
 
+    /** builds INSERT + coverage 배치 INSERT를 명시적 단일 트랜잭션으로 묶는다 — 동시 reader가
+     *  coverage 없는 builds 행을 관측하는 원자성 공백을 없앤다. 도중 예외(SQL 오류 포함 임의 예외) 시
+     *  롤백 후 재던짐(builds/coverage 모두 미반영) [FU-REQ-003]. */
     public long save(CoverageSnapshot snap) {
+        long buildId;
         try {
-            long buildId;
+            conn.setAutoCommit(false);
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        try {
             try (PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO builds(repo, commit_sha, indexed_at) VALUES(?,?,datetime('now'))",
                     Statement.RETURN_GENERATED_KEYS)) {
@@ -73,8 +126,18 @@ public final class CoverageStore implements AutoCloseable {
                 }
                 ps.executeBatch();
             }
+            conn.commit();
             return buildId;
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (Exception e) {
+            rollbackQuietly();
+            throw (e instanceof RuntimeException re) ? re : new RuntimeException(e);
+        } finally {
+            try { conn.setAutoCommit(true); } catch (SQLException ignored) { /* best-effort 복원 */ }
+        }
+    }
+
+    private void rollbackQuietly() {
+        try { conn.rollback(); } catch (SQLException ignored) { /* 이미 실패한 트랜잭션 — 원 예외를 던짐 */ }
     }
 
     /** 해당 commit의 모든 build를 test_id별 최신-build-wins로 병합한 스냅샷. */
