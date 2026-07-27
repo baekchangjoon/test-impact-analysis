@@ -127,7 +127,7 @@ public class DoctorCommand implements Callable<Integer> {
             return warn("baseline-head", "DB 베이스라인 ↔ HEAD 정렬", "인덱스 DB가 없어 확인 불가",
                     "tia index 로 먼저 인덱싱하세요");
         }
-        try (CoverageStore store = new CoverageStore(effectiveDb)) {
+        try (CoverageStore store = CoverageStore.openRead(effectiveDb)) {   // [FU-REQ-003] 읽기 전용 오픈
             boolean empty = store.load(head).tests().isEmpty();
             return empty
                     ? warn("baseline-head", "DB 베이스라인 ↔ HEAD 정렬", "HEAD(" + head + ") 베이스라인 없음",

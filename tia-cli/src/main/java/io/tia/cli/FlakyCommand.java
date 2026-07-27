@@ -76,9 +76,9 @@ public class FlakyCommand implements Callable<Integer> {
         return 0;
     }
 
-    /** ansiColor는 TTY로 실행될 때만 true(파이프/CI/E2E는 항상 false). */
+    /** ansiColor는 TTY로 실행될 때만 true(파이프/CI/E2E는 항상 false) [FU-REQ-001]. */
     private static String render(OutputFormat format, FlakyReport r, FilterSet filters, List<String> warnings) {
-        boolean ansiColor = System.console() != null && System.getenv("NO_COLOR") == null;
+        boolean ansiColor = Tty.interactive() && System.getenv("NO_COLOR") == null;
         return switch (format) {
             case json -> FlakyFormats.json(r, filters, warnings);
             case summary -> FlakyFormats.summary(r, ansiColor);

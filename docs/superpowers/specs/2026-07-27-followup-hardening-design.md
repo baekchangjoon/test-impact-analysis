@@ -131,18 +131,18 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| FU-REQ-001 | TTY 판별 JDK22 호환 | TtyTest#fallbackOnJdk17 / #delegatesWhenIsTerminalPresent + FormatE2ETest 회귀 | unit+E2E | 🔴 planned |
-| FU-REQ-002 | tia.yml 홈 경계 | TiaConfigLoaderTest#discoverStopsAtHome / #discoverFindsAtHome | unit | 🔴 planned |
-| FU-REQ-003 | SQLite 하드닝(R/W 분리) | CoverageStoreTest#writeOpenAppliesPragmas / #readOpenKeepsJournalMode / #saveIsAtomic | unit | 🔴 planned |
-| FU-REQ-004 | worktree 토폴로지 | DbPathsTest#worktreeResolvesToMainCommonDir | unit | 🔴 planned |
-| FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🔴 planned |
-| FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🔴 planned |
+| FU-REQ-001 | TTY 판별 JDK22 호환 | TtyTest#fallbackOnJdk17 / #delegatesWhenIsTerminalPresent + FormatE2ETest 회귀 | unit+E2E | 🟢 green |
+| FU-REQ-002 | tia.yml 홈 경계 | TiaConfigLoaderTest#discoverStopsAtHome / #discoverFindsAtHome | unit | 🟢 green |
+| FU-REQ-003 | SQLite 하드닝(R/W 분리) | CoverageStoreTest#writeOpenAppliesPragmas / #readOpenKeepsJournalMode / #saveIsAtomic | unit | 🟢 green |
+| FU-REQ-004 | worktree 토폴로지 | DbPathsTest#worktreeResolvesToMainCommonDir | unit | 🟢 green |
+| FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🟢 green |
+| FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🟢 green |
 | FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡(본 PR CI 자기실증) | CI | 🔴 planned |
 | FU-REQ-008 | demo 주간 잡 | demo-weekly.yml + dispatch 1회 기록 | CI | 🔴 planned |
 | FU-REQ-009 | 릴리스 노트 | docs 게이트(파일·Inputs 명시·README 링크) | docs | 🔴 planned |
 
-Coverage: 0/9 green (0%) — target: 머지 전 8/9(FU-REQ-008 제외) + 머지 후 FU-REQ-008 dispatch 기록으로 9/9
-(대상: Must 9; tia-config 분리는 기각으로 매트릭스 제외)
+Coverage: 6/9 green (67%) — Task 1(FU-REQ-001..006) 완료. target: 머지 전 8/9(FU-REQ-008 제외) + 머지 후
+FU-REQ-008 dispatch 기록으로 9/9 (대상: Must 9; tia-config 분리는 기각으로 매트릭스 제외)
 
 ## 3. 태스크 플랜 (SDD)
 

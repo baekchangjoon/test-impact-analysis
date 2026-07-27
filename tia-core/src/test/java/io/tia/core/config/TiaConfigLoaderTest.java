@@ -82,6 +82,22 @@ class TiaConfigLoaderTest {
         assertTrue(e.getMessage().contains("[unterminated"), e.getMessage());
     }
 
+    @Test void discoverStopsAtHome() throws Exception {
+        // 가짜 홈 <h>의 상위(root)에 tia.yml — 홈 경계 밖(수용 안 됨). <h>/a/b(git 없음)에서 탐색 시작.
+        Path home = root.resolve("h");
+        Files.createDirectories(home.resolve("a/b"));
+        write(root, "version: 1\nsut-name: outside-home\n");   // root == home의 부모
+        assertNull(TiaConfigLoader.discover(home.resolve("a/b"), home));
+    }
+
+    @Test void discoverFindsAtHome() throws Exception {
+        // <h> 자체에 tia.yml — 홈 도달 시 candidate 확인 후 발견돼야 한다(홈 포함).
+        Path home = root.resolve("h");
+        Files.createDirectories(home.resolve("a/b"));
+        write(home, "version: 1\nsut-name: at-home\n");
+        assertEquals(home.resolve("tia.yml"), TiaConfigLoader.discover(home.resolve("a/b"), home));
+    }
+
     @Test void filtersParsedIntoLists() throws Exception {
         Path f = write(root, """
                 version: 1

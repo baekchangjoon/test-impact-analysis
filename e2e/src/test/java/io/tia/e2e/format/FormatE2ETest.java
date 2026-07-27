@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -95,6 +96,9 @@ class FormatE2ETest {
         assertTrue(r.out().contains("무시"), r.out());
         assertTrue(r.out().contains("다음"), r.out());
         assertFalse(r.out().contains("["), "파이프 실행 시 ANSI 이스케이프가 없어야 함: " + r.out());
+        // [FU-REQ-006] REQ-015 "N/M개 선별" 형식 — 지금까지 unit만 검증했던 걸 E2E로도 회귀 가드.
+        assertTrue(Pattern.compile("영향 테스트 \\d+/\\d+개 선별").matcher(r.out()).find(),
+                "\"영향 테스트 N/M개 선별\" 형식이 없음: " + r.out());
     }
 
     @Test

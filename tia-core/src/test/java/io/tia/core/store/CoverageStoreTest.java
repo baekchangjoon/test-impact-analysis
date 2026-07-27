@@ -7,11 +7,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.roaringbitmap.RoaringBitmap;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 
@@ -93,6 +97,49 @@ class CoverageStoreTest {
             assertEquals(1, loaded.tests().size());
             assertEquals(RoaringBitmap.bitmapOf(8, 9, 10),
                 loaded.tests().get(0).linesFor("io/tia/fixture/PricingService.java"));
+        }
+    }
+
+    @Test
+    @DisplayName("FU-REQ-003: 쓰기 오픈은 busy_timeout=5000·journal_mode=wal을 적용한다")
+    void writeOpenAppliesPragmas(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (CoverageStore store = new CoverageStore(db)) {
+            assertEquals(5000, store.busyTimeoutMillis());
+            assertEquals("wal", store.journalMode());
+        }
+    }
+
+    @Test
+    @DisplayName("FU-REQ-003: 읽기 오픈은 busy_timeout=5000이되 기존 non-WAL DB의 journal_mode를 바꾸지 않는다(doctor 불변식)")
+    void readOpenKeepsJournalMode(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        // 기존 non-WAL DB 시뮬레이션 — CoverageStore를 거치지 않고 직접 JDBC로 파일만 만든다
+        // (SQLite 기본 journal_mode는 'delete').
+        try (Connection raw = DriverManager.getConnection("jdbc:sqlite:" + db)) {
+            raw.createStatement().execute("CREATE TABLE dummy(x INTEGER)");
+        }
+
+        try (CoverageStore store = CoverageStore.openRead(db)) {
+            assertEquals(5000, store.busyTimeoutMillis());
+            assertEquals("delete", store.journalMode(), "읽기 오픈이 기존 DB의 journal_mode를 바꾸면 안 됨(doctor 불변식)");
+        }
+    }
+
+    @Test
+    @DisplayName("FU-REQ-003: save() 도중 예외가 나면 builds/coverage 모두 롤백된다(원자성)")
+    void saveIsAtomic(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (CoverageStore store = new CoverageStore(db)) {
+            Map<String, RoaringBitmap> broken = new HashMap<>();
+            broken.put("io/tia/Broken.java", null);   // toBytes(null) → NPE로 결함 주입
+
+            CoverageSnapshot snap = new CoverageSnapshot("r", "c-atomic",
+                List.of(new TestCoverage("T", "PASSED", broken)));
+
+            assertThrows(RuntimeException.class, () -> store.save(snap));
+            assertEquals(0, store.distinctBuildCount("c-atomic"),
+                "실패한 save()의 builds 행이 남아있으면 안 됨(트랜잭션 미롤백)");
         }
     }
 }

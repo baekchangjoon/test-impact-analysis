@@ -36,13 +36,25 @@ public final class TiaConfigLoader {
     }
 
     /** searchStart부터 부모로 올라가며 tia.yml 탐색. `.git`이 있는 디렉터리(git 루트)까지 포함 후 중단.
-     *  public: {@code tia init}(SP3)이 동일한 탐색으로 기존 tia.yml 경로를 가드 메시지에 노출하기 위해 재사용. */
+     *  public: {@code tia init}(SP3)이 동일한 탐색으로 기존 tia.yml 경로를 가드 메시지에 노출하기 위해 재사용.
+     *  [FU-REQ-002] user.home 경계로 위임 — 실 홈으로 상향 탐색을 제한한다. */
     public static Path discover(Path searchStart) {
+        return discover(searchStart, Path.of(System.getProperty("user.home")));
+    }
+
+    /** 테스트 시임: 홈 경계를 주입한다. 비-git 디렉터리에서 시작한 탐색이 홈 상위(FS 루트 등)의 무관한
+     *  tia.yml을 줍지 않도록, 홈 도달 시 그 디렉터리의 candidate를 확인한 후 중단한다(홈 포함, 홈 상위 배제).
+     *  홈 밖에서 시작한 탐색(예: 기존 /tmp 픽스처)은 홈과 만나지 않으므로 기존 동작(FS 루트까지) 그대로다.
+     *  홈 도달 판정은 toAbsolutePath().normalize() 후 Path.equals(symlink 미해석) — 심링크로 우회된 홈
+     *  경로는 경계가 안 걸리는 수용된 한계다(안전 방향 실패: 조기 중단이 아니라 과탐색). */
+    static Path discover(Path searchStart, Path homeOverride) {
+        Path home = homeOverride.toAbsolutePath().normalize();
         Path dir = searchStart.toAbsolutePath().normalize();
         while (dir != null) {
             Path candidate = dir.resolve(FILE_NAME);
             if (Files.isRegularFile(candidate)) return candidate;
             if (Files.exists(dir.resolve(".git"))) return null;  // git 루트까지 못 찾음
+            if (dir.equals(home)) return null;                    // 홈 도달 — candidate 확인 후 중단
             dir = dir.getParent();
         }
         return null;
