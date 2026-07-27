@@ -51,35 +51,23 @@ class PrCommentScriptE2ETest {
 
     /** 기본 실행 — 실제 PATH 상속(로컬/CI엔 진짜 gh가 있음). */
     Exec run(Map<String, String> env) throws Exception {
-        return exec(env, null, false);
+        return exec(env, null);
     }
 
-    /** stub 디렉터리를 real PATH 앞에 prepend — command -v gh가 스텁을 먼저 찾음. */
+    /** stub 디렉터리를 real PATH 앞에 prepend — command -v gh가 스텁을 먼저 찾음(실 gh 위치와 무관하게 항상 shadow). */
     Exec run(Map<String, String> env, Path pathPrepend) throws Exception {
-        return exec(env, pathPrepend, false);
+        return exec(env, pathPrepend);
     }
 
-    /**
-     * PATH를 real PATH 전체가 아닌 시스템 표준 디렉터리(/usr/bin:/bin)로 완전 치환 — gh는 상속하지 않는다.
-     * gh(Homebrew: /opt/homebrew/bin 등)는 이 경로에 없어 command -v gh가 실패하지만, 스크립트가
-     * 내부에서 쓰는 coreutils(wc/awk/head/cat/mv)는 /usr/bin·/bin에 있어 정상 동작한다 — 완전한 빈
-     * 디렉터리만 쓰면 coreutils까지 command-not-found로 죽어 DRY_RUN 로직 자체를 검증할 수 없다.
-     */
-    Exec runWithExclusivePath(Map<String, String> env, Path pathOnly) throws Exception {
-        return exec(env, pathOnly, true);
-    }
-
-    // 절대경로로 bash를 기동 — exclusivePath 케이스에서도 인터프리터 자체의 PATH 탐색이
-    // 실패(exit 127)하지 않도록 보장.
+    // 절대경로로 bash를 기동 — 어떤 PATH 조작 케이스에서도 인터프리터 자체의 탐색 실패(exit 127)를 배제.
     private static final String BASH = "/bin/bash";
 
-    private Exec exec(Map<String, String> env, Path pathDir, boolean exclusivePath) throws Exception {
+    private Exec exec(Map<String, String> env, Path pathPrepend) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(BASH, script.toString());
         pb.redirectErrorStream(true);
         pb.environment().putAll(env);
-        if (pathDir != null) {
-            pb.environment().put("PATH",
-                    exclusivePath ? pathDir + ":/usr/bin:/bin" : pathDir + ":" + System.getenv("PATH"));
+        if (pathPrepend != null) {
+            pb.environment().put("PATH", pathPrepend + ":" + System.getenv("PATH"));
         }
         Process p = pb.start();
         String out = new String(p.getInputStream().readAllBytes(), UTF_8);
@@ -99,6 +87,27 @@ class PrCommentScriptE2ETest {
         Files.createDirectories(stubDir);
         Path gh = stubDir.resolve("gh");
         Files.writeString(gh, "#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$GH_ARGS_OUT\"\nexit " + exitCode + "\n", UTF_8);
+        Files.setPosixFilePermissions(gh, EnumSet.of(
+                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
+                PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_EXECUTE,
+                PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_EXECUTE));
+        return stubDir;
+    }
+
+    private static final String POISON_MARKER = "POISON_GH_INVOKED";
+
+    /**
+     * 포이즌 필 gh: 실제로 호출되면 고유 마커를 찍고 exit 99로 종료 — DRY_RUN 분기가 새어 gh를 부르는
+     * 회귀를 어떤 러너(로컬 macOS의 /opt/homebrew/bin/gh든 GitHub-hosted ubuntu-latest의 /usr/bin/gh든)
+     * 에서도 결정적으로 검출한다. PATH 선두에 prepend하면 실제 gh 위치와 무관하게 항상 이 스텁이 먼저
+     * 발견되므로, PATH를 통째로 치환할 필요가 없다(치환 시 wc/awk/head 등 coreutils까지 command-not-found
+     * 로 죽어 DRY_RUN 로직 자체를 검증할 수 없었음 — round-1 리뷰로 대체).
+     */
+    private Path writePoisonGh() throws IOException {
+        Path stubDir = work.resolve("poison-bin");
+        Files.createDirectories(stubDir);
+        Path gh = stubDir.resolve("gh");
+        Files.writeString(gh, "#!/bin/bash\necho " + POISON_MARKER + "\nexit 99\n", UTF_8);
         Files.setPosixFilePermissions(gh, EnumSet.of(
                 PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
                 PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_EXECUTE,
@@ -128,8 +137,7 @@ class PrCommentScriptE2ETest {
     @Test
     @DisplayName("SP5-REQ-002: DRY_RUN=1이면 gh 호출 없이 API 경로+본문을 표준출력에 찍고 exit 0")
     void dryRunPrintsApiPathAndBody() throws Exception {
-        Path emptyPathDir = work.resolve("empty-path");
-        Files.createDirectories(emptyPathDir);
+        Path poisonDir = writePoisonGh();
         Path body = writeBody("hello world body");
 
         Map<String, String> env = new HashMap<>();
@@ -138,11 +146,13 @@ class PrCommentScriptE2ETest {
         env.put("REPO", "o/r");
         env.put("DRY_RUN", "1");
 
-        Exec result = runWithExclusivePath(env, emptyPathDir);
+        Exec result = run(env, poisonDir);
 
         assertEquals(0, result.code());
         assertTrue(result.out().contains("repos/o/r/issues/7/comments"), result.out());
         assertTrue(result.out().contains("hello world body"), result.out());
+        assertFalse(result.out().contains(POISON_MARKER),
+                "DRY_RUN 분기가 gh를 실제로 호출했다면 포이즌 마커가 출력됐을 것: " + result.out());
     }
 
     @Test
