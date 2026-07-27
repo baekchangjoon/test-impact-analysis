@@ -39,25 +39,32 @@ implementation(project(':tia-core')) {
 
 ## 3. 수집 필터 전파 (attachCoverageAgent)
 
-- **변환 규칙** (`GlobToClassPattern` — 플러그인 내 순수 유틸, 단위 테스트는 **실제 JaCoCo `WildcardMatcher`로 매칭 검증**(`testImplementation org.jacoco:org.jacoco.core` 추가 — 문자열 동등이 아니라 실 매칭/비매칭 단언)):
-  경로 글로브(SP1 code 필터, `/` 구분·package-relative) → 에이전트 클래스 패턴(`.` 구분, JaCoCo `*`/`?` 와일드카드, **다중 패턴은 콜론(`:`) 결합** — `-javaagent` 옵션 파서가 쉼표를 쓰므로 쉼표 금지, JaCoCo 관례).
-  - 기본 변환: `.java` 접미 제거 → `/`→`.` → `**`→`*`.
-  - **선두 `**/`는 0-세그먼트(기본 패키지)도 매칭해야 하므로 유니온으로 방출**(과소포함 방지 — SP1 GlobMatcher의 `**/` 의미론과 정합): `**/gen/**` → `gen.*:*.gen.*` · `**/*Dto.java` → `*Dto:*.*Dto`.
-  - **정확-파일 글로브는 내부/익명/람다 클래스($ 접미)를 포함하도록 `*` 접미**: `com/acme/PricingService.java` → `com.acme.PricingService*` (과포함 방향 — `PricingServiceFoo`도 매칭될 수 있음을 명시, 수집 필터는 성능 최적화라 안전).
-  - `com/acme/**` → `com.acme.*` · `?`는 그대로. 변환 불능 패턴 없음(어휘 `**`/`*`/`?`뿐 — SP1 로더가 fail-fast).
-  - 다중 엔트리: 각 글로브 변환 결과(유니온 포함)를 전부 `:`로 결합해 단일 `includes=`/`excludes=` 값으로 방출.
+- **변환 규칙** (`GlobToClassPattern` — 플러그인 내 순수 유틸, 단위 테스트는 **실제 JaCoCo `WildcardMatcher`로 매칭 검증**(`testImplementation org.jacoco:org.jacoco.core` 추가; `WildcardMatcher`는 콜론-분리 결합 문자열을 자체 처리 — 결합 상태로도 실매처 단언)):
+  경로 글로브(SP1 code 필터, `/` 구분·package-relative) → 에이전트 클래스 패턴(`.` 구분, JaCoCo `*`(dot 경계 무제한)/`?` 와일드카드, **다중 패턴은 콜론(`:`) 결합** — `-javaagent` 옵션 파서가 쉼표를 쓰므로 쉼표 금지).
+  **일괄 과포함 규칙** — 각 단계가 매칭 집합을 확장만 하므로(치환 대상이 더 넓은 와일드카드로만 바뀜) 원본 글로브가 매칭하던 소스는 결과 패턴이 반드시 매칭한다(과소포함 반례 계열 — 기본 패키지·중간 `**`·중간 `?`·내부/람다 클래스 — 일괄 해소):
+  1. `.java` 접미 제거
+  2. `**/` → `*` (0-세그먼트 포함 — JaCoCo `*`는 빈 문자열도 매칭)
+  3. 잔여 `/` → `.`
+  4. 잔여 `**` → `*`
+  5. 결과가 `*`로 끝나지 않으면 `*` 접미(내부/익명/람다 `$` 클래스 포함; "정확-파일" 특수 판정 불요 — 규칙이 보편 적용)
+  - 예: `com/acme/**` → `com.acme.*` · `**/gen/**` → `*gen.*`(기본 패키지 `gen.Foo` 매칭) · `**/*Dto.java` → `*Dto*` · `com/acme/PricingService.java` → `com.acme.PricingService*` · `com/acme/**/dto/**` → `com.acme.*dto.*`(`com.acme.dto.X` 매칭) · `com/acme/Prici?gService.java` → `com.acme.Prici?gService*`.
+  - 과포함 예(허용·명시): `*gen.*`는 `mygen.Foo`도, `*Dto*`는 `DtoFactory`도 매칭 — 수집 필터는 성능 최적화이므로 안전 방향.
+  - 변환 불능 패턴 없음(어휘 `**`/`*`/`?`뿐 — SP1 로더가 fail-fast).
+  - 다중 엔트리: 각 변환 결과를 `:`로 결합해 단일 `includes=`/`excludes=` 값으로 방출.
 - **API**: 기존 5-인자 `attachCoverageAgent(test, jar, destDir, port, includes)`는 **불변**(명시 includes가 항상 우선 — 하위호환). 신규 4-인자 오버로드 `attachCoverageAgent(project, test, jar, destDir, port)`… 대신 명확하게: `attachCoverageAgentFromConfig(Project, Test, File agentJar, File destDir, int controlPort)` — 프로젝트의 tia.yml `filters.code`에서 includes/excludes를 도출해 부착. include 비면 `includes` 옵션 생략(에이전트 기본 `*`), exclude 비면 `excludes` 생략.
 - **TiaArgs 확장**: `coverageAgentJvmArg(jar, destDir, port, includes, excludes)` 오버로드 추가 — `excludes=` 옵션 방출(기존 4-인자 시그니처는 위임 유지, 기존 테스트 무수정).
 - **주의 문서화**: 수집 필터는 소비 필터(SP1)와 **의미가 겹치지만 독립**이다 — 수집을 좁히면 그 밖 코드는 커버리지 자체가 없어 CONSERVATIVE로도 못 잡는다(exclude와 동일한 "범위 밖 선언" 리스크, tia.yml 한 곳에서 관리되므로 일관성은 유지됨). GETTING-STARTED tia.yml 절에 1문단.
 
 ## 4. 테스트 전략과 수용 명세
 
-플러그인의 기존 최고 실현 레벨 = **ProjectBuilder 단위/통합 테스트**(`TiaPluginTest` 패턴 — GradleRunner TestKit은 신규 인프라라 비례성상 도입하지 않음, 한계 명시). @TempDir 트리에는 `.git` 마커 디렉터리를 두어 로더의 상향 탐색이 임시 트리 밖(호스트의 우연한 tia.yml)으로 새지 않게 한다.
+플러그인의 주 실현 레벨 = **ProjectBuilder 단위/통합 테스트**(`TiaPluginTest` 패턴). 예외 1건: apply-시점 파일 IO의 **configuration-cache 정합**과 실제 `gradle` 프로세스 적용은 ProjectBuilder로 검증 불가하므로, **GradleRunner(TestKit) 기능 스모크를 정확히 1건만 도입**한다(`java-gradle-plugin` + `gradleTestKit()` 의존 + `gradlePlugin.testSourceSets` 배선 — 전면적 TestKit 스위트는 여전히 비례성상 배제). @TempDir 트리에는 `.git` 마커 디렉터리를 두어 로더의 상향 탐색이 임시 트리 밖으로 새지 않게 한다.
 
-1. **GlobToClassPattern 단위**: 변환 예 전종(§3의 유니온·`*` 접미 포함) + `?` + **다중 엔트리 콜론 결합** + **기본 패키지 케이스**(`FooDto` — 유니온으로 매칭됨) — 전부 **실제 `WildcardMatcher` 매칭으로 단언**(문자열 비교 아님).
-2. **tia.yml 소비**: tia.yml(db·sut-name) → convention 반영(**yml이 project.name 기본값을 이김** 포함); DSL 명시가 yml을 이김; 깨진 tia.yml → apply GradleException; 파일 없음 → 기존 동작 + tiaIndex req 메시지에 tia.yml 안내.
-3. **필터 전파**: filters.code 有 → `attachCoverageAgentFromConfig` jvmArgs에 변환·결합된 `includes=`/`excludes=` 존재(다중 exclude 케이스 포함); filters 無 → 두 옵션 생략; 기존 5-인자 API 결과 무변(기존 테스트 그대로 green).
-4. **회귀**: 전체 스위트 green + `./gradlew help --configuration-cache` 스모크(tia.yml 존재 상태).
+1. **GlobToClassPattern 단위**: §3 예 전종(중간 `**`·중간 `?`·단일 `*`·기본 패키지 포함) + **다중 엔트리 콜론 결합(결합 문자열째로 실매처 단언)** — 전부 **실제 `WildcardMatcher` 매칭으로 단언**(문자열 비교 아님).
+2. **tia.yml 소비**: tia.yml(db·sut-name) → convention 반영(**yml이 project.name 기본값을 이김**); DSL 명시가 yml을 이김(**db·sut-name 양쪽**); 깨진 tia.yml → apply GradleException; 파일 없음 → 기존 동작 + tiaIndex req 메시지가 tia.yml을 **대안 소스로 언급**(해석된 파일 경로 출력이 아님).
+3. **필터 전파**: filters.code 有 → `attachCoverageAgentFromConfig` jvmArgs에 변환·결합된 `includes=`/`excludes=` 존재(다중 exclude 포함); filters 섹션 無 **및 tia.yml 파일 자체 부재** → 두 옵션 생략; 기존 5-인자 API 결과 무변(기존 테스트 그대로 green); TiaArgs 5-인자 오버로드 단독 unit(includes+excludes·excludes만).
+4. **클래스패스 위생 자동 게이트**: `check`에 연결된 검증 태스크가 `runtimeClasspath`에서 `org.jacoco`/`org.xerial`/`org.roaringbitmap` 그룹 부재를 단언(1회 수동 대조가 아닌 회귀 게이트).
+5. **CC 스모크(GradleRunner 1건, 2단계)**: @TempDir 소비 프로젝트에 플러그인 실적용 → tia.yml A로 `--configuration-cache` 1차 빌드(캐시 저장) → **tia.yml을 B로 교체 후 재빌드 → 새 값 반영 확인**(스모크 무오류만이 아니라 캐시 staleness 부재까지).
+6. **회귀**: 전체 스위트 green.
 
 완료 정의: 요구 매트릭스 100%(SP2 요구사항명세 별도 문서) + 전체 스위트 green + 문서 갱신 — GETTING-STARTED 1문단(수집 필터 리스크) / **tia-gradle-plugin/README**(① tia.yml 기반 db·sut-name 기본값+apply-시점 fail-fast 의미론 ② `attachCoverageAgentFromConfig` 사용 예 ③ 기존 5-인자 호출자는 excludes 전파를 받으려면 신규 메서드로 이행해야 한다는 마이그레이션 노트 ④ TiaArgs 계약 주석의 excludes 갱신).
 
