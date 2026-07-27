@@ -23,6 +23,14 @@ inputs:
     description: 'tia CLI image to run.'
     required: false
     default: 'ghcr.io/baekchangjoon/tia:latest'
+  pr-comment:
+    description: 'If "true", post the impact result as a PR comment (opt-in). Requires a pull_request event and pull-requests: write permission.'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'Token used to post the PR comment (needs pull-requests: write). Fork PRs get a read-only token by default — comment posting will be skipped with a warning.'
+    required: false
+    default: ${{ github.token }}
 outputs:
   selected:
     description: 'Newline-separated selected tests ("<CONFIDENCE>\t<testId>").'
@@ -71,3 +79,30 @@ runs:
         { echo '### TIA — impacted tests'; echo ''; echo '```'; printf '%s\n' "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
         sel="$(printf '%s\n' "$out" | grep -E '^(DETERMINISTIC|CONSERVATIVE|LOW_CONFIDENCE)[[:space:]]' || true)"
         emit "$sel" "false"
+
+        # SP5: 코멘트 스텝이 동일 인자를 재사용하도록 export (개행-연결, 랜덤 델리미터 — env 주입 방지)
+        d="tia_$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+        { echo "TIA_ARGS<<$d"; printf '%s\n' "${args[@]}"; echo "$d"; } >> "$GITHUB_ENV"
+    - name: PR comment (opt-in)
+      if: inputs.pr-comment == 'true'
+      shell: bash
+      env:
+        IN_IMAGE: ${{ inputs.image }}
+        RUN_ALL: ${{ steps.impact.outputs.run-all }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+        if [ -z "$PR_NUMBER" ]; then echo "::warning::PR 이벤트가 아님 — 코멘트 스킵"; exit 0; fi
+        BODY_FILE=$(mktemp "$RUNNER_TEMP"/tia-comment.XXXXXX.md)
+        { echo '<!-- tia-impact-comment -->'; echo '### TIA — 영향 테스트'; echo ''; } > "$BODY_FILE"
+        if [ "$RUN_ALL" = "true" ]; then
+          echo '_TIA 베이스라인 없음 → 전체 실행 권장 (보수적, 누락 위험 0)._' >> "$BODY_FILE"
+        else
+          mapfile -t args <<< "$TIA_ARGS"
+          # 재생성 실패도 소프트 스킵 — opt-in 기능이 잡을 깨면 안 됨 [리뷰 반영]
+          docker run --rm -v "$PWD:/work" -w /work "$IN_IMAGE" "${args[@]}" --format markdown >> "$BODY_FILE" \
+            || { echo "::warning::TIA markdown 재생성 실패 — 코멘트 스킵"; exit 0; }
+        fi
+        BODY_FILE="$BODY_FILE" "$GITHUB_ACTION_PATH/scripts/pr-comment.sh"
