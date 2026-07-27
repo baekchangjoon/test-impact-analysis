@@ -61,7 +61,7 @@
 ### SP2-REQ-006 — 문서·계약 주석 동기화
 - 유형: Non-functional (문서)
 - 우선순위: Must
-- 설명: tia-gradle-plugin/README(§: yml 기본값+fail-fast 의미론·FromConfig 예·5-인자 마이그레이션 노트), TiaArgs 계약 주석(excludes 반영), GETTING-STARTED 1문단(수집 필터="범위 밖 선언" 리스크 + 멀티 서브프로젝트 `--parallel` 금지 1줄).
+- 설명: tia-gradle-plugin/README(§: yml 기본값+fail-fast 의미론·FromConfig 예·5-인자 마이그레이션 노트), TiaArgs 계약 주석(excludes 반영), GETTING-STARTED 1문단(수집 필터="범위 밖 선언" 리스크 + 멀티 서브프로젝트 `--parallel` 금지 1줄). README에는 file-watcher 지연 주의사항 포함(tia.yml 변경 직후 동일 데몬 즉시 재빌드 시 워처 지연 가능성).
 - 수용기준:
   - Given 갱신 문서/주석, When 검토, Then 위 항목 전부 기재.
 - 검증 레벨: build/docs 게이트
@@ -69,9 +69,9 @@
 ### SP2-REQ-007 — 하위호환·구성 캐시 정합
 - 유형: Non-functional (회귀)
 - 우선순위: Must
-- 설명: tia.yml 없는 기존 사용 경로 무변화(전체 스위트 green). CC 정합은 **GradleRunner 기능 스모크 1건(2단계)** 으로 검증: 플러그인이 실제 apply된 @TempDir 소비 프로젝트에서 `--configuration-cache`로 1차 빌드(캐시 저장) → tia.yml 값을 바꿔 재빌드 → **새 값 반영 확인**(캐시 staleness 부재 — 스모크 무오류만으로는 불충분; 레포 루트 tia.yml 임시 생성 방식은 플러그인 미적용이라 거짓 green이므로 금지).
+- 설명: tia.yml 없는 기존 사용 경로 무변화(전체 스위트 green). CC 정합은 **GradleRunner 기능 스모크 1건(3단계)** 으로 검증: 플러그인이 실제 apply된 @TempDir 소비 프로젝트에서 (1단계: tia.yml 부재 상태) `--configuration-cache`로 빌드 → (2단계: tia.yml A 생성) 재빌드 → (3단계: tia.yml을 B로 변경) 재빌드 → **각 단계에서 새 값 반영 확인**(캐시 staleness 부재 — 스모크 무오류만으로는 불충분; 레포 루트 tia.yml 임시 생성 방식은 플러그인 미적용이라 거짓 green이므로 금지).
 - 수용기준:
-  - Given @TempDir 소비 프로젝트(플러그인 실적용, tia.yml A), When CC 1차 빌드 후 tia.yml B로 교체·재빌드, Then 2차 빌드가 B 값을 사용한다(태스크 출력으로 관측) + 전체 스위트 green.
+  - Given @TempDir 소비 프로젝트(플러그인 실적용), When CC 빌드 (1단계: tia.yml 부재) → (2단계: tia.yml A 생성·재빌드) → (3단계: tia.yml B로 변경·재빌드), Then 각 단계의 빌드가 해당 상태의 값을 정확히 사용한다(태스크 출력으로 관측) + 전체 스위트 green.
 - 검증 레벨: GradleRunner 기능 스모크(정확히 1건 — 전면 TestKit 스위트는 비도입) + 전체 스위트
 
 ## 추적 매트릭스

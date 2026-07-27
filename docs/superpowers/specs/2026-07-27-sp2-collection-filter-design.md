@@ -63,7 +63,7 @@ implementation(project(':tia-core')) {
 2. **tia.yml 소비**: tia.yml(db·sut-name) → convention 반영(**yml이 project.name 기본값을 이김**); DSL 명시가 yml을 이김(**db·sut-name 양쪽**); 깨진 tia.yml → apply GradleException; 파일 없음 → 기존 동작 + tiaIndex req 메시지가 tia.yml을 **대안 소스로 언급**(해석된 파일 경로 출력이 아님).
 3. **필터 전파**: filters.code 有 → `attachCoverageAgentFromConfig` jvmArgs에 변환·결합된 `includes=`/`excludes=` 존재(다중 exclude 포함); filters 섹션 無 **및 tia.yml 파일 자체 부재** → 두 옵션 생략; 기존 5-인자 API 결과 무변(기존 테스트 그대로 green); TiaArgs 5-인자 오버로드 단독 unit(includes+excludes·excludes만).
 4. **클래스패스 위생 자동 게이트**: `check`에 연결된 검증 태스크가 `runtimeClasspath`에서 `org.jacoco`/`org.xerial`/`org.roaringbitmap` 그룹 부재를 단언(1회 수동 대조가 아닌 회귀 게이트).
-5. **CC 스모크(GradleRunner 1건, 2단계)**: @TempDir 소비 프로젝트에 플러그인 실적용 → tia.yml A로 `--configuration-cache` 1차 빌드(캐시 저장) → **tia.yml을 B로 교체 후 재빌드 → 새 값 반영 확인**(스모크 무오류만이 아니라 캐시 staleness 부재까지).
+5. **CC 스모크(GradleRunner 1건, 3단계)**: @TempDir 소비 프로젝트에 플러그인 실적용 → (1단계: tia.yml 부재 상태) `--configuration-cache` 빌드 → (2단계: tia.yml A 생성) 재빌드 → (3단계: tia.yml을 B로 변경) 재빌드 → **각 단계에서 새 값 반영 확인**(스모크 무오류만이 아니라 캐시 staleness 부재까지).
 6. **회귀**: 전체 스위트 green.
 
 완료 정의: 요구 매트릭스 100%(SP2 요구사항명세 별도 문서) + 전체 스위트 green + 문서 갱신 — GETTING-STARTED 1문단(수집 필터 리스크) / **tia-gradle-plugin/README**(① tia.yml 기반 db·sut-name 기본값+apply-시점 fail-fast 의미론 ② `attachCoverageAgentFromConfig` 사용 예 ③ 기존 5-인자 호출자는 excludes 전파를 받으려면 신규 메서드로 이행해야 한다는 마이그레이션 노트 ④ TiaArgs 계약 주석의 excludes 갱신).
