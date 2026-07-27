@@ -138,12 +138,12 @@
 | FU-REQ-004 | worktree 토폴로지 | DbPathsTest#worktreeResolvesToMainCommonDir | unit | 🟢 green |
 | FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🟢 green |
 | FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🟢 green |
-| FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡(본 PR CI 자기실증) | CI | 🟡 작성됨 (PR CI 자기실증 대기) |
+| FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡 — PR #32 run 30268995437 자기실증(green + 마커 코멘트 1건) | CI | 🟢 green |
 | FU-REQ-008 | demo 주간 잡 | demo-weekly.yml + dispatch 1회 기록 | CI | 🟡 작성됨 (dispatch 대기) |
 | FU-REQ-009 | 릴리스 노트 | docs 게이트(파일·Inputs 명시·README 링크) | docs | 🟢 green |
 
-Coverage: 7/9 green (78%) — Task 1(FU-REQ-001..006)·Task 3(FU-REQ-009) 완료. Task 2(FU-REQ-007/008) CI
-잡 작성 완료(로컬 검증: actionlint 0 errors + 픽스처/diff 셰이프 로컬 실증 — 실 CI 자기실증은 아직).
+Coverage: 8/9 green (89%) — FU-REQ-007은 PR #32에서 자기실증 완료(run 30268995437 green + `<!-- tia-impact-comment -->`
+마커 코멘트 1건 확인). 잔여는 FU-REQ-008 dispatch(머지 후 게이트)뿐.
 target: 머지 전 8/9(FU-REQ-008 제외) + 머지 후 FU-REQ-008 dispatch 기록으로 9/9 (대상: Must 9;
 tia-config 분리는 기각으로 매트릭스 제외)
 
