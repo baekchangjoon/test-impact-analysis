@@ -160,6 +160,8 @@
   [--scenarios -] [--flaky -] [--prod-files -] [--jacoco-dir jacoco] [--test-src-root src/test/java]
 ```
 탭 해설: [REPORT-GUIDE.md](petclinic-demo/REPORT-GUIDE.md). 옵셔널 입력은 `-`로 생략(탭이 graceful하게 비워짐).
+생성된 `report.html`에는 각 탭 `<h2>` 아래 "이 탭 읽는 법" 접이식 요약이 내장돼 있어, 별도 문서 없이도
+탭별 읽는 법을 바로 확인할 수 있다(REPORT-GUIDE.md는 더 상세한 버전).
 
 ## 5. CI / 에이전트 통합
 

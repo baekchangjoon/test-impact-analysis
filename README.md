@@ -193,6 +193,8 @@ $CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-nam
 ```
 
 5개 탭(per-test 영향범위·역인덱스·tia impact·flaky·blind spots) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
+각 탭의 `<h2>` 아래 "이 탭 읽는 법" 접이식 요약이 `report.html` 안에 내장돼 있어, 리포트만 열어도
+탭별 핵심을 바로 확인할 수 있다(REPORT-GUIDE는 더 상세한 버전).
 
 ---
 

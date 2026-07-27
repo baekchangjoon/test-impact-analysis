@@ -3,6 +3,7 @@ package io.tia.core.report;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.tia.core.filter.FilterSet;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -125,5 +126,49 @@ class ReportBuilderTest {
         List<String> blind = new java.util.ArrayList<>();
         d.get("blind").forEach(b -> blind.add(b.asText()));
         assertFalse(blind.contains("com/x/Excluded.java"), "excluded file must not appear as a blind spot either");
+    }
+
+    @Test
+    @DisplayName("SP5-REQ-008: 렌더된 HTML에 5개 탭 각각 tab-guide 블록이 정확히 한 번씩 존재한다")
+    void tabGuidesRenderedFiveTimes(@TempDir Path tmp) throws Exception {
+        Path prod = tmp.resolve("prod.txt");
+        Files.writeString(prod, "com/x/A.java\n");
+
+        String html = new ReportBuilder().render(inputs(tmp, null, null, prod));
+
+        int occurrences = html.split("class=\"tab-guide\"", -1).length - 1;
+        assertEquals(5, occurrences, "one tab-guide block per section (per-test/reverse/impact/flaky/blind)");
+        assertTrue(html.contains("이 탭 읽는 법"), "guide summary label present");
+    }
+
+    @Test
+    @DisplayName("SP5-REQ-009: 테스트 0건 + 빈 prod로 렌더하면 탭 1·2·5에 빈 상태 안내 문구가 있다")
+    void emptyStateHintsForSparseTabs(@TempDir Path tmp) throws Exception {
+        Path tw = tmp.resolve("empty-testwise.json");
+        Files.writeString(tw, """
+            {"tests":[]}""");
+        var in = new ReportBuilder.Inputs(tw, null, null, null, "deadbeefcafe", "acme-svc", "jacoco", null, "",
+                FilterSet.none());
+
+        String html = new ReportBuilder().render(in);
+
+        assertTrue(html.contains("데이터가 없습니다"), "empty-state hint present for sparse per-test/reverse tabs");
+        assertTrue(html.contains("입력이 비었습니다") || html.contains("입력 없음"),
+                "tab 5 missing-input hint present when nProd === 0");
+    }
+
+    @Test
+    @DisplayName("SP5-REQ-009: prod 파일이 있고 blind 0건이면 탭 5에 전체 커버 긍정 메시지가 표시된다(결측 안내 아님)")
+    void fullCoverageBlindTabShowsPositiveMessage(@TempDir Path tmp) throws Exception {
+        Path prod = tmp.resolve("prod.txt");
+        Files.writeString(prod, "com/x/A.java\n");   // fully covered by both fixture tests → blind == []
+
+        String html = new ReportBuilder().render(inputs(tmp, null, null, prod));
+        JsonNode d = om.valueToTree(new ReportBuilder().buildModel(inputs(tmp, null, null, prod)));
+        assertEquals(1, d.get("nProd").asInt());
+        assertTrue(d.get("blind").isEmpty(), "fixture prod file is covered by both tests");
+
+        assertTrue(html.contains("전체 커버") && html.contains("사각지대가 없습니다"),
+                "positive full-coverage message present for the nProd>0 && blind==0 branch");
     }
 }
