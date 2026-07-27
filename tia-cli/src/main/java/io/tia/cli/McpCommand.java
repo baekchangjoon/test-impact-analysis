@@ -30,9 +30,10 @@ import java.util.concurrent.Callable;
  * jackson만으로 수제 구현한다(design spec §1 비범위).
  *
  * <p><b>stdout 안전 불변식</b>: 부트스트랩 시 저장한 실제 stdout {@link PrintStream} 참조({@code
- * realOut})로만 JSON-RPC 응답을 쓴다. {@code tools/call}이 impact/doctor를 인프로세스로 실행하며
- * System.out/err를 캡처용으로 스왑하더라도(그리고 설령 그 복원이 누락되더라도) 응답 채널은 이
- * 저장된 참조 덕에 구조적으로 오염될 수 없다(design spec §3/§7).
+ * realOut})를 UTF-8로 감싼 래퍼({@code out})로만 JSON-RPC 응답을 쓴다({@code print(json + "\n")},
+ * 플랫폼 인코딩/개행 비의존). {@code tools/call}이 impact/doctor를 인프로세스로 실행하며 System.out/err를
+ * 캡처용으로 스왑하더라도(그리고 설령 그 복원이 누락되더라도) 응답 채널은 이 저장된 참조 덕에 구조적으로
+ * 오염될 수 없다(design spec §3/§7).
  *
  * <p>동시성: stdio 단일 클라이언트를 순차 처리한다(멀티스레드 없음, design spec §7).
  */
@@ -58,13 +59,32 @@ public class McpCommand implements Callable<Integer> {
     @Override
     public Integer call() throws IOException {
         PrintStream realOut = System.out;   // §3 stdout 안전 불변식 — 이후 모든 JSON-RPC 응답은 이 참조로만
+        // 플랫폼 인코딩/개행에 좌우되지 않도록 UTF-8 고정 + "\n" 고정 래퍼(writeLine)로만 응답을 쓴다.
+        PrintStream out = new PrintStream(realOut, true, StandardCharsets.UTF_8);
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         String line;
         while ((line = reader.readLine()) != null) {
             if (line.isBlank()) continue;   // 빈 줄은 프로토콜 메시지가 아님 — 조용히 건너뜀
-            handleLine(line, realOut);
+            try {
+                handleLine(line, out);
+            } catch (RuntimeException e) {   // 미지의 향후 코드 경로의 예기치 못한 실패 — 서버 생존 우선
+                writeError(out, tryExtractId(line), -32603, "Internal error: " + e.getMessage());
+            }
         }
         return 0;   // EOF에서 정상 종료
+    }
+
+    /** 루프 catch-all에서 실패한 요청의 id를 최선노력으로 복구한다(파싱마저 실패하면 null,
+     *  JSON-RPC 2.0 규약대로). 두 번째 파싱이 던지는 예외는 여기서 조용히 삼킨다 — 이 헬퍼 자체가
+     *  이미 방어적 경로다. */
+    private static JsonNode tryExtractId(String line) {
+        try {
+            JsonNode req = OM.readTree(line);
+            if (req != null && req.isObject() && req.has("id")) return req.get("id");
+        } catch (Exception ignored) {
+            // 파싱 불가 — id 미상, null 반환(아래)
+        }
+        return null;
     }
 
     private void handleLine(String line, PrintStream out) {
@@ -253,7 +273,30 @@ public class McpCommand implements Callable<Integer> {
             args.add(workingDir.toString());
         }
         ExecCapture cap = execInProcess(args);
-        return ToolCallResult.ok(cap.out());
+        return validateDoctorOutput(cap);
+    }
+
+    /** doctor 실행이 예외 없이 반환했더라도 캡처된 stdout이 비어있거나 JSON으로 파싱 불가능하면
+     *  {@code isError=false} + 빈 텍스트로 침묵 성공하지 않는다 — 진단 메시지(+stderr 꼬리)를 담아
+     *  isError=true로 수렴한다(design spec §2 침묵 실패 금지). package-private: 단위 테스트에서 직접 검증. */
+    static ToolCallResult validateDoctorOutput(ExecCapture cap) {
+        String out = cap.out();
+        if (out == null || out.isBlank()) {
+            return ToolCallResult.error("doctor produced no output (exit " + cap.code() + ")"
+                    + stderrTailSuffix(cap.err()));
+        }
+        try {
+            OM.readTree(out);
+        } catch (Exception e) {
+            return ToolCallResult.error("doctor output was not valid JSON (exit " + cap.code() + "): "
+                    + e.getMessage() + stderrTailSuffix(cap.err()));
+        }
+        return ToolCallResult.ok(out);
+    }
+
+    private static String stderrTailSuffix(String err) {
+        if (err == null || err.isBlank()) return "";
+        return "\nstderr:\n" + lastLines(err, STDERR_TAIL_LINES);
     }
 
     private static Path resolveWorkingDir(JsonNode arguments) {
@@ -318,16 +361,20 @@ public class McpCommand implements Callable<Integer> {
 
     private static void writeLine(PrintStream out, ObjectNode root) {
         try {
-            out.println(OM.writeValueAsString(root));   // compact(단일 줄) — pretty-print 금지(개행 구분 계약)
+            // "\n" 고정(println의 플랫폼별 line.separator 의존 금지) — 개행 구분 계약은 항상 LF.
+            out.print(OM.writeValueAsString(root) + "\n");   // compact(단일 줄) — pretty-print 금지
+            out.flush();
         } catch (JsonProcessingException e) {
             // ObjectNode 트리 직렬화 실패는 사실상 발생하지 않음 — 방어적 무시(응답 채널을 죽이지 않음)
         }
     }
 
-    private record ToolCallResult(String text, boolean isError) {
+    // package-private(not private): validateDoctorOutput의 단위 테스트(McpCommandDoctorGuardTest,
+    // 동일 패키지)가 직접 구성·단언한다.
+    record ToolCallResult(String text, boolean isError) {
         static ToolCallResult ok(String text) { return new ToolCallResult(text, false); }
         static ToolCallResult error(String text) { return new ToolCallResult(text, true); }
     }
 
-    private record ExecCapture(int code, String out, String err) {}
+    record ExecCapture(int code, String out, String err) {}
 }
