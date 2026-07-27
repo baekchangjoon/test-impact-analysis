@@ -32,7 +32,7 @@ jobs:
 
       # pjacoco는 미게시(Maven Central/Plugin Portal 준비 중) — 공식 소비 방식대로 소스를 빌드해
       # mavenLocal에 게시한다(PUBLISHING.md). e2e 모듈의 pjacoco testkit 의존이 컴파일 시 해소된다.
-      - name: pjacoco 소스 빌드 → mavenLocal (e2e testkit 의존 해소)
+      - name: pjacoco 해소 (릴리스 다운로드, 폴백 소스 빌드) (e2e testkit 의존 해소)
         env:
           PJACOCO_REF: v1.4.0
         run: bash scripts/setup-pjacoco.sh
@@ -181,7 +181,7 @@ jobs:
       - name: Set up Gradle (cache)
         uses: gradle/actions/setup-gradle@v4
 
-      - name: in-process E2E (pjacoco 소스 해소, 실패 시 fail)
+      - name: in-process E2E (pjacoco 해소, 실패 시 fail)
         env:
           PJACOCO_REF: v1.4.0
         run: bash scripts/run-inprocess-e2e.sh
