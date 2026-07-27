@@ -104,9 +104,10 @@ filters:                    # 전체 선택
   쓰므로 같은 계열). 의존성 추가에 따라 `THIRD-PARTY-NOTICES.md`·`licenses/`·SBOM 반영을
   구현 작업에 포함한다.
 - **구현 위치:** 로더·글로브 매칭은 `tia-core`(순수, TDD)에 두고 CLI가 사용한다. SP2의
-  Gradle 플러그인 등 **JVM 표면**이 이 로더를 재사용한다. SP4의 MCP 서버는 로더를 직접
-  쓰지 않고 **CLI를 서브프로세스로 실행해 `--format json` 출력을 소비**하는 것을 계약으로
-  한다(비-JVM 구현 가능성 확보).
+  Gradle 플러그인 등 **JVM 표면**이 이 로더를 재사용한다. ~~SP4의 MCP 서버는 CLI를
+  서브프로세스로 실행해 `--format json` 출력을 소비한다(비-JVM 구현 가능성 확보)~~
+  → **SP4에서 대체됨**: 사용자가 `tia mcp` 서브커맨드(단일 JVM 내장)를 확정하며 인프로세스
+  실행으로 변경 — JSON 계약 소비는 동일(2026-07-27-sp4-agent-surface-design.md 참조).
 
 **CLI 옵션 배선 (커맨드 × 신규 옵션)**
 
