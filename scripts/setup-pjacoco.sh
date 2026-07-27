@@ -56,7 +56,9 @@ m2_testkit() {
   [ -f "$HOME/.m2/repository/io/pjacoco/$a/$TESTKIT_VERSION/$a-$TESTKIT_VERSION.jar" ]
 }
 testkit_ok=0
-if m2_testkit pjacoco-testkit-junit5 && m2_testkit pjacoco-testkit-restassured; then
+# pjacoco-testkit = junit5/restassured가 api로 전이 요구하는 core 아티팩트 — 부분 캐시 오판 방지
+if m2_testkit pjacoco-testkit-junit5 && m2_testkit pjacoco-testkit-restassured \
+   && m2_testkit pjacoco-testkit; then
   echo "testkit $TESTKIT_VERSION 이미 mavenLocal에 있음 → 빌드 스킵" >&2
   testkit_ok=1
 fi
@@ -74,7 +76,7 @@ if [ "$agent_ok" != "1" ] || [ "$testkit_ok" != "1" ]; then
     mkdir -p "$REPO_ROOT/tools/pjacoco"
     cp "$AGENT_JAR" "$AGENT_DEST"
   fi
-  if ! m2_testkit pjacoco-testkit-junit5 || ! m2_testkit pjacoco-testkit-restassured; then
+  if ! m2_testkit pjacoco-testkit-junit5 || ! m2_testkit pjacoco-testkit-restassured || ! m2_testkit pjacoco-testkit; then
     echo "❌ testkit $TESTKIT_VERSION 이 mavenLocal에 게시되지 않음 (소스 버전과 TESTKIT_VERSION 불일치 가능)" >&2
     exit 1
   fi
