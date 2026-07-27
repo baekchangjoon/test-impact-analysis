@@ -164,7 +164,8 @@
 ## 5. CI / 에이전트 통합
 
 - **GitHub Action**(PR에서 선별): [`action.yml`](action.yml) — `db`/`commit`/`diff-file` 입력 →
-  Job Summary + `selected`/`run-all` 출력. [docker/README](docker/README.md).
+  Job Summary + `selected`/`run-all` 출력. `pr-comment: 'true'`(옵션, 기본 `'false'`)로 결과를 PR
+  코멘트로도 게시할 수 있다(`permissions: pull-requests: write` 필요). [docker/README](docker/README.md).
 - **Gradle 플러그인**: `tiaIndex`/`tiaImpact`/`tiaReport` 태스크 + 에이전트 와이어링. [가이드](tia-gradle-plugin/README.md).
 - **Agent Skill**: Claude·Kiro·Antigravity 등에서 "이 변경에 영향받는 테스트?"를 자연어로. [SKILL.md](skills/tia/SKILL.md).
 
