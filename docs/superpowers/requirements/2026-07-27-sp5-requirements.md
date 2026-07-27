@@ -17,8 +17,9 @@
 - 우선순위: Must
 - 설명: `DRY_RUN=1`이면 gh를 호출하지 않고 API 경로와 본문을 stdout으로 출력하고 exit 0.
 - 수용기준:
-  - Given 본문 파일과 `PR_NUMBER=7`·`REPO=o/r`, When `DRY_RUN=1`로 실행, Then stdout에 `repos/o/r/issues/7/comments`와 본문 내용이 있고 exit 0이며 gh가 호출되지 않는다(gh 미설치 환경에서도 통과).
+  - Given 본문 파일과 `PR_NUMBER=7`·`REPO=o/r`, **PATH를 gh 없는 빈 디렉터리로 완전 치환**한 환경, When `DRY_RUN=1`로 실행, Then stdout에 `repos/o/r/issues/7/comments`와 본문 내용이 있고 exit 0이다(PATH 격리로 'gh 미설치' 실재 재현 — 상속 PATH로는 non-invocation 증명 불가).
 - 검증 레벨: E2E black-box (ProcessBuilder 셸-아웃)
+- 순서 제약: 스크립트 체크 순서는 BODY_FILE → PR_NUMBER → 절단 → **DRY_RUN(조기 종료, gh 불요)** → gh 존재 체크로 고정한다(이 순서가 본 요구의 전제).
 
 ### SP5-REQ-003 — 소프트 스킵(경고 필수, 실패 금지)
 - 유형: Functional
@@ -45,20 +46,21 @@
   - Given 항상 실패하는 스텁 gh, When 실행, Then `::warning`에 `pull-requests: write` 문구 포함 + exit 0.
 - 검증 레벨: E2E black-box (스텁 gh)
 
-### SP5-REQ-006 — 65,536자 한도 절단
+### SP5-REQ-006 — 65,536자 한도 절단 (하드캡 포함)
 - 유형: Functional
 - 우선순위: Must
-- 설명: 본문 60,000자 초과 시 요약 테이블은 유지하고 상세를 절단 안내로 대체해 최종 본문이 65,536자 미만이다.
+- 설명: 본문 60,000바이트 초과 시 요약 테이블은 유지하고 상세를 절단 안내로 대체하며, 그래도 한도 이상이면 **하드캡(head -c)** 으로 최종 본문 <65,536바이트를 알고리즘 구조와 무관하게 보장한다. 크기는 바이트 기준(UTF-8 과잉 보수 절단 허용). 절단 시 `<details>` 이후의 경고 섹션은 유실될 수 있다(베스트 에포트 — 명시적 수용).
 - 수용기준:
-  - Given 60,000자 초과 본문 파일, When 실행(DRY_RUN=1), Then 출력 본문에 절단 안내가 있고 길이가 65,536자 미만이며 요약 테이블 첫 행이 보존된다.
+  - Given 실제 markdown 형태(요약 테이블+`<details>`)의 70,000바이트 본문과 **유효한 PR_NUMBER·REPO**, When 실행(DRY_RUN=1), Then 출력 본문 <65,536바이트 + 절단 안내 + 요약 테이블 첫 행 보존.
+  - Given `<details>`가 없는 70,000바이트 본문, When 실행(DRY_RUN=1), Then 하드캡으로 출력 본문 <65,536바이트.
 - 검증 레벨: E2E black-box
 
 ### SP5-REQ-007 — 액션 스텝 배선 (ACTION_PATH·ENV 재사용·no-baseline)
 - 유형: Functional
 - 우선순위: Must
-- 설명: 신규 스텝은 `$GITHUB_ACTION_PATH/scripts/pr-comment.sh`를 호출하고, `TIA_ARGS`($GITHUB_ENV 경유)를 재사용해 `--format markdown`을 덧붙이며, `steps.impact.outputs.run-all == 'true'`면 재실행 없이 고정 문구 본문을 쓴다. env 매핑(BODY_FILE·PR_NUMBER·REPO·GITHUB_TOKEN) 완비.
+- 설명: 신규 스텝은 `$GITHUB_ACTION_PATH/scripts/pr-comment.sh`를 호출하고, `TIA_ARGS`($GITHUB_ENV 경유, 랜덤 델리미터)를 재사용해 `--format markdown`을 덧붙이며, `steps.impact.outputs.run-all == 'true'`면 재실행 없이 고정 문구 본문을 쓴다. env 매핑(BODY_FILE·PR_NUMBER·REPO·GITHUB_TOKEN) 완비. **PR-컨텍스트 조기 스킵이 docker run 이전**에 있고, docker 재생성 실패도 `::warning`+exit 0(잡 실패 금지).
 - 수용기준:
-  - Given action.yml, When 정적 검토, Then 위 4가지 배선이 모두 존재하고 상대경로 스크립트 참조가 없다.
+  - Given action.yml, When 정적 검토, Then 위 배선 5항목(ACTION_PATH·env 매핑·run-all 게이트·TIA_ARGS 재사용·조기 스킵+재생성 소프트 스킵)이 모두 존재하고 상대경로 스크립트 참조가 없다.
 - 검증 레벨: diff/정적 검토 (문서화된 수동 게이트; 실배선은 머지 후 실PR 스모크)
 
 ### SP5-REQ-008 — 탭 가이드 내장
@@ -70,13 +72,14 @@
   - Given 전체 테스트 스위트, When 실행, Then 부재 단언 테스트 포함 전부 green(문구 충돌 없음).
 - 검증 레벨: unit (ReportBuilderTest) + 전체 스위트
 
-### SP5-REQ-009 — 탭 1·2·5 빈 상태 안내
+### SP5-REQ-009 — 탭 1·2·5 빈 상태 안내 (탭5는 성공/결측 구분)
 - 유형: Functional
 - 우선순위: Must
-- 설명: per-test·역인덱스·blind spots 탭이 빈 데이터일 때 "왜 비었는지+무엇을 주면 채워지는지" 문구를 표시한다(flaky·scenarios는 기존 문구 유지).
+- 설명: per-test·역인덱스 탭이 빈 데이터일 때 "왜 비었는지+무엇을 주면 채워지는지" 문구를 표시한다. blind spots 탭은 **`nProd === 0`(입력 없음)일 때만** 결측 안내를, `nProd>0 && blind==0`이면 "전체 커버 — 사각지대 없음" 긍정 메시지를 표시한다(성공 상태를 결측으로 오표시 금지). flaky·scenarios는 기존 문구 유지.
 - 수용기준:
-  - Given 테스트 0건 testwise·빈 prod 목록으로 렌더, When HTML 검사, Then 탭 1·2·5의 빈 상태 문구가 존재한다.
-- 검증 레벨: unit (ReportBuilderTest)
+  - Given 테스트 0건 testwise·빈 prod, When 렌더, Then 탭 1·2·5의 빈 상태 문구 존재.
+  - Given prod 있음·blind 0건, When 렌더, Then 탭 5에 긍정 문구(결측 안내 아님) 존재.
+- 검증 레벨: unit (ReportBuilderTest — `render()`가 유일한 렌더 경로라 unit으로 충분, e2e 중복 단언 불요)
 
 ### SP5-REQ-010 — 소비자 문서 갱신
 - 유형: Non-functional (문서)
@@ -95,10 +98,10 @@
 | SP5-REQ-003 | 소프트 스킵 | PrCommentScriptE2ETest#emptyPrNumberWarnsExitZero / #missingBodyFileFails | E2E | 🔴 planned |
 | SP5-REQ-004 | -F 파일 본문 전달 | PrCommentScriptE2ETest#stubGhReceivesFileBody | E2E | 🔴 planned |
 | SP5-REQ-005 | 실패 내성+권한 안내 | PrCommentScriptE2ETest#ghFailureWarnsWithPermissionHint | E2E | 🔴 planned |
-| SP5-REQ-006 | 65,536자 절단 | PrCommentScriptE2ETest#oversizedBodyTruncated | E2E | 🔴 planned |
+| SP5-REQ-006 | 65,536자 절단+하드캡 | PrCommentScriptE2ETest#oversizedBodyTruncated / #oversizedHeadHardCapped | E2E | 🔴 planned |
 | SP5-REQ-007 | 액션 스텝 배선 | action.yml 정적 검토 (구현 task 산출물 대조) | manual | 🔴 planned |
 | SP5-REQ-008 | 탭 가이드 | ReportBuilderTest#tabGuidesRenderedFiveTimes + 전체 스위트 | unit | 🔴 planned |
-| SP5-REQ-009 | 빈 상태 1·2·5 | ReportBuilderTest#emptyStateHintsForSparseTabs | unit | 🔴 planned |
+| SP5-REQ-009 | 빈 상태 1·2·5 (탭5 구분) | ReportBuilderTest#emptyStateHintsForSparseTabs / #fullCoverageBlindTabShowsPositiveMessage | unit | 🔴 planned |
 | SP5-REQ-010 | 소비자 문서 | PR 전 docs 게이트 점검 | build | 🔴 planned |
 
 Coverage: 0/10 green (0%) — target 100% (대상: Must 10 = 10; SP5-REQ-001/007은 수동 게이트로 검증 방법 명시)

@@ -16,7 +16,9 @@
 - composite 번들 파일 참조는 반드시 `$GITHUB_ACTION_PATH` 기준 [SP5-REQ-007]
 - `gh api … -F body=@file` (**-f 금지** — 리터럴이 됨) [SP5-REQ-004]
 - 게시 실패·PR 미컨텍스트·gh 부재 = `::warning` + exit 0; BODY_FILE 부재만 exit 1 [SP5-REQ-003/005]
-- 본문 60,000자 초과 시 절단(최종 <65,536자) [SP5-REQ-006]
+- 본문 60,000자 초과 시 절단 + **최종 하드캡(head -c 64000) 필수** — `<details>` 부재/후행에도 <65,536 보장 [SP5-REQ-006]
+- **스크립트 체크 순서 고정**: BODY_FILE(하드 실패) → PR_NUMBER(소프트 스킵) → 절단 → **DRY_RUN(조기 종료 — gh 불요)** → gh 존재 체크. 이 순서가 REQ-002의 전제이므로 리팩터링 금지 [SP5-REQ-002]
+- 신규 스텝의 docker 재생성 실패도 `::warning` + exit 0 (opt-in 기능은 절대 잡을 깨지 않음) [SP5-REQ-007]
 - 가이드/빈 상태 문구는 일반 산문만(fixture 형태 리터럴 금지) — 전체 스위트로 충돌 검증 [SP5-REQ-008]
 - 구현은 워크트리 브랜치 `feat/sp5-pr-comment-report-guide`(origin/main 기준)에서. 커밋에 `[SP5-REQ-…]` 표기 + 세션 트레일러.
 
@@ -51,8 +53,13 @@
     }
 ```
 
-케이스 6개(각 `@DisplayName("SP5-REQ-0NN: …")`):
-`dryRunPrintsApiPathAndBody`(REQ-002: DRY_RUN=1, PATH에 가짜 gh 없이도 exit 0 + `repos/o/r/issues/7/comments`+본문 출력), `emptyPrNumberWarnsExitZero`·`missingBodyFileFails`(REQ-003), `stubGhReceivesFileBody`(REQ-004: @TempDir에 기록형 스텁 `gh` 작성 — `#!/bin/bash\nprintf '%s\n' "$@" > "$GH_ARGS_OUT"; exit 0` — PATH 선두 주입 후 인자에 `-F`·`body=@` 존재 + 참조 파일 내용이 원본과 일치), `ghFailureWarnsWithPermissionHint`(REQ-005: `exit 1` 스텁 → 출력에 `::warning`+`pull-requests: write` 포함, exit 0), `oversizedBodyTruncated`(REQ-006: 70,000자 본문 → DRY_RUN 출력 본문 <65,536자 + 절단 안내 + 첫 테이블 행 보존).
+케이스 7개(각 `@DisplayName("SP5-REQ-0NN: …")`):
+- `dryRunPrintsApiPathAndBody`(REQ-002): **PATH를 gh가 없는 빈 @TempDir 디렉터리로 완전 치환**(상속 금지 — 실제 'gh 미설치'를 재현; 로컬·CI 러너엔 진짜 gh가 있어 상속 시 non-invocation 증명 불가). DRY_RUN=1 → exit 0 + `repos/o/r/issues/7/comments`+본문 출력. 회귀로 DRY_RUN 분기가 새면 command-not-found로 즉시 검출.
+- `emptyPrNumberWarnsExitZero`·`missingBodyFileFails`(REQ-003).
+- `stubGhReceivesFileBody`(REQ-004): @TempDir에 기록형 스텁 `gh`(`#!/bin/bash\nprintf '%s\n' "$@" > "$GH_ARGS_OUT"; exit 0`) 작성·chmod 755, **`GH_ARGS_OUT`(@TempDir 내 파일 절대경로)을 env 맵에 포함해 run()에 전달**(ProcessBuilder env는 자식 gh까지 상속). 종료 후 그 파일을 읽어 `body=@` 접두 토큰에서 경로를 추출, **그 파일의 내용이 원본 본문과 일치**함을 단언(-f/-F 오류를 실제로 잡는 검증).
+- `ghFailureWarnsWithPermissionHint`(REQ-005): `exit 1` 스텁 → 출력에 `::warning`+`pull-requests: write` 포함, exit 0.
+- `oversizedBodyTruncated`(REQ-006): **유효한 PR_NUMBER·REPO를 반드시 설정**(빈 값이면 절단 전에 조기 종료됨). 픽스처는 실제 `ImpactFormats.markdown()` 형태(요약 테이블 + `<details>` 상세)를 대량 행으로 부풀린 70,000자 → DRY_RUN 출력 본문 <65,536자 + 절단 안내 + 첫 테이블 행 보존.
+- `oversizedHeadHardCapped`(REQ-006): `<details>`가 **없는** 70,000자 본문 → 하드캡으로 최종 <65,536자.
 
 - [ ] **Step 2: red 확인** — `./gradlew :e2e:test --tests 'io.tia.e2e.action.*'` → 스크립트 부재로 전부 FAIL.
 - [ ] **Step 3: 구현** — `scripts/pr-comment.sh`:
@@ -69,12 +76,19 @@ if [ -z "${PR_NUMBER:-}" ]; then
   echo "::warning::PR 컨텍스트가 아님 — 코멘트 게시 스킵"; exit 0
 fi
 
-# 크기 절단: 요약 테이블(첫 <details> 이전)은 유지, 상세는 안내로 대체 [SP5-REQ-006]
+# 크기 절단 [SP5-REQ-006]: 요약 테이블(첫 <details> 이전) 유지 → 그래도 크면 하드캡.
+# wc -c는 바이트 기준(UTF-8 한글은 과잉 보수적 절단 — 안전 방향, 요구는 바이트 근사 허용).
+# 주의: 절단 시 <details> 이후의 '### 경고' 섹션은 유실될 수 있음(베스트 에포트 — REQ-006 명시).
 size=$(wc -c < "$BODY_FILE")
 if [ "$size" -gt "$TRUNC_AT" ]; then
-  head_part="$(awk '/<details>/{exit} {print}' "$BODY_FILE")"
-  printf '%s\n\n_상세 목록이 길어 생략했습니다(%s자). 전체는 job summary 또는 TIA 리포트를 참조하세요._\n' \
-    "$head_part" "$size" > "$BODY_FILE.trunc"
+  awk '/<details>/{exit} {print}' "$BODY_FILE" > "$BODY_FILE.trunc"
+  printf '\n_상세 목록이 길어 생략했습니다(%s바이트). 전체는 job summary 또는 TIA 리포트를 참조하세요._\n' \
+    "$size" >> "$BODY_FILE.trunc"
+  if [ "$(wc -c < "$BODY_FILE.trunc")" -ge "$MAX" ]; then
+    head -c "$TRUNC_AT" "$BODY_FILE.trunc" > "$BODY_FILE.cap"   # 하드캡 — <details> 부재/후행에도 보장
+    printf '\n\n_…(하드캡 절단)_\n' >> "$BODY_FILE.cap"
+    mv "$BODY_FILE.cap" "$BODY_FILE.trunc"
+  fi
   BODY_FILE="$BODY_FILE.trunc"
 fi
 
@@ -114,8 +128,9 @@ fi
   - 기존 `impact` 스텝 **끝에만** 3줄 추가(기존 로직 라인 무수정):
 
 ```bash
-        # SP5: 코멘트 스텝이 동일 인자를 재사용하도록 export (개행-연결)
-        { echo "TIA_ARGS<<__ARGS__"; printf '%s\n' "${args[@]}"; echo "__ARGS__"; } >> "$GITHUB_ENV"
+        # SP5: 코멘트 스텝이 동일 인자를 재사용하도록 export (개행-연결, 랜덤 델리미터 — env 주입 방지)
+        d="tia_$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+        { echo "TIA_ARGS<<$d"; printf '%s\n' "${args[@]}"; echo "$d"; } >> "$GITHUB_ENV"
 ```
 
   - 신규 스텝(요지 — 실제 작성 시 그대로):
@@ -139,13 +154,15 @@ fi
           echo '_TIA 베이스라인 없음 → 전체 실행 권장 (보수적, 누락 위험 0)._' >> "$BODY_FILE"
         else
           mapfile -t args <<< "$TIA_ARGS"
-          docker run --rm -v "$PWD:/work" -w /work "$IN_IMAGE" "${args[@]}" --format markdown >> "$BODY_FILE"
+          # 재생성 실패도 소프트 스킵 — opt-in 기능이 잡을 깨면 안 됨 [리뷰 반영]
+          docker run --rm -v "$PWD:/work" -w /work "$IN_IMAGE" "${args[@]}" --format markdown >> "$BODY_FILE" \
+            || { echo "::warning::TIA markdown 재생성 실패 — 코멘트 스킵"; exit 0; }
         fi
         BODY_FILE="$BODY_FILE" "$GITHUB_ACTION_PATH/scripts/pr-comment.sh"
 ```
 
-- [ ] **Step 2: 정적 검토(REQ-007 수용):** `$GITHUB_ACTION_PATH` 사용·상대경로 부재·env 4종 매핑·run-all 게이트·TIA_ARGS 재사용을 diff에서 확인하고 결과를 커밋 메시지/리포트에 기록. 기존 스텝 로직 라인 무변경(REQ-001) 확인.
-- [ ] **Step 3: 문서.** docker/README 예시에 두 입력 + 전제(`permissions: pull-requests: write`, 포크 PR read-only) 명시. README·GETTING-STARTED에 "리포트에 인라인 탭 가이드 내장 + PR 코멘트 옵션" 1줄.
+- [ ] **Step 2: 정적 검토(REQ-007 수용) — 5항목:** ① `$GITHUB_ACTION_PATH` 사용(상대경로 부재) ② env 4종 매핑 ③ run-all 게이트 ④ TIA_ARGS 재사용 ⑤ **PR-컨텍스트 조기 스킵(docker run 이전)** + docker 재생성 소프트 스킵. diff에서 확인하고 결과를 리포트에 기록. 기존 스텝 로직 라인 무변경(REQ-001) 확인. (자동 grep CI 가드는 기각 — 정적 검토+실PR 스모크로 충분, 별도 린트 유지비 회피.)
+- [ ] **Step 3: 문서.** docker/README 예시에 두 입력 + 전제(`permissions: pull-requests: write`, 포크 PR read-only) 명시. GETTING-STARTED의 action 입력 열거 문장(166행 부근 "db/commit/diff-file 입력")도 갱신. README·GETTING-STARTED의 "인라인 탭 가이드" 언급은 **Task 3에서**(구현 후) 추가 — 여기서는 PR 코멘트 옵션만.
 - [ ] **Step 4: 전체 스위트 green 확인 후 Commit** — `feat(action): opt-in PR 코멘트 스텝 — ACTION_PATH·TIA_ARGS 재사용·run-all 게이트 [SP5-REQ-001/007/010]`
 - [ ] **Step 5: 매트릭스 갱신** (REQ-001/007/010 🟢 — 검증 방법 명시대로)
 
@@ -159,9 +176,9 @@ fi
 - Modify: `tia-core/src/main/resources/report-template.html`
 - Test: `tia-core/src/test/java/io/tia/core/report/ReportBuilderTest.java` (케이스 2개 추가)
 
-- [ ] **Step 1: 실패 테스트 작성** — `tabGuidesRenderedFiveTimes`(렌더 HTML에서 `class="tab-guide"` 정확히 5회 + 문구 "이 탭 읽는 법" 존재), `emptyStateHintsForSparseTabs`(테스트 0건 testwise + 빈 prod로 렌더 → 탭 1·2·5 빈 상태 문구 존재). red 확인.
-- [ ] **Step 2: 템플릿 수정.** 5개 `<section>`의 `<h2>` 직후에 `<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>…</p></details>`(REPORT-GUIDE 해당 탭 3~5문장 요약, 일반 산문만 — 경로/테스트명 모양 금지). 탭 1·2·5의 렌더 JS에 빈 배열 가드 추가(예: `if(!D.perTest.length){el.innerHTML='<p class="hint">per-test 데이터가 없습니다 — testwise.json에 테스트가 없거나 필터로 모두 제외되었습니다.</p>'}` 스타일 — 정확 문구는 구현 시 확정하되 fixture 리터럴 금지).
-- [ ] **Step 3: green + 전체 스위트** — `./gradlew test` 전부 green(부재 단언 테스트 포함 — 충돌 검증)이어야 REQ-008 충족.
+- [ ] **Step 1: 실패 테스트 작성** — 신규 케이스에 `@DisplayName("SP5-REQ-00N: …")` 태그(기존 파일엔 없지만 전역 규칙 적용 시작): `tabGuidesRenderedFiveTimes`(렌더 HTML에서 `class="tab-guide"` 정확히 5회 + 문구 "이 탭 읽는 법" 존재), `emptyStateHintsForSparseTabs`(테스트 0건 testwise + 빈 prod로 렌더 → 탭 1·2·5 빈 상태 문구 존재), `fullCoverageBlindTabShowsPositiveMessage`(prod 있음+blind 0건 → "사각지대 없음" 긍정 문구, 빈-입력 안내 아님). red 확인. (검증 레벨 근거: `ReportBuilder.render()`가 유일한 렌더 경로라 unit으로 충분 — e2e 중복 단언 불요, REQ 문서에 명시됨.)
+- [ ] **Step 2: 템플릿 수정.** 5개 `<section>`의 `<h2>` 직후에 `<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>…</p></details>`(REPORT-GUIDE 해당 탭 3~5문장 요약, 일반 산문만 — 경로/테스트명 모양 금지). 탭 1·2 렌더 JS에 빈 배열 가드. **탭 5는 `D.nProd === 0`일 때만 "입력 없음" 안내**, `nProd>0 && blind.length===0`이면 "전체 커버 — 사각지대 없음" 긍정 메시지(성공 상태를 결측으로 오표시 금지).
+- [ ] **Step 3: green + 전체 스위트** — `./gradlew test` 전부 green(부재 단언 테스트 포함 — 충돌 검증)이어야 REQ-008 충족. README·GETTING-STARTED에 "리포트 인라인 탭 가이드" 1줄 추가(구현과 같은 커밋).
 - [ ] **Step 4: Commit** — `feat(report): 탭 가이드 5종 + 탭1/2/5 빈 상태 내장 [SP5-REQ-008/009]`
 - [ ] **Step 5: 매트릭스 갱신** (REQ-008/009 🟢) + Coverage 라인 10/10.
 
