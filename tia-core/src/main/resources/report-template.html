@@ -232,7 +232,7 @@ if(!D.flaky || !D.flaky.real){
 
 // ---- 5. blind ----
 if(D.nProd===0){
- document.getElementById('blindhint').textContent='프로덕션 파일 목록이 없습니다 — prod-files 입력이 비었습니다. prod-files.txt를 채우면 이 탭이 사각지대를 계산해 보여준다.';
+ document.getElementById('blindhint').textContent='프로덕션 파일 목록이 없습니다 — prod-files 입력이 없거나 필터로 모두 제외되었습니다. prod-files.txt를 채우거나 필터 범위를 넓히면 이 탭이 사각지대를 계산해 보여준다.';
 }else if(D.blind.length===0){
  document.getElementById('blindhint').textContent=`전체 커버 — 프로덕션 ${D.nProd}개 파일 모두 최소 한 번 이상 실행됨. 커버리지 사각지대가 없습니다.`;
 }else{
