@@ -3,6 +3,7 @@ package io.tia.core.store;
 import io.tia.core.model.CoverageSnapshot;
 import io.tia.core.model.TestCoverage;
 import org.roaringbitmap.RoaringBitmap;
+import org.sqlite.SQLiteConfig;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,30 +28,60 @@ import java.util.stream.Collectors;
 
 /** 레포당 SQLite 스냅샷. 모든 레코드 키에 commit_sha 포함(설계 §6.1). */
 public final class CoverageStore implements AutoCloseable {
+    /** 읽기 오픈이 DB 파일 부재로 커넥션 자체를 스킵하면 null(빈 스토어, 파일 미생성) [FU-REQ-003 fix round1]. */
     private final Connection conn;
+    /** builds/coverage 테이블이 실제로 존재하는지. 쓰기 오픈은 initSchema()가 항상 만들어 true.
+     *  읽기 오픈은 파일이 없거나(conn==null) 있어도 테이블이 없으면(스키마 없는 파일) false — 이 경우
+     *  load()/distinctBuildCount()는 쿼리를 실행하지 않고 곧장 빈 결과로 수렴한다 [FU-REQ-003 fix round1]. */
+    private final boolean hasSchema;
 
     /** 쓰기 오픈 — index 등 인덱싱 경로. busy_timeout=5000(커넥션 스코프) + journal_mode=WAL(파일
-     *  헤더에 영속되는 전환, best-effort) 적용 [FU-REQ-003]. */
+     *  헤더에 영속되는 전환, best-effort) 적용, 스키마도 이 경로에서만 생성 [FU-REQ-003]. */
     public CoverageStore(Path dbFile) {
         this(dbFile, true);
     }
 
-    /** 읽기 오픈 — doctor/impact 등 조회 전용 경로. busy_timeout=5000만 적용하고 journal_mode는
-     *  절대 건드리지 않는다 — 기존 non-WAL DB를 WAL로 전환하면 doctor의 "진단 도구가 사용자 DB를
-     *  변형하지 않는다"는 읽기 전용 불변식이 깨진다 [FU-REQ-003]. */
+    /** 읽기 오픈 — doctor/impact 등 조회 전용 경로. 파일·스키마를 절대 생성하지 않는다:
+     *  DB 파일이 없으면 커넥션조차 열지 않고(JDBC sqlite가 오픈만으로 파일을 만드는 부작용 회피)
+     *  빈 스토어로 수렴하며, 파일이 있으면 SQLITE_OPEN_READONLY로 열어 스키마 생성은 물론 어떤
+     *  기록도 원천 차단한다. busy_timeout=5000만 적용하고 journal_mode는 절대 건드리지 않는다 —
+     *  기존 non-WAL DB를 WAL로 전환하면 doctor의 "진단 도구가 사용자 DB를 변형하지 않는다"는
+     *  읽기 전용 불변식이 깨진다 [FU-REQ-003, fix round1: 무생성 보장]. */
     public static CoverageStore openRead(Path dbFile) {
         return new CoverageStore(dbFile, false);
     }
 
     private CoverageStore(Path dbFile, boolean write) {
         try {
-            Path parent = dbFile.toAbsolutePath().getParent();
-            if (parent != null) Files.createDirectories(parent);
-            conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.toString());
-            applyBusyTimeout();
-            if (write) applyWalBestEffort();
-            initSchema();
+            if (write) {
+                Path parent = dbFile.toAbsolutePath().getParent();
+                if (parent != null) Files.createDirectories(parent);
+                conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile);
+                applyBusyTimeout();
+                applyWalBestEffort();
+                initSchema();
+                hasSchema = true;
+            } else if (Files.exists(dbFile)) {
+                SQLiteConfig readOnly = new SQLiteConfig();
+                readOnly.setReadOnly(true);
+                conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile, readOnly.toProperties());
+                applyBusyTimeout();
+                hasSchema = schemaExists();
+            } else {
+                // 읽기 오픈인데 DB 파일이 아예 없음 — 커넥션을 만들지 않는다. 빈 스토어로 수렴.
+                conn = null;
+                hasSchema = false;
+            }
         } catch (SQLException | IOException e) { throw new RuntimeException(e); }
+    }
+
+    /** builds 테이블 존재 여부(읽기 오픈에서 스키마 없는 기존 파일을 빈 스토어로 취급하기 위함). */
+    private boolean schemaExists() throws SQLException {
+        try (Statement s = conn.createStatement();
+             ResultSet rs = s.executeQuery(
+                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='builds'")) {
+            return rs.next();
+        }
     }
 
     /** 모든 오픈에 적용 — 동시 접근 시 즉시 SQLITE_BUSY 대신 최대 5초 대기(커넥션 스코프, 파일 무변형). */
@@ -142,6 +173,7 @@ public final class CoverageStore implements AutoCloseable {
 
     /** 해당 commit의 모든 build를 test_id별 최신-build-wins로 병합한 스냅샷. */
     public CoverageSnapshot load(String commitSha) {
+        if (!hasSchema) return new CoverageSnapshot(null, commitSha, List.of());   // 무생성 읽기 [FU-REQ-003 fix round1]
         try {
             // 1단계: builds 열거(오름차순). repo는 마지막 행 = 최대 build_id의 값.
             List<Long> buildIds = new ArrayList<>();
@@ -186,6 +218,7 @@ public final class CoverageStore implements AutoCloseable {
 
     /** 해당 commit의 distinct build 수(없으면 0). 상태 없는 쿼리 — thread-safe. */
     public int distinctBuildCount(String commitSha) {
+        if (!hasSchema) return 0;   // 무생성 읽기 [FU-REQ-003 fix round1]
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT COUNT(DISTINCT build_id) FROM builds WHERE commit_sha=?")) {
             ps.setString(1, commitSha);
@@ -208,6 +241,7 @@ public final class CoverageStore implements AutoCloseable {
     }
 
     @Override public void close() {
+        if (conn == null) return;   // 읽기 오픈이 파일 부재로 커넥션을 스킵한 경우 [FU-REQ-003 fix round1]
         try { conn.close(); } catch (SQLException e) { throw new RuntimeException(e); }
     }
 }
