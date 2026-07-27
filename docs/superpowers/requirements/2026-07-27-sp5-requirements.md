@@ -17,7 +17,7 @@
 - 우선순위: Must
 - 설명: `DRY_RUN=1`이면 gh를 호출하지 않고 API 경로와 본문을 stdout으로 출력하고 exit 0.
 - 수용기준:
-  - Given 본문 파일과 `PR_NUMBER=7`·`REPO=o/r`, **PATH를 gh 없는 빈 디렉터리로 완전 치환**한 환경, When `DRY_RUN=1`로 실행, Then stdout에 `repos/o/r/issues/7/comments`와 본문 내용이 있고 exit 0이다(PATH 격리로 'gh 미설치' 실재 재현 — 상속 PATH로는 non-invocation 증명 불가).
+  - Given 본문 파일과 `PR_NUMBER=7`·`REPO=o/r`, PATH 선두에 **호출 시 고유 마커를 출력하고 exit 99로 종료하는 포이즌 필 gh 스텁**을 prepend한 환경, When `DRY_RUN=1`로 실행, Then stdout에 `repos/o/r/issues/7/comments`와 본문 내용이 있고 포이즌 마커는 없으며 exit 0이다(prepend는 실제 gh의 설치 위치—macOS Homebrew `/opt/homebrew/bin`이든 GitHub-hosted ubuntu-latest `/usr/bin`이든—와 무관하게 항상 실제 gh를 shadow하므로, 러너 환경에 의존하지 않고 DRY_RUN 분기의 gh 비호출을 결정적으로 증명한다).
 - 검증 레벨: E2E black-box (ProcessBuilder 셸-아웃)
 - 순서 제약: 스크립트 체크 순서는 BODY_FILE → PR_NUMBER → 절단 → **DRY_RUN(조기 종료, gh 불요)** → gh 존재 체크로 고정한다(이 순서가 본 요구의 전제).
 
