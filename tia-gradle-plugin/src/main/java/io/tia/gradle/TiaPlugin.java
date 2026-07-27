@@ -156,18 +156,35 @@ public class TiaPlugin implements Plugin<Project> {
      * calls — Gradle's configuration-cache automatic input detection only covers a fixed set of
      * {@code java.io.File} checks (exists/isFile/length/...), NOT {@code java.nio.file}, so those
      * reads are invisible to the cache by default (confirmed by the CC functional smoke: a 2nd build
-     * silently reused a stale cache after tia.yml changed). Reading the discovered file through
+     * silently reused a stale cache after tia.yml changed). Reading a file through
      * {@link org.gradle.api.provider.ProviderFactory#fileContents} is the Gradle-recognized way to
-     * register an arbitrary file as a tracked configuration input — we only need the registration
-     * side effect here, not the returned text.
+     * register an arbitrary file — present OR absent — as a tracked configuration input; we only
+     * need the registration side effect, not the returned text.
+     *
+     * <p>Registering only the file {@link TiaConfigLoader#discover} actually found covers the
+     * A→B (changed) case but NOT absent→created: a project with no tia.yml at all would register
+     * nothing, so a tia.yml created later at any candidate directory would silently reuse the stale
+     * (no-config) cache entry. To close that gap, this walks the exact same directory chain
+     * {@code discover} uses (project dir upward to — and including — the {@code .git} root, or
+     * until a {@code tia.yml} is actually found) and registers EVERY candidate {@code <dir>/tia.yml}
+     * as a CC input, found or not. Registering extra non-existent candidates is harmless (more
+     * tracked inputs, never fewer) and correct: if a nearer-parent tia.yml appears, discover() would
+     * find that one first, so it must be tracked too.
      */
     private static void registerConfigCacheInput(Project project) {
-        Path discovered = TiaConfigLoader.discover(project.getProjectDir().toPath());
-        if (discovered == null) {
-            return;
+        Path dir = project.getProjectDir().toPath().toAbsolutePath().normalize();
+        while (dir != null) {
+            Path candidate = dir.resolve("tia.yml"); // mirrors TiaConfigLoader.FILE_NAME (package-private)
+            Provider<RegularFile> file = project.getLayout().file(project.provider(candidate::toFile));
+            project.getProviders().fileContents(file).getAsText().getOrElse("");
+            if (java.nio.file.Files.isRegularFile(candidate)) {
+                return; // found — same stop condition as TiaConfigLoader.discover
+            }
+            if (java.nio.file.Files.exists(dir.resolve(".git"))) {
+                return; // git root reached without finding tia.yml — same stop condition
+            }
+            dir = dir.getParent();
         }
-        Provider<RegularFile> file = project.getLayout().file(project.provider(discovered::toFile));
-        project.getProviders().fileContents(file).getAsText().getOrElse("");
     }
 
     private static String req(Property<String> p, String name) {

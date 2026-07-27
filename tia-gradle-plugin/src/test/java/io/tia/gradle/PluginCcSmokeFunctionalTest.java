@@ -14,11 +14,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * SP2-REQ-007: the ONE functional (GradleRunner/TestKit) smoke in this suite — everything else is
  * ProjectBuilder (spec §4). ProjectBuilder cannot exercise real apply-time configuration-cache
- * behaviour, so this exercises the plugin actually applied to a real consumer project, twice, under
- * {@code --configuration-cache}: first build stores the cache with tia.yml=A, then tia.yml is
- * rewritten to B and rebuilt — the printed db must reflect B, not a stale cached A (a bare
- * exit-code-0 smoke would miss cache staleness; a fake root-tia.yml-without-apply setup would be a
- * false green since the plugin was never applied — both are explicitly disallowed by spec §4/REQ-007).
+ * behaviour, so this exercises the plugin actually applied to a real consumer project under
+ * {@code --configuration-cache} across three phases, using {@code tia.sutName} (it always has a
+ * value — the built-in {@code project.name} convention — so phase 0 with NO tia.yml at all is
+ * observable without a required-property failure, unlike {@code tia.db}):
+ * <ol>
+ *   <li><b>absent → created</b>: no tia.yml at all → 1st build (cache stored, project-name
+ *       default printed) → create tia.yml A → rebuild → A reflected. This is the gap a prior
+ *       round of this test missed: registering only the file {@code TiaConfigLoader.discover}
+ *       actually found means a project with NO tia.yml registers nothing, so a tia.yml created
+ *       later would silently keep reusing the stale no-config cache entry.</li>
+ *   <li><b>changed</b>: A → rebuild → B → rebuild, B reflected (the original regression this
+ *       test was written for).</li>
+ * </ol>
+ * A bare exit-code-0 smoke would miss all of this cache staleness; a fake root-tia.yml-without-
+ * apply setup would be a false green since the plugin was never applied — both are explicitly
+ * disallowed by spec §4/REQ-007.
  */
 class PluginCcSmokeFunctionalTest {
 
@@ -32,41 +43,49 @@ class PluginCcSmokeFunctionalTest {
                         "    id 'io.tia'\n" +
                         "}\n" +
                         "\n" +
-                        "tasks.register('printDb') {\n" +
-                        "    def dbProvider = tia.db\n" + // capture the Provider at configuration time (CC-safe)
+                        "tasks.register('printSut') {\n" +
+                        "    def sutProvider = tia.sutName\n" + // capture the Provider at configuration time (CC-safe)
                         "    doLast {\n" +
-                        "        println('DB=' + dbProvider.get())\n" + // .get() deferred to execution time
+                        "        println('SUT=' + sutProvider.get())\n" + // .get() deferred to execution time
                         "    }\n" +
                         "}\n");
 
         Path tiaYml = consumerDir.resolve("tia.yml");
-        Files.writeString(tiaYml, "version: 1\ndb: a.db\n");
 
-        BuildResult first = runner(consumerDir).build();
-        assertTrue(first.getOutput().contains("DB=") && first.getOutput().contains("a.db"),
-                "1st build should print the tia.yml=A db: " + first.getOutput());
+        // phase 0: no tia.yml at all — built-in convention (project.name = 'consumer') applies.
+        BuildResult phase0 = runner(consumerDir).build();
+        assertTrue(phase0.getOutput().contains("SUT=") && phase0.getOutput().contains("SUT=consumer"),
+                "with no tia.yml, sutName should fall back to project.name: " + phase0.getOutput());
 
-        Files.writeString(tiaYml, "version: 1\ndb: b.db\n");
+        // phase 1: tia.yml created for the first time — MUST invalidate the phase-0 cache entry
+        // (absent -> created), not silently keep reusing the no-config default.
+        Files.writeString(tiaYml, "version: 1\nsut-name: sutA\n");
+        BuildResult phase1 = runner(consumerDir).build();
+        assertTrue(phase1.getOutput().contains("SUT=") && phase1.getOutput().contains("SUT=sutA"),
+                "after creating tia.yml, sutName must reflect it (not the stale absent-yml default): " + phase1.getOutput());
 
-        BuildResult second = runner(consumerDir).build();
-        assertTrue(second.getOutput().contains("DB=") && second.getOutput().contains("b.db"),
-                "2nd build must reflect the rewritten tia.yml=B, not a stale cached A: " + second.getOutput());
+        // phase 2: tia.yml content changed — MUST invalidate again (the original A -> B regression).
+        Files.writeString(tiaYml, "version: 1\nsut-name: sutB\n");
+        BuildResult phase2 = runner(consumerDir).build();
+        assertTrue(phase2.getOutput().contains("SUT=") && phase2.getOutput().contains("SUT=sutB"),
+                "after rewriting tia.yml, sutName must reflect the new value, not a stale cached one: " + phase2.getOutput());
     }
 
     private static GradleRunner runner(Path consumerDir) {
         return GradleRunner.create()
                 .withPluginClasspath()
                 .withProjectDir(consumerDir.toFile())
-                // --no-watch-fs: the two builds run back-to-back in the SAME TestKit daemon with a
-                // sub-second gap between rewriting tia.yml and the next build's task-graph
-                // calculation. With file-system watching on, Gradle trusts its in-memory VFS
-                // snapshot and only invalidates once the OS delivers the FSEvents/inotify change
-                // notification — which is asynchronous and can lag past that gap, so the 2nd build
-                // intermittently "Reuse"s the cache with the stale value (observed directly: reran
-                // this test back-to-back and saw both an immediate correct "Calculating task graph
-                // ... file 'tia.yml' has changed" and, without this flag, an occasional stale
-                // "Reusing configuration cache" printing the OLD db). Disabling watching forces a
-                // fresh, synchronous re-check of tracked file inputs every build, removing the race.
-                .withArguments(List.of("printDb", "--configuration-cache", "--no-watch-fs"));
+                // --no-watch-fs: consecutive builds in this test run back-to-back in the SAME
+                // TestKit daemon with a sub-second gap between rewriting tia.yml and the next
+                // build's task-graph calculation. With file-system watching on, Gradle trusts its
+                // in-memory VFS snapshot and only invalidates once the OS delivers the
+                // FSEvents/inotify change notification — which is asynchronous and can lag past
+                // that gap, so a later build can intermittently "Reuse" the cache with a stale
+                // value (observed directly: reran this test back-to-back and saw both an
+                // immediate correct "Calculating task graph ... file 'tia.yml' has changed" and,
+                // without this flag, an occasional stale "Reusing configuration cache" printing
+                // the OLD value). Disabling watching forces a fresh, synchronous re-check of
+                // tracked file inputs every build, removing the race.
+                .withArguments(List.of("printSut", "--configuration-cache", "--no-watch-fs"));
     }
 }
