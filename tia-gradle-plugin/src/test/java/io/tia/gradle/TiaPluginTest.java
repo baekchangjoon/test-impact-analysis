@@ -50,6 +50,15 @@ class TiaPluginTest {
                 TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, null));
     }
 
+    @org.junit.jupiter.api.Test
+    void coverageAgentJvmArgWithExcludes() {
+        // SP2-REQ-004 (TiaArgs 오버로드 부분): 5-인자 오버로드가 excludes=<v>를 방출한다.
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,aggregate=false,includes=com.acme.*,excludes=com.acme.Gen*",
+                TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, "com.acme.*", "com.acme.Gen*"));
+        assertEquals("-javaagent:/opt/agent.jar=destfile=/tmp/cov,port=6310,aggregate=false,excludes=com.acme.Gen*",
+                TiaArgs.coverageAgentJvmArg("/opt/agent.jar", "/tmp/cov", 6310, null, "com.acme.Gen*"));
+    }
+
     // ---- plugin wiring (ProjectBuilder) ----
     @org.junit.jupiter.api.Test
     void registersTasksExtensionAndCliConfig() {

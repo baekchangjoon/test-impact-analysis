@@ -15,4 +15,6 @@ gradlePlugin {
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    // SP2-REQ-003: GlobToClassPatternTest가 실제 WildcardMatcher로 매칭 단언 (문자열 비교 아님)
+    testImplementation 'org.jacoco:org.jacoco.core:0.8.12'
 }

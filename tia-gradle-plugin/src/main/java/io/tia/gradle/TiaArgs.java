@@ -46,16 +46,25 @@ final class TiaArgs {
     /** D3.1: -javaagent for the per-test coverage agent — real contract verified against
      *  the agent (io.pjacoco.agent.AgentOptions): {@code destfile=<dir>} (per-test .exec output dir),
      *  {@code port=<ctrl>} (fixed control endpoint; the test driver connects via -Dpjacoco.control-url),
-     *  {@code includes=<pattern>}. The control port is FIXED (not auto/ephemeral), so for the Test-JVM
-     *  attach helper, the test JVM must be single (maxParallelForks=1) — see attachCoverageAgent.
+     *  {@code includes=<pattern>} (default {@code *}), {@code excludes=<pattern>} (default empty) —
+     *  both are colon(':')-separated {@code WildcardMatcher} patterns (SP2 §3: GlobToClassPattern
+     *  converts SP1 path globs into this form). The control port is FIXED (not auto/ephemeral), so for
+     *  the Test-JVM attach helper, the test JVM must be single (maxParallelForks=1) — see attachCoverageAgent.
      *  Parallel test runs use a single-SUT topology (agent attached once to SUT, not to Test JVM).
      *  {@code aggregate=false}: TIA consumes per-test {@code .exec} only. pjacoco's {@code aggregate}
      *  defaults ON and would otherwise write a whole-run {@code aggregate.exec} into the same dir, which
      *  {@code tia convert} would mistake for a test covering everything (TestwiseConverter also skips it
      *  defensively, but disabling it at the source is cleaner). */
     static String coverageAgentJvmArg(String agentJarAbsPath, String destDir, int controlPort, String includes) {
+        return coverageAgentJvmArg(agentJarAbsPath, destDir, controlPort, includes, null);
+    }
+
+    /** SP2-REQ-004: excludes-aware overload (SP2 §3) — the 4-arg form above delegates here with a
+     *  null excludes so existing callers/tests are unaffected. */
+    static String coverageAgentJvmArg(String agentJarAbsPath, String destDir, int controlPort, String includes, String excludes) {
         String inc = notBlank(includes) ? ",includes=" + includes : "";
-        return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + ",aggregate=false" + inc;
+        String exc = notBlank(excludes) ? ",excludes=" + excludes : "";
+        return "-javaagent:" + agentJarAbsPath + "=destfile=" + destDir + ",port=" + controlPort + ",aggregate=false" + inc + exc;
     }
 
     private static boolean notBlank(String s) {
