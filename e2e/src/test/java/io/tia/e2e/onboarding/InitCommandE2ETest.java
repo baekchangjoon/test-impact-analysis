@@ -94,6 +94,44 @@ class InitCommandE2ETest {
         assertFalse(Files.exists(work.resolve("tia.yml")), "usage 에러 경로에서 tia.yml이 생성됨");
     }
 
+    @Test
+    @DisplayName("SP3-REQ-002: --force로 진행해도 쓰기 대상이 아닌 중간 경로의 잔존 tia.yml 경로를 경고에 담는다")
+    void forceWarnsAboutMidDirShadowFile() throws Exception {
+        Files.createDirectories(work.resolve(".git"));
+        Path midShadow = work.resolve("sub/tia.yml");
+        Files.createDirectories(midShadow.getParent());
+        Files.writeString(midShadow, "version: 1\nsut-name: shadow\n");
+        Path deeper = Files.createDirectories(work.resolve("sub/deeper"));
+
+        Exec r = run("init", "--topology", "in-process", "--sut-name", "root",
+                "--search-root", deeper.toString(), "--force");
+        assertEquals(0, r.code(), r.out() + r.err());
+        assertTrue(r.out().contains(midShadow.toString()),
+                "중간 경로 잔존 tia.yml 경로가 안내에 없음: " + r.out());
+
+        Optional<TiaConfig> parsed = TiaConfigLoader.load(null, work);
+        assertTrue(parsed.isPresent());
+        assertEquals("root", parsed.get().sutName(), "루트 tia.yml이 생성/덮어써지지 않음");
+    }
+
+    @Test
+    @DisplayName("SP3-REQ-001: sut-name/include 글로브에 YAML 특수문자(#, :)가 있어도 이스케이프되어 안전하게 파싱된다")
+    void sutNameWithYamlSpecialCharsIsEscaped() throws Exception {
+        Files.createDirectories(work.resolve(".git"));
+        String trickyName = "weird:name#with-hash";
+        String trickyGlob = "com/acme:extra#glob/**";
+
+        Exec r = run("init", "--topology", "in-process", "--sut-name", trickyName,
+                "--include-code", trickyGlob, "--search-root", work.toString());
+        assertEquals(0, r.code(), r.out() + r.err());
+
+        Optional<TiaConfig> parsed = TiaConfigLoader.load(null, work);
+        assertTrue(parsed.isPresent(), "특수문자 포함 sut-name의 tia.yml을 SP1 로더가 파싱하지 못함: "
+                + Files.readString(work.resolve("tia.yml")));
+        assertEquals(trickyName, parsed.get().sutName());
+        assertEquals(java.util.List.of(trickyGlob), parsed.get().code().include());
+    }
+
     // ---- 공통 헬퍼 (SpecAcceptanceE2ETest·ConfigE2ETest 패턴 복사) ----
 
     record Exec(int code, String out, String err) {}
