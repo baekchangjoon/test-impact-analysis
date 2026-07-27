@@ -57,7 +57,8 @@
   적용하면 doctor의 문서화된 읽기 전용 불변식(진단 도구가 사용자 DB를 변형)을 깬다(리뷰 치명 소견).
   따라서: ① `PRAGMA busy_timeout=5000`은 모든 오픈에 적용(커넥션 스코프 — 파일 무변형). ② `PRAGMA
   journal_mode=WAL`은 **쓰기 오픈에만**(index/save 경로; 실패는 무시하고 busy_timeout만 유지 — 최선 노력).
-  읽기 소비자(doctor·impact·report·flaky)는 읽기 오픈을 쓴다(팩터리/플래그로 구분 — 구현 재량). ③ `save()`
+  읽기 소비자(doctor·impact — report/flaky는 CoverageStore 미사용으로 해당 없음)는 읽기 오픈을 쓰며, 읽기
+  오픈은 DB 파일·스키마를 **생성하지도 않는다**(파일 부재 시 무접속 빈 스토어, 존재 시 READONLY 접속). ③ `save()`
   의 builds INSERT + coverage 배치 INSERT를 **명시적 단일 트랜잭션**으로 묶는다(동시 reader가 coverage 없는
   builds 행을 관측하는 기존 원자성 공백 해소 — busy_timeout/WAL만으론 안 닫힘).
 - **수용기준**: Given 쓰기 오픈, Then busy_timeout=5000·journal_mode=`wal`. Given 읽기 오픈(기존 non-WAL
@@ -133,7 +134,7 @@
 |--------|----------|-------------|-------|--------|
 | FU-REQ-001 | TTY 판별 JDK22 호환 | TtyTest#fallbackOnJdk17 / #delegatesWhenIsTerminalPresent + FormatE2ETest 회귀 | unit+E2E | 🟢 green |
 | FU-REQ-002 | tia.yml 홈 경계 | TiaConfigLoaderTest#discoverStopsAtHome / #discoverFindsAtHome | unit | 🟢 green |
-| FU-REQ-003 | SQLite 하드닝(R/W 분리) | CoverageStoreTest#writeOpenAppliesPragmas / #readOpenKeepsJournalMode / #saveIsAtomic | unit | 🟢 green |
+| FU-REQ-003 | SQLite 하드닝(R/W 분리) | CoverageStoreTest#writeOpenAppliesPragmas / #readOpenKeepsJournalMode / #saveIsAtomic / #readOpenOnMissingFileDoesNotCreateAnything / #readOpenOnSchemaLessFileDoesNotMutateBytesAndReadsEmpty | unit | 🟢 green |
 | FU-REQ-004 | worktree 토폴로지 | DbPathsTest#worktreeResolvesToMainCommonDir | unit | 🟢 green |
 | FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🟢 green |
 | FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🟢 green |
