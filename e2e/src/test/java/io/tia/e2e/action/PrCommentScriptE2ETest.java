@@ -202,6 +202,7 @@ class PrCommentScriptE2ETest {
         assertEquals(0, result.code());
         assertTrue(Files.exists(ghArgsOut), "stub gh가 GH_ARGS_OUT을 기록해야 함");
         java.util.List<String> args = Files.readAllLines(ghArgsOut, UTF_8);
+        assertTrue(args.contains("-F"), "gh api 호출에 -F 플래그가 있어야 함(-f는 리터럴 게시 회귀): " + args);
         String bodyArg = args.stream().filter(a -> a.startsWith("body=@")).findFirst()
                 .orElseThrow(() -> new AssertionError("gh 인자에 body=@... 토큰 없음: " + args));
         Path capturedBodyFile = Path.of(bodyArg.substring("body=@".length()));
