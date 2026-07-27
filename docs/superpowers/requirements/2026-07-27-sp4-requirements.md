@@ -73,7 +73,7 @@
 | SP4-REQ-005 | tia_doctor FAIL≠isError | McpCommandE2ETest#doctorFailIsNotError(깨진 tia.yml 픽스처) | E2E | 🟢 green |
 | SP4-REQ-006 | 오류·수명(+ping) | McpCommandE2ETest#unknownMethod32601 / #parseError32700ThenAlive / #unknownTool32602 / #missingRequired32602 / #execFailureIsError / #notificationNoResponse / #eofExitsZero / #pingReturnsEmptyObject | E2E | 🟢 green |
 | SP4-REQ-007 | CLI 배선 | CliWiringTest#subcommandsIncludeMcp | CLI | 🟢 green |
-| SP4-REQ-008 | 문서 갱신(5항목 체크리스트) | PR 전 docs 게이트 점검 | build | 🔴 planned(Task 3) |
-| SP4-REQ-009 | 하위호환·스모크 | 전체 스위트 + 수동 스모크 기록(trap 정리) | suite | 🟡 partial(하위호환: `:tia-cli:test`(45) + `:e2e:test`(80) 전부 green, 0 failures/errors — Task 2 기준. 실 클라이언트 스모크는 Task 3에서 수행) |
+| SP4-REQ-008 | 문서 갱신(5항목 체크리스트) | PR 전 docs 게이트 점검 | build | 🟢 green(체크리스트 5/5 — SKILL.md ①json 우선 예시 ②tia.yml 자동 적용 1줄 ③MCP 설정 1줄(기존 doctor 문구와 통합, 중복 없음); README ④"사용 형태" 표 MCP 행 ⑤"현재 범위 & 한계"에서 "자체 MCP 서버"만 제거·"PR 코멘트 이원화" 유지 — Task 3) |
+| SP4-REQ-009 | 하위호환·스모크 | 전체 스위트 + 수동 스모크 기록(trap 정리) | suite | 🟢 green(하위호환: `./gradlew build` 전체 green — `:tia-cli:test`(45) + `:e2e:test`(80) 0 failures/errors, 기존 스위트 무변경. 실 클라이언트 스모크: `claude mcp add tia-local -- <installDist bin> mcp` 등록 → `claude mcp list`에 `tia-local ... ✔ Connected` 확인 → trap으로 `claude mcp remove tia-local` 정리 후 `claude mcp list`에서 tia-local 소거 확인. 설치된 배포물 직접 stdin 세션(initialize→tools/list→tia_doctor→ping→EOF)으로 협상 protocolVersion=2025-11-25(요청 그대로 에코) 기록, serverInfo.version=0.2.0(접두어 없음), exit 0 — Task 3, 전체 근거는 task-3-report.md) |
 
-Coverage: 7/9 green (78%) — target 100% (대상: Must 9 = 9; McpCommandE2ETest 총 17 메서드 전부 green — Task 3에서 REQ-008/009 완료 예정)
+Coverage: 9/9 green (100%) — target 100% (대상: Must 9 = 9; McpCommandE2ETest 총 17 메서드 전부 green + REQ-008/009 Task 3 완료로 매트릭스 전 항목 green)

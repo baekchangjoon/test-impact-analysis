@@ -243,6 +243,7 @@ $CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-nam
 | **Docker 이미지 + GitHub Action** | PR에서 영향 테스트 선별 | [docker/README](docker/README.md) |
 | **Gradle 플러그인** `io.tia` | 빌드 네이티브(`tiaIndex/Impact/Report` + 에이전트 와이어링) | [tia-gradle-plugin](tia-gradle-plugin/README.md) |
 | **Agent Skill** | Claude·Kiro·Antigravity 등에서 자연어 질의 | [skills/tia/SKILL.md](skills/tia/SKILL.md) |
+| **MCP 서버** (`tia mcp`) | stdio MCP 서버 — 도구 `tia_impact`/`tia_doctor`(스킬 미지원 클라이언트용) | [skills/tia/SKILL.md](skills/tia/SKILL.md) |
 | **HTML 리포트** | 영향범위·flaky·blind spot 시각화 | [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) |
 
 릴리스(`v*` 태그)마다 GitHub Packages 게시 + GitHub Release(`tia.jar`·SBOM·고지) + ghcr 이미지가 자동 배포된다.
@@ -302,7 +303,7 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 - **크로스 레포/API 경계 매핑·Kafka 귀속** — 이후 확장
 - **정적 호출그래프 보강**(커버리지 사각지대) — 이후 확장
 - **실패 분류기 → qe-rca-action DETERMINISTIC 신호 주입** — 이후 확장
-- **PR 코멘트 이원화·자체 MCP 서버** — 이후 확장 (현재는 CLI 텍스트 출력)
+- **PR 코멘트 이원화** — 이후 확장 (현재는 CLI 텍스트 출력)
 - **staleness 저신뢰 플래그·라인 재조정** — 현재는 "diff 베이스 = 인덱싱 커밋" 불변식으로 우회
 - **병렬 수집**(`jacocoagent-parallel.jar` 드롭인) — 직렬 스위트가 나이틀리 윈도우를 초과할 때 전환
 
