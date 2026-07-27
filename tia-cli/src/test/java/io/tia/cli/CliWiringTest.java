@@ -80,4 +80,9 @@ class CliWiringTest {
         assertFalse(hasOption(tia, "demo", "--db"));
         assertFalse(hasOption(tia, "demo", "--include-code"));
     }
+
+    /** SP4-REQ-007 — mcp 서브커맨드 존재만 단언(모든 파라미터는 stdin JSON-RPC — CLI 옵션 없음). */
+    @Test void subcommandsIncludeMcp() {
+        assertTrue(tia().getSubcommands().containsKey("mcp"));
+    }
 }

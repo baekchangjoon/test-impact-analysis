@@ -5,7 +5,7 @@ import picocli.CommandLine.Command;
 @Command(name = "tia", mixinStandardHelpOptions = true, versionProvider = VersionProvider.class,
         subcommands = { ConvertCommand.class, IndexCommand.class, ImpactCommand.class,
                 FlakyCommand.class, ReportCommand.class, InitCommand.class, DoctorCommand.class,
-                DemoCommand.class })
+                DemoCommand.class, McpCommand.class })
 public class TiaCommand implements Runnable {
-    @Override public void run() { System.out.println("Usage: tia [convert|index|impact|flaky|report|init|doctor|demo] --help"); }
+    @Override public void run() { System.out.println("Usage: tia [convert|index|impact|flaky|report|init|doctor|demo|mcp] --help"); }
 }

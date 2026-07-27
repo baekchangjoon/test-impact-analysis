@@ -66,14 +66,14 @@
 
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
-| SP4-REQ-001 | initialize 협상 | McpCommandE2ETest#initializeEchoesSupportedVersion / #unsupportedVersionFallsBack | E2E | 🔴 planned |
-| SP4-REQ-002 | tools/list(+description) | McpCommandE2ETest#toolsListSchema | E2E | 🔴 planned |
-| SP4-REQ-003 | tia_impact JSON·git_ref | McpCommandE2ETest#impactReturnsSp1Json / #gitRefMappedToCliOption | E2E | 🔴 planned |
-| SP4-REQ-004 | working_dir 실효(+상대 db) | McpCommandE2ETest#workingDirGovernsDiffAndDb / #relativeDiffFileResolvedAgainstWorkingDir / #relativeDbResolvedAgainstWorkingDir + CliWiringTest(--working-dir hidden 단언) | E2E+CLI | 🟡 partial(Task 1: DbPaths.resolveDefault(workingDir)+gitCommonDir(workingDir) · ImpactCommand/DoctorCommand 히든 `--working-dir`(diff·기본 DB 해석 배선) 구현·green — DbPathsTest#workingDirGitRepoUsesItsCommonDir/#workingDirNonGitFallsBackToCacheHome, ImpactCommandTest#workingDirGovernsDiffAndDefaultDb, CliWiringTest#workingDirHiddenSeamOnImpactAndDoctor. McpCommandE2ETest(MCP 어댑터 경유·상대경로 db/diff_file 절대화)는 Task 2에서 완료) |
-| SP4-REQ-005 | tia_doctor FAIL≠isError | McpCommandE2ETest#doctorFailIsNotError(깨진 tia.yml 픽스처) | E2E | 🔴 planned |
-| SP4-REQ-006 | 오류·수명(+ping) | McpCommandE2ETest#unknownMethod32601 / #parseError32700ThenAlive / #unknownTool32602 / #missingRequired32602 / #execFailureIsError / #notificationNoResponse / #eofExitsZero / #pingReturnsEmptyObject | E2E | 🔴 planned |
-| SP4-REQ-007 | CLI 배선 | CliWiringTest#subcommandsIncludeMcp | CLI | 🔴 planned |
-| SP4-REQ-008 | 문서 갱신(5항목 체크리스트) | PR 전 docs 게이트 점검 | build | 🔴 planned |
-| SP4-REQ-009 | 하위호환·스모크 | 전체 스위트 + 수동 스모크 기록(trap 정리) | suite | 🔴 planned |
+| SP4-REQ-001 | initialize 협상 | McpCommandE2ETest#initializeEchoesSupportedVersion / #unsupportedVersionFallsBack | E2E | 🟢 green |
+| SP4-REQ-002 | tools/list(+description) | McpCommandE2ETest#toolsListSchema | E2E | 🟢 green |
+| SP4-REQ-003 | tia_impact JSON·git_ref | McpCommandE2ETest#impactReturnsSp1Json / #gitRefMappedToCliOption | E2E | 🟢 green |
+| SP4-REQ-004 | working_dir 실효(+상대 db) | McpCommandE2ETest#workingDirGovernsDiffAndDb / #relativeDiffFileResolvedAgainstWorkingDir / #relativeDbResolvedAgainstWorkingDir + CliWiringTest(--working-dir hidden 단언) | E2E+CLI | 🟢 green(Task 1: DbPaths.resolveDefault(workingDir)+gitCommonDir(workingDir) · ImpactCommand/DoctorCommand 히든 `--working-dir` 구현·green. Task 2: McpCommand 어댑터가 working_dir를 --search-root·--working-dir 둘 다에 배선 + 상대 db/diff_file 절대화 — McpCommandE2ETest#workingDirGovernsDiffAndDb/#relativeDiffFileResolvedAgainstWorkingDir/#relativeDbResolvedAgainstWorkingDir green) |
+| SP4-REQ-005 | tia_doctor FAIL≠isError | McpCommandE2ETest#doctorFailIsNotError(깨진 tia.yml 픽스처) | E2E | 🟢 green |
+| SP4-REQ-006 | 오류·수명(+ping) | McpCommandE2ETest#unknownMethod32601 / #parseError32700ThenAlive / #unknownTool32602 / #missingRequired32602 / #execFailureIsError / #notificationNoResponse / #eofExitsZero / #pingReturnsEmptyObject | E2E | 🟢 green |
+| SP4-REQ-007 | CLI 배선 | CliWiringTest#subcommandsIncludeMcp | CLI | 🟢 green |
+| SP4-REQ-008 | 문서 갱신(5항목 체크리스트) | PR 전 docs 게이트 점검 | build | 🔴 planned(Task 3) |
+| SP4-REQ-009 | 하위호환·스모크 | 전체 스위트 + 수동 스모크 기록(trap 정리) | suite | 🟡 partial(하위호환: `:tia-cli:test`(45) + `:e2e:test`(80) 전부 green, 0 failures/errors — Task 2 기준. 실 클라이언트 스모크는 Task 3에서 수행) |
 
-Coverage: 0/9 green (0%) — target 100% (대상: Must 9 = 9; McpCommandE2ETest 총 17 메서드)
+Coverage: 7/9 green (78%) — target 100% (대상: Must 9 = 9; McpCommandE2ETest 총 17 메서드 전부 green — Task 3에서 REQ-008/009 완료 예정)
