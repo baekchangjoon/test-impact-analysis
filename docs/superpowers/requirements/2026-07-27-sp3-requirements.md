@@ -112,6 +112,6 @@
 | SP3-REQ-008 | demo 파이프라인 | DemoCommandE2ETest#stubbedCollectRealIndexImpactReport | E2E | 🟢 green |
 | SP3-REQ-009 | demo 실패 처리(양쪽) | DemoCommandE2ETest#failingStubShowsStderrAndDoctorHint / #zeroCoveredLinesFailsAtDiffStage | E2E | 🟢 green |
 | SP3-REQ-010 | CLI 배선 | CliWiringTest#optionsForInitDoctorDemo | CLI | 🟢 green |
-| SP3-REQ-011 | 문서 재구성 | PR 전 docs 게이트 점검 | build | 🔴 planned |
+| SP3-REQ-011 | 문서 재구성 | PR 전 docs 게이트 점검 | build | 🟢 green |
 
-Coverage: 10/11 green (91%) — target 100% (대상: Must 11 = 11)
+Coverage: 11/11 green (100%) — target 100% (대상: Must 11 = 11)

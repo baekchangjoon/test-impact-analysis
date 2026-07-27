@@ -79,8 +79,8 @@ public final class RepoPaths {
 
 **REQ-IDs:** SP3-REQ-011
 
-- [ ] spec §5 그대로: GETTING-STARTED 1부(①클론+`./gradlew :tia-cli:installDist` ②`tia demo`(소요 1~3분 명시) ③`tia init`→수집→index/impact ④doctor) + 2부(기존 8절 전부 보존·링크, §0 슬림화). README 빠른 시작 demo 중심 + **79~93행 부근 run-inprocess-e2e.sh 오기술(index/impact/git diff 포함 서술)을 실제 범위(수집+convert)로 교정** + 기대 출력 실제 일치. skills/tia/SKILL.md에 doctor 한 줄. **앵커 보존 게이트**: `grep -o '](GETTING-STARTED.md#[^)]*' README.md skills/tia/SKILL.md`로 앵커 전수 수집 → 재구성 후 실제 헤딩과 전수 대조(결과를 리포트에 기록).
-- [ ] 전체 스위트 green + 매트릭스 11/11 + Coverage 갱신 → Commit `docs: GETTING-STARTED 2부 재구성 — demo/init/doctor 튜토리얼 [SP3-REQ-011]`.
+- [x] spec §5 그대로: GETTING-STARTED 1부(①클론+`./gradlew :tia-cli:installDist` ②`tia demo`(소요 1~3분 명시) ③`tia init`→수집→index/impact ④doctor) + 2부(기존 8절 전부 보존·링크, §0 슬림화). README 빠른 시작 demo 중심 + **79~93행 부근 run-inprocess-e2e.sh 오기술(index/impact/git diff 포함 서술)을 실제 범위(수집+convert)로 교정** + 기대 출력 실제 일치. skills/tia/SKILL.md에 doctor 한 줄. **앵커 보존 게이트**: `grep -o '](GETTING-STARTED.md#[^)]*' README.md skills/tia/SKILL.md`로 앵커 전수 수집 → 재구성 후 실제 헤딩과 전수 대조(결과를 리포트에 기록).
+- [x] 전체 스위트 green + 매트릭스 11/11 + Coverage 갱신 → Commit `docs: GETTING-STARTED 2부 재구성 — demo/init/doctor 튜토리얼 [SP3-REQ-011]`.
 
 ## 완료 정의
 

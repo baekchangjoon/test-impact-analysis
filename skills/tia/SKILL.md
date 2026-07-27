@@ -27,6 +27,8 @@ empty result as success — point the user to the collection runbook instead:
   then §2 (`tia index`). For an existing repo with many test classes, see
   [§1.1 (global extension registration, no per-class edits)](../../GETTING-STARTED.md#11-기존-레포에-적용할-때-in-process).
 - **Build-native:** the [Gradle plugin guide](../../tia-gradle-plugin/README.md) (`tiaIndex` + agent attach helpers).
+- **Not sure what's wrong?** Run `tia doctor` — it diagnoses JDK/git/`tia.yml`/index-DB/baseline
+  state (PASS/WARN/FAIL/SKIP + a one-line fix for each) instead of guessing.
 
 ## Prerequisites
 

@@ -66,33 +66,60 @@ test-impact-analysis/
 
 ## 빠른 시작 (1줄 E2E)
 
-pjacoco 에이전트를 빌드하고(미공개 — mavenLocal 필요), 전체 파이프라인을 한 번에 돌립니다.
+가장 빠른 길은 **`tia demo`** — 레포를 체크아웃한 상태에서 CLI 한 줄로 fixture-app **실수집 →
+인덱싱 → diff 동적 생성 → impact 선별 → 인터랙티브 리포트** 전 과정을 해설과 함께 체험합니다
+(내장 리소스로 흉내 내는 게 아니라 진짜 커버리지를 수집합니다).
+
+```bash
+./gradlew :tia-cli:installDist
+CLI=tia-cli/build/install/tia/bin/tia
+"$CLI" demo
+```
+
+**첫 실행은 1~3분 걸릴 수 있습니다**(pjacoco 에이전트 해소 + Gradle 테스트 빌드 워밍업 — 이후는
+캐시로 수십 초). **기대 출력 (마지막 부분):**
+
+```
+=== [5/6] 영향 테스트 선별 — diff와 커버리지 교차 ===
+# 매핑 기준 커밋: <sha>  (영향 테스트 4개)
+DETERMINISTIC	io.tia.e2e.inprocess.GreetingInProcessIT#greetAlice
+...
+
+=== [6/6] 인터랙티브 HTML 리포트 생성 ===
+데모 완료 — 방금 한 일:
+  ...
+내 프로젝트에 적용하려면: tia init
+```
+
+내 프로젝트에 단계별로 적용하는 튜토리얼은 → **[GETTING-STARTED.md](GETTING-STARTED.md)**.
+
+### (대안) 수집 스크립트를 직접 실행
+
+`tia demo`의 [3/6]~[6/6]단계(인덱싱/diff/impact/report)는 인프로세스로 구동됩니다. **수집+convert만**
+따로 보고 싶다면 기존 수집 스크립트를 직접 씁니다.
 
 ```bash
 # 1) pjacoco 소스 빌드 → mavenLocal (에이전트·확장 해소)
 bash scripts/setup-pjacoco.sh
 
-# 2) in-process 수집 → 인덱싱 → diff 교차 → 영향 테스트 선별까지 전체 E2E
+# 2) in-process 수집(3모드: serial/forks/injvm) → tia convert → 일관성 검사
 bash scripts/run-inprocess-e2e.sh
 ```
 
-`run-inprocess-e2e.sh`는 다음을 자동으로 수행합니다.
+`run-inprocess-e2e.sh`는 **수집과 변환, 그리고 수집 결과의 일관성 검사까지만** 합니다 — 인덱싱·
+diff·impact 선별은 하지 않습니다(그 부분은 위 `tia demo`가 담당합니다). 실제로 하는 일:
 
-1. pjacoco 에이전트를 테스트 JVM에 붙여(`-javaagent`, `aggregate=false`, `port=0`) Gradle 테스트 실행
-2. `PjacocoInProcessExtension`이 각 테스트마다 start/stop 신호 → per-test `.exec` 수집
-3. `tia convert` → testwise JSON → `tia index`
-4. `PricingService.java` 한 줄을 실제로 바꿔 `git diff` 생성 → `tia impact`
+1. pjacoco 에이전트를 테스트 JVM에 붙여(`-javaagent`, `aggregate=false`, `port=0`) serial/forks/injvm
+   3개 모드로 Gradle 테스트 실행 → 모드별 `.exec` 수집
+2. 모드별 산출물을 `tia convert`로 testwise JSON(`testwise_<mode>.json`)으로 변환
+3. `InProcessCollectionE2E`로 in-process per-test 귀속이 정확한지, 병렬(forks/injvm) 결과가 직렬과
+   동일한지 검증
 
 **기대 출력 (마지막 줄):**
 
 ```
-===== tia impact (PricingService 변경 → testPrice 선별 기대) =====
-# 매핑 기준 커밋: <sha>  (영향 테스트 1개)
-DETERMINISTIC	io/tia/fixture/ApiSmokeTest/testPrice
-✅ E2E PASS: testPrice DETERMINISTIC 선별, testGreeting 제외
+✅ inprocess-e2e PASS
 ```
-
-→ `PricingService`만 바꿨으니 그 라인을 밟은 `testPrice`만 선별되고, `testGreeting`은 제외됩니다.
 
 ---
 
@@ -116,7 +143,7 @@ java -jar tia-cli/build/libs/tia.jar --help     # → tia <ver>
 ## CLI 사용법
 
 ```bash
-$CLI --help          # convert | index | impact | flaky | report
+$CLI --help          # convert | index | impact | flaky | report | init | doctor | demo
 ```
 
 `impact`·`flaky`는 `--format text|summary|json|markdown`(기본 `text` = 기존 출력 그대로)을
@@ -195,6 +222,14 @@ $CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-nam
 5개 탭(per-test 영향범위·역인덱스·tia impact·flaky·blind spots) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
 각 탭의 `<h2>` 아래 "이 탭 읽는 법" 접이식 요약이 `report.html` 안에 내장돼 있어, 리포트만 열어도
 탭별 핵심을 바로 확인할 수 있다(REPORT-GUIDE는 더 상세한 버전).
+
+### 5. 온보딩 명령 — `init` / `doctor` / `demo`
+
+- `$CLI init` — `tia.yml` 생성 마법사(수집 토폴로지 결정 트리 + 다음 단계 안내).
+- `$CLI doctor` — 환경·설정·인덱스 상태를 6개 항목으로 진단(PASS/WARN/FAIL/SKIP + 처방, `--format json` 지원).
+- `$CLI demo` — TIA 레포 안에서 fixture-app 실수집→인덱싱→diff→impact→리포트 전 과정을 해설하며 체험(위 [빠른 시작](#빠른-시작-1줄-e2e)).
+
+셋 다 자세한 사용법은 **[GETTING-STARTED.md §1부](GETTING-STARTED.md)** 참조.
 
 ---
 
