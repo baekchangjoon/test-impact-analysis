@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -141,8 +142,29 @@ class ReportBuilderTest {
         assertTrue(html.contains("이 탭 읽는 법"), "guide summary label present");
     }
 
+    /**
+     * Structural check, not a runtime-behavior check: {@code render()} only substitutes
+     * {@code __SUT__}/{@code __DATA__} into the static template — the {@code <script>} JS is
+     * never executed, so a plain {@code String#contains(message)} can't tell "this message is
+     * reachable only inside this guard's branch" from "this message is dead text that is always
+     * present in the source regardless of the model". This asserts the actual coupling instead:
+     * {@code guard} opens a code block that contains {@code message} before {@code stop} (e.g. a
+     * {@code return;} that prevents fallthrough to the normal-data render path) — i.e. the
+     * condition and its message are the same branch in the emitted JS source. Real runtime branch
+     * execution (which of several mutually-exclusive branches the browser actually takes for a
+     * given {@code D}) is outside a JVM unit test's reach without a headless browser; that gap is
+     * accepted and documented, not silently claimed as covered.
+     */
+    private static void assertGuardGatesMessageThenStops(String html, String guard, String message, String stop) {
+        Pattern p = Pattern.compile(
+                Pattern.quote(guard) + ".{0,150}?" + Pattern.quote(message) + ".{0,200}?" + Pattern.quote(stop),
+                Pattern.DOTALL);
+        assertTrue(p.matcher(html).find(),
+                () -> "expected `" + guard + "` to gate message `" + message + "` before `" + stop + "`");
+    }
+
     @Test
-    @DisplayName("SP5-REQ-009: 테스트 0건 + 빈 prod로 렌더하면 탭 1·2·5에 빈 상태 안내 문구가 있다")
+    @DisplayName("SP5-REQ-009: 테스트 0건 + 빈 prod — buildModel 값 및 탭 1·2·5 가드→메시지 결합 구조가 성립한다")
     void emptyStateHintsForSparseTabs(@TempDir Path tmp) throws Exception {
         Path tw = tmp.resolve("empty-testwise.json");
         Files.writeString(tw, """
@@ -150,25 +172,47 @@ class ReportBuilderTest {
         var in = new ReportBuilder.Inputs(tw, null, null, null, "deadbeefcafe", "acme-svc", "jacoco", null, "",
                 FilterSet.none());
 
+        // real model-value assertions (these are gated by actual input, unlike raw HTML text search)
+        JsonNode d = om.valueToTree(new ReportBuilder().buildModel(in));
+        assertEquals(0, d.get("nTests").asInt());
+        assertTrue(d.get("perTest").isEmpty());
+        assertTrue(d.get("reverse").isEmpty());
+        assertEquals(0, d.get("nProd").asInt());
+
         String html = new ReportBuilder().render(in);
 
-        assertTrue(html.contains("데이터가 없습니다"), "empty-state hint present for sparse per-test/reverse tabs");
-        assertTrue(html.contains("입력이 비었습니다") || html.contains("입력 없음"),
-                "tab 5 missing-input hint present when nProd === 0");
+        // structural: each guard's block actually contains its empty-state message and a `return;`
+        // that skips the normal table-render path — not just message text floating unconditionally
+        // in the script.
+        assertGuardGatesMessageThenStops(html, "if(!D.perTest.length){", "데이터가 없습니다", "return;");
+        assertGuardGatesMessageThenStops(html, "if(!D.reverse.length){", "데이터가 없습니다", "return;");
+        assertGuardGatesMessageThenStops(html, "if(D.nProd===0){", "입력이 없거나 필터로 모두 제외되었습니다", "}else if(D.blind.length===0){");
     }
 
     @Test
-    @DisplayName("SP5-REQ-009: prod 파일이 있고 blind 0건이면 탭 5에 전체 커버 긍정 메시지가 표시된다(결측 안내 아님)")
+    @DisplayName("SP5-REQ-009: prod 있음 + blind 0건 — nProd/blind 모델 값과 if/else-if/else 분기의 긍정 메시지 결합이 성립한다")
     void fullCoverageBlindTabShowsPositiveMessage(@TempDir Path tmp) throws Exception {
         Path prod = tmp.resolve("prod.txt");
         Files.writeString(prod, "com/x/A.java\n");   // fully covered by both fixture tests → blind == []
 
-        String html = new ReportBuilder().render(inputs(tmp, null, null, prod));
+        // real model-value assertions
         JsonNode d = om.valueToTree(new ReportBuilder().buildModel(inputs(tmp, null, null, prod)));
         assertEquals(1, d.get("nProd").asInt());
         assertTrue(d.get("blind").isEmpty(), "fixture prod file is covered by both tests");
 
-        assertTrue(html.contains("전체 커버") && html.contains("사각지대가 없습니다"),
-                "positive full-coverage message present for the nProd>0 && blind==0 branch");
+        String html = new ReportBuilder().render(inputs(tmp, null, null, prod));
+
+        // structural: the whole if(nProd===0)/else-if(blind==0)/else chain is intact — i.e. the
+        // positive message is the else-if branch (mutually exclusive with the missing-input
+        // branch), not just text present somewhere in the script regardless of data.
+        Pattern chain = Pattern.compile(
+                Pattern.quote("if(D.nProd===0){") + ".{0,150}?"
+                        + Pattern.quote("입력이 없거나 필터로 모두 제외되었습니다") + ".{0,200}?"
+                        + Pattern.quote("}else if(D.blind.length===0){") + ".{0,150}?"
+                        + Pattern.quote("전체 커버") + ".{0,150}?" + Pattern.quote("사각지대가 없습니다") + ".{0,200}?"
+                        + Pattern.quote("}else{"),
+                Pattern.DOTALL);
+        assertTrue(chain.matcher(html).find(),
+                "expected an if(nProd===0)/else-if(blind==0 → positive message)/else chain (mutual exclusivity)");
     }
 }
