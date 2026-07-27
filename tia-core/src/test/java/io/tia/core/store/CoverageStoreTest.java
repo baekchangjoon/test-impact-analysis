@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.roaringbitmap.RoaringBitmap;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -141,5 +143,39 @@ class CoverageStoreTest {
             assertEquals(0, store.distinctBuildCount("c-atomic"),
                 "실패한 save()의 builds 행이 남아있으면 안 됨(트랜잭션 미롤백)");
         }
+    }
+
+    @Test
+    @DisplayName("FU-REQ-003 fix round1: 읽기 오픈은 DB 파일이 없으면 파일·부모 디렉터리를 생성하지 않고 빈 스토어로 수렴한다")
+    void readOpenOnMissingFileDoesNotCreateAnything(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("nope").resolve("tia.db");
+        assertFalse(Files.exists(db.getParent()), "사전조건: 부모 디렉터리도 아직 없어야 함");
+
+        try (CoverageStore store = CoverageStore.openRead(db)) {
+            assertEquals(0, store.distinctBuildCount("c1"), "빈 스토어는 build 수 0");
+            assertTrue(store.load("c1").tests().isEmpty(), "빈 스토어는 load()가 빈 스냅샷");
+        }
+
+        assertFalse(Files.exists(db), "읽기 오픈이 DB 파일을 생성하면 안 됨(무생성 불변식)");
+        assertFalse(Files.exists(db.getParent()), "읽기 오픈이 부모 디렉터리를 생성하면 안 됨(부작용 없음)");
+    }
+
+    @Test
+    @DisplayName("FU-REQ-003 fix round1: 읽기 오픈은 스키마 없는 기존 DB 파일 바이트를 변형하지 않고 빈 스토어로 읽는다")
+    void readOpenOnSchemaLessFileDoesNotMutateBytesAndReadsEmpty(@TempDir Path dir) throws Exception {
+        Path db = dir.resolve("tia.db");
+        try (Connection raw = DriverManager.getConnection("jdbc:sqlite:" + db)) {
+            raw.createStatement().execute("CREATE TABLE dummy(x INTEGER)");
+        }
+        byte[] before = Files.readAllBytes(db);
+
+        try (CoverageStore store = CoverageStore.openRead(db)) {
+            assertEquals(0, store.distinctBuildCount("c1"), "builds 테이블이 없으면 빈 스토어 취급");
+            assertTrue(store.load("c1").tests().isEmpty(), "builds 테이블이 없으면 load()도 빈 스냅샷");
+        }
+
+        byte[] after = Files.readAllBytes(db);
+        assertArrayEquals(before, after,
+            "읽기 오픈이 스키마 없는 기존 DB 파일의 바이트를 변형하면 안 됨(스키마 자동 생성 금지)");
     }
 }

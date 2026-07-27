@@ -103,3 +103,73 @@ FU-REQ-001..006 6개 항목 모두 구현·테스트 완료, 매트릭스 상태
 - FU-REQ-004 테스트의 macOS 심링크 이슈는 테스트 코드 한정 수정이며, 다른 플랫폼(Linux CI 등, `/tmp`가
   심링크가 아닌 환경)에서도 `toRealPath()` 비교는 항상 유효(실경로가 곧 표시 경로).
 - FU-REQ-007..009(Task 2/3)는 이번 태스크 범위 밖 — 미착수.
+
+## Fix round 1
+
+리뷰 Important 지적: `CoverageStore.openRead()`가 `initSchema()`를 무조건 실행해, 스키마 없는(또는
+아예 존재하지 않는) DB 파일에 대한 읽기 오픈이 실제 CREATE TABLE 쓰기를 수행하고(게다가 JDBC sqlite
+드라이버는 커넥션 오픈만으로 파일 자체를 생성) 읽기 전용 분리 의도와 모순된다는 지적을 반영했다.
+
+### 원인
+
+`private CoverageStore(Path dbFile, boolean write)` 생성자가 `write` 플래그와 무관하게
+`initSchema()`를 항상 호출했다(구 line 52). `ImpactCommand`는 (Doctor와 달리) DB 파일 존재 여부를
+사전 체크하지 않고 곧바로 `CoverageStore.openRead(effectiveDb)`를 호출하므로, "베이스라인 없음"
+케이스(가장 흔한 최초 실행)마다 이 경로를 탔다.
+
+### 수정
+
+- `CoverageStore` 필드를 `Connection conn`(nullable) + `boolean hasSchema`로 확장.
+- 읽기 오픈(`openRead`) 분기:
+  - DB 파일이 아예 없으면(`Files.exists(dbFile)` false) **커넥션 자체를 열지 않는다** — JDBC sqlite가
+    오픈만으로 빈 파일을 생성하는 부작용을 원천 차단. `conn = null`, `hasSchema = false`.
+  - DB 파일이 있으면 `org.sqlite.SQLiteConfig#setReadOnly(true)`로 **SQLITE_OPEN_READONLY** 커넥션을
+    연다(어떤 경로로도 파일 변형 불가 — 스키마 생성은 물론 `journal_mode` 전환도 물리적으로 차단).
+    이어서 `sqlite_master`에서 `builds` 테이블 존재를 조회해 `hasSchema`를 결정(스키마 없는 기존 파일도
+    빈 스토어로 취급).
+  - 쓰기 오픈(기존 `public CoverageStore(Path)`)은 무변경 — 부모 디렉터리 생성 + `initSchema()` 그대로.
+- `load()`/`distinctBuildCount()`는 `!hasSchema`면 쿼리를 실행하지 않고 곧장 빈 결과로 수렴(빈
+  스냅샷/0) — 기존 "베이스라인 없음" CLI 관측 동작(`# tia:no-baseline` 마커, `strict` 종료 코드 등)은
+  바이트 단위로 동일하게 유지된다. `close()`도 `conn == null`이면 no-op.
+
+### 호출부 재확인
+
+- `ImpactCommand`(line 64) — 사전 존재 체크 없이 `openRead` 직접 호출하는 유일한 소비자. 이번 수정으로
+  파일 미존재 시에도 무생성 + 빈 스토어 시맨틱이 보장되어 기존 no-baseline 분기가 그대로 동작.
+- `DoctorCommand`(line 130) — 이미 자체적으로 `dbExists` 가드 후에만 `openRead`를 호출(기존 방어),
+  이번 수정은 추가 방어층으로 중첩 적용(회귀 없음).
+- `report`/`flaky` 커맨드 — `CoverageStore` 미사용(Task 1 원 조사 그대로, 해당 없음).
+- `IndexCommand` — 쓰기 생성자만 사용, 무변경.
+
+### 테스트
+
+`CoverageStoreTest`에 2건 추가(8 → 10 tests, 파일 클래스 기준):
+- `readOpenOnMissingFileDoesNotCreateAnything` — 존재하지 않는 경로에 `openRead` 후 파일·부모
+  디렉터리 모두 미생성 + `distinctBuildCount()==0`/`load().tests()` 빈 리스트 확인.
+- `readOpenOnSchemaLessFileDoesNotMutateBytesAndReadsEmpty` — raw JDBC로 `dummy` 테이블만 있는(즉
+  `builds`/`coverage` 없는) 기존 파일을 만든 뒤 `openRead`로 읽어, 오픈 전후 파일 바이트가
+  `assertArrayEquals`로 완전히 동일함 + 빈 스토어로 읽힘을 확인.
+
+기존 테스트(`writeOpenAppliesPragmas`, `readOpenKeepsJournalMode`, `saveIsAtomic` 등)는 무변경 —
+어느 것도 스키마 자동 생성에 의존하지 않았음을 재확인.
+
+### 검증
+
+`./gradlew :tia-core:test :tia-cli:test :e2e:test` — 전체 green.
+- tia-core: 78 tests, 0 failures/errors (CoverageStoreTest 10건 포함, +2)
+- tia-cli: 53 tests, 0 failures/errors (변경 없음)
+- e2e: 80 tests, 0 failures/errors (no-baseline 시나리오 포함 변경 없음)
+
+컨테이너·백그라운드 프로세스 없음 — 누수 검증 게이트 해당 없음.
+
+### 커밋
+
+`fix(core): 읽기 오픈 무생성 보장 — 스키마/파일 미생성·빈 스토어 시맨틱 [FU-REQ-003]`
+(df4db29 위에 새 커밋으로 추가, amend 아님)
+
+### 우려·비고
+
+- `SQLiteConfig.setReadOnly(true)`는 sqlite-jdbc(`org.xerial:sqlite-jdbc:3.46.1.3`, 이미 tia-core
+  의존성에 존재)의 표준 API — 추가 의존성 불필요.
+- 심링크/레이스(오픈 시점과 존재 체크 시점 사이 TOCTOU)로 파일이 오픈 직전 생성되는 극단적 동시성
+  케이스는 다루지 않음(단일 CLI 프로세스 전제, 기존 설계와 동일한 수용 한계).
