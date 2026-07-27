@@ -13,14 +13,28 @@ OUT="${1:-${DEMO_OUT:-}}"
 [ -n "$OUT" ] || { echo "❌ 출력 디렉터리가 필요합니다: demo-collect.sh <out-dir> (또는 DEMO_OUT 환경변수)" >&2; exit 1; }
 mkdir -p "$OUT"
 
-# JAVA_HOME 이식성: 이미 설정·유효하면 사용, 아니면 macOS java_home, 아니면 PATH java.
-if [ -z "${JAVA_HOME:-}" ] || ! "${JAVA_HOME}/bin/java" -version 2>&1 | grep -q 'version "17'; then
-  if [ -x /usr/libexec/java_home ]; then
-    export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
-  elif command -v java >/dev/null 2>&1; then
+# JAVA_HOME 이식성: 이미 설정·유효(JDK17)하면 사용, 아니면 macOS java_home(-v 17), 아니면 PATH의 java를
+# 버전 확인 후 채택. 세 경로 모두 실패하면(예: java_home이 JDK17을 못 찾아 조용히 실패) 여기서 명확히
+# exit 1 — set -euo pipefail 아래에서도 안전하도록 command substitution 실패는 `|| true`로 흡수하고
+# 그 결과(빈 문자열 여부)를 직접 검사한다.
+is_jdk17() {
+  # $1: java 실행 파일 경로 또는 PATH 상의 명령. 실패해도 스크립트를 죽이지 않도록 호출부는 조건문에서만 쓴다.
+  "$1" -version 2>&1 | grep -q 'version "17'
+}
+
+if [ -n "${JAVA_HOME:-}" ] && is_jdk17 "${JAVA_HOME}/bin/java"; then
+  : # 기존 JAVA_HOME이 이미 JDK 17 — 그대로 사용
+else
+  JH="$(/usr/libexec/java_home -v 17 2>/dev/null)" || true
+  if [ -n "$JH" ]; then
+    export JAVA_HOME="$JH"
+  elif command -v java >/dev/null 2>&1 && is_jdk17 java; then
     export JAVA_HOME="$(dirname "$(dirname "$(command -v java)")")"
   else
-    echo "❌ Java 17 미발견 (JAVA_HOME/java_home/PATH 모두 실패)" >&2; exit 1
+    echo "❌ JDK 17을 찾지 못했습니다 (JAVA_HOME 미설정/무효, java_home -v 17 실패, PATH의 java도 17 아님)" >&2
+    echo "   JDK 17을 설치하거나 JAVA_HOME을 JDK 17 경로로 지정하세요" \
+         "(예: macOS 'brew install openjdk@17', 또는 sdkman 'sdk install java 17.x-tem')." >&2
+    exit 1
   fi
 fi
 export JAVA_HOME

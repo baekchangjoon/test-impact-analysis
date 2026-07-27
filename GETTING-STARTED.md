@@ -18,7 +18,7 @@
 ### ① 클론 + 빌드
 
 **JDK 17 필요**(코드가 Java 17 바이트코드) — macOS는 `/usr/libexec/java_home -v 17`로 자동 선택되고,
-그 외 OS는 `JAVA_HOME`을 JDK 17로 지정한다(전체 사전 요구사항: 2부 [§0 설치](#0-설치-택1) 위
+그 외 OS는 `JAVA_HOME`을 JDK 17로 지정한다(전체 사전 요구사항: 2부 [§0 설치](#0-설치-택1) 및
 [README 사전 요구사항](README.md#사전-요구사항)).
 
 ```bash
@@ -144,6 +144,9 @@ DB 베이스라인↔HEAD 정렬 · pjacoco 에이전트 jar)으로 진단하고
 FAIL이 하나라도 있으면 exit 1(그 외 WARN/SKIP은 0). 진단은 읽기 전용이다 — 인덱스 DB가 없으면 그
 검사도 DB 파일을 만들지 않는다. 스크립트/에이전트가 소비하려면 `--format json`
 (`{schemaVersion, command, checks[], summary}`).
+
+> **소비 시 유의.** 스크립트/에이전트는 exit code와 무관하게 stdout(JSON)을 항상 캡처하세요 —
+> FAIL이어도 전체 진단이 stdout에 있습니다.
 
 ---
 

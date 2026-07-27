@@ -90,7 +90,7 @@
 2. `[2/6]` `bash <scripts-dir>/demo-collect.sh <out-dir>` — fixture-app serial 수집+convert → `<out-dir>/testwise_serial.json`. 시작 전 "첫 실행은 1~3분 걸릴 수 있습니다" 안내.
 3. `[3/6]` `tia index --report <out-dir>/testwise_serial.json --repo fixture --commit <git rev-parse HEAD> --db <out-dir>/demo-tia.db` — 데모 전용 DB(공유 DB 오염 방지).
 4. `[4/6]` **diff 동적 생성**: testwise_serial.json에서 커버된 파일·라인 하나를 골라 old-side 라인 공간의 최소 unified diff를 `<out-dir>/demo.diff`로 생성(비파괴, HEAD 무관 라인 공간 일치). **커버 라인이 0이면 여기서 명확히 실패**(수집 문제 안내 + doctor 유도).
-5. `[5/6]` `tia impact --db … --commit <HEAD> --diff-file <out-dir>/demo.diff` — **정확히 DETERMINISTIC 1건** 선별을 보여주고 해설.
+5. `[5/6]` `tia impact --db … --commit <HEAD> --diff-file <out-dir>/demo.diff` — **스텁 fixture 기준 정확히 1건(실수집에서는 커버 형상에 따라 다름)** 선별을 보여주고 해설.
 6. `[6/6]` `tia report --testwise … --commit <HEAD> --out <out-dir>/report.html --sut-name fixture-app` (옵션 입력 `-`) — 경로 출력 + "브라우저로 여세요".
 7. 마무리: 요약 4줄 + CTA 고정 문구 **"내 프로젝트에 적용하려면: tia init"**.
 
