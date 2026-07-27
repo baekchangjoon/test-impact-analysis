@@ -67,29 +67,36 @@
 | 2 | git 레포 여부 | 아니면 WARN(diff 기반 기능 제약) |
 | 3 | tia.yml 존재·유효성 | 없음 WARN(기본값 동작 안내) / 파싱 실패 FAIL(SP1 로더 재사용, 오류 인용) |
 | 4 | 인덱스 DB 존재(해석된 경로) | **`Files.exists()`로만 검사** — 없음 WARN. `CoverageStore`는 생성자가 DB 파일·스키마를 만들므로(부작용) **파일이 존재할 때만 연다**(진단의 읽기 전용 보장) |
-| 5 | DB 베이스라인 ↔ HEAD 정렬 | 비-git이면 **SKIP**(체크 2와 연동). HEAD는 `git rev-parse HEAD` 헬퍼(실패 시 null → SKIP, `DbPaths.gitCommonDir()` 패턴). DB 존재 시에만 열어 `store.load(head).tests().isEmpty()`(ImpactCommand의 기존 no-baseline 판정과 동일 패턴)로 판정 — 비면 WARN(재인덱싱 안내). `builds.commit_sha`에 인덱스가 없어 풀스캔이지만 로컬 DB 규모에서 무시 가능(명시적 수용) |
+| 5 | DB 베이스라인 ↔ HEAD 정렬 | 비-git이면 **SKIP**(체크 2와 연동). HEAD는 `git rev-parse HEAD` 헬퍼(명시적 workingDir 인자 — `ImpactCommand.runGitDiff(ref, workingDir)` 패턴; 실패 시 null → SKIP). DB 존재 시에만 열어 `store.load(head).tests().isEmpty()`(기존 no-baseline 판정 패턴)로 판정 — 비면 WARN(재인덱싱 안내). `builds.commit_sha` 미인덱스 풀스캔은 로컬 DB 규모에서 수용(명시) |
 | 6 | pjacoco 에이전트 jar(`tools/pjacoco/jacocoagent-parallel.jar`) | TIA 레포(공용 헬퍼 감지)일 때만 — 없음 WARN(`scripts/setup-pjacoco.sh` 안내), 비-TIA 레포 SKIP |
 
 **출력**: 항목별 `[PASS|WARN|FAIL|SKIP] 이름 — 상태 (처방)` + 요약 줄. **exit**: FAIL ≥1 → 1, 아니면 0(WARN/SKIP은 0). `--format json`은 `{ "schemaVersion": 1, "command": "doctor", "checks": [{id,status,detail,hint}], "summary": {pass,warn,fail,skip} }` — SP1 계약 관례(schemaVersion) 준수. **소비 안내**: 스크립트/에이전트는 exit code와 무관하게 stdout JSON을 항상 캡처하라(문서 명시 — FAIL이어도 전체 진단이 stdout에 있다).
 
-**구현 위치**: `tia-cli` `DoctorCommand`. 진단은 예외로 죽지 않는다 — 개별 체크 실패는 그 항목 FAIL로 수렴.
+**구현 위치**: `tia-cli` `DoctorCommand`. 진단은 예외로 죽지 않는다 — 개별 체크 실패는 그 항목 FAIL로 수렴. **체크 2·5·6의 기준 디렉터리는 ConfigMixin이 해석하는 search-root(`--search-root` ?: cwd)와 동일한 값**을 RepoPaths 호출에 그대로 전달한다(테스트가 @TempDir을 검사 대상으로 주입 가능).
 
 ## 4. `tia demo` — 체험 러너
 
-**전제 검사**: 공용 헬퍼로 TIA 레포 루트 탐지(§1). 실패 시 exit 1 + `git clone` 안내.
+**전제 검사**: 공용 헬퍼로 TIA 레포 루트 탐지(§1) — 시작점은 히든 `--repo-root`(테스트 시임, 기본 cwd). 실패 시 exit 1 + `git clone` 안내.
 **부트스트랩**: demo는 `tia` 바이너리로 실행되므로 이미 빌드된 상태다 — 1부 튜토리얼이 `./gradlew :tia-cli:installDist` 단계를 명시한다(§5).
+**수집 경로 분리(리뷰 반영)**: 기존 `run-inprocess-e2e.sh`는 3모드 풀빌드 **CI 회귀** 스크립트(분 단위·`--no-daemon` 5회·installDist 재빌드)라 온보딩용으로 부적합하다. demo는 **전용 경량 스크립트 `scripts/demo-collect.sh`** 를 쓴다: serial 단일 모드 수집 + `tia convert`만 수행하고(installDist 재빌드 없음 — 실행 중 바이너리 자기교체 회피), 산출물을 인자로 받은 출력 디렉터리에 쓴다(`DEMO_OUT` env 또는 $1 — 스텁도 같은 계약).
 
-**동작** (각 단계 전에 "무엇을 왜 하는지" 해설 출력; 3단계부터는 **인프로세스 picocli 호출** — 별도 tia 프로세스 없음):
+**산출물 격리**: 전부 `build/inprocess-e2e/demo/` 하위(회귀 스크립트의 `rm -rf build/inprocess-e2e`와 동시 실행돼도 서로의 산출물 계열이 명확; 완전 동시 실행은 비범위로 명시). E2E는 히든 `--out-dir`로 @TempDir 주입.
 
-1. `bash scripts/setup-pjacoco.sh` — pjacoco 해소(v3 다운로드, 통상 수 초).
-2. `bash scripts/run-inprocess-e2e.sh` — **수집 + `tia convert`까지**(모드별 testwise 3종을 `build/inprocess-e2e/`에 생성 + 일관성 검사, `✅ inprocess-e2e PASS` 마커). 스크립트는 index/impact를 하지 않는다 — 이후는 demo가 직접.
-3. `tia index --report build/inprocess-e2e/testwise_serial.json --repo fixture --commit <git rev-parse HEAD> --db build/inprocess-e2e/demo-tia.db` — 데모 전용 DB(공유 기본 DB 오염 방지).
-4. **diff 동적 생성**: testwise_serial.json에서 fixture-app의 커버된 파일·라인 하나를 골라(예: PricingService의 첫 covered line) old-side 라인 공간 기준의 최소 unified diff 텍스트를 `build/inprocess-e2e/demo.diff`로 생성한다 — **소스 파일을 건드리지 않는 비파괴 방식**이며 HEAD가 무엇이든 라인 공간이 인덱스와 일치한다.
-5. `tia impact --db … --commit <HEAD> --diff-file build/inprocess-e2e/demo.diff` — 선별 결과(DETERMINISTIC 1건 기대)를 보여주고 해설.
-6. `tia report --testwise build/inprocess-e2e/testwise_serial.json --commit <HEAD> --out build/inprocess-e2e/report.html --sut-name fixture-app` (scenarios/flaky/prod-files는 `-`) — 경로 출력 + "브라우저로 여세요".
-7. 마무리 요약 4줄 + "내 프로젝트에 적용하려면 `tia init`".
+**히든 시임 3종**: `--repo-root`(전제검사 시작점) · `--scripts-dir`(스크립트 디렉터리, 기본 `<repoRoot>/scripts`) · `--out-dir`(산출물 디렉터리, 기본 `<repoRoot>/build/inprocess-e2e/demo`).
 
-실패 시: 해당 단계 stderr 마지막 20줄 + `tia doctor` 안내 + exit 1. 산출물은 전부 `build/inprocess-e2e/` 아래(스크립트 산출 경로와 동일 계열 — `poc-out/`은 docker-e2e 전용으로 demo와 무관). 새 컨테이너/데몬 없음(in-process — 프로세스 잔존 없음).
+**동작** — 각 단계 시작에 **안정 마커 `=== [N/6] <제목> ===`** 와 해설을 출력(테스트가 마커를 단언); 3단계부터는 **인프로세스 picocli 호출**(별도 tia 프로세스 없음). 인프로세스 단계의 실패 출력 캡처는 **호출 주변에서 System.err를 버퍼로 임시 스왑(+finally 복원)** 으로 구현한다:
+
+1. `[1/6]` `bash <scripts-dir>/setup-pjacoco.sh` — pjacoco 해소(v3 다운로드, 통상 수 초).
+2. `[2/6]` `bash <scripts-dir>/demo-collect.sh <out-dir>` — fixture-app serial 수집+convert → `<out-dir>/testwise_serial.json`. 시작 전 "첫 실행은 1~3분 걸릴 수 있습니다" 안내.
+3. `[3/6]` `tia index --report <out-dir>/testwise_serial.json --repo fixture --commit <git rev-parse HEAD> --db <out-dir>/demo-tia.db` — 데모 전용 DB(공유 DB 오염 방지).
+4. `[4/6]` **diff 동적 생성**: testwise_serial.json에서 커버된 파일·라인 하나를 골라 old-side 라인 공간의 최소 unified diff를 `<out-dir>/demo.diff`로 생성(비파괴, HEAD 무관 라인 공간 일치). **커버 라인이 0이면 여기서 명확히 실패**(수집 문제 안내 + doctor 유도).
+5. `[5/6]` `tia impact --db … --commit <HEAD> --diff-file <out-dir>/demo.diff` — **정확히 DETERMINISTIC 1건** 선별을 보여주고 해설.
+6. `[6/6]` `tia report --testwise … --commit <HEAD> --out <out-dir>/report.html --sut-name fixture-app` (옵션 입력 `-`) — 경로 출력 + "브라우저로 여세요".
+7. 마무리: 요약 4줄 + CTA 고정 문구 **"내 프로젝트에 적용하려면: tia init"**.
+
+실패 시: 해당 단계의 출력 마지막 20줄(서브프로세스는 stderr, 인프로세스는 스왑 버퍼) + `tia doctor` 안내 + exit 1. 새 컨테이너/데몬 없음(in-process — 프로세스 잔존 없음). `poc-out/`은 docker-e2e 전용으로 demo와 무관.
+
+**자동 커버리지 갭(명시)**: `--scripts-dir` 스텁 E2E는 실 스크립트 호출 계약을 검증하지 못한다 — 실 전 구간은 구현 시 수동 스모크 1회 + 후속으로 저빈도 CI 잡 추가를 백로그에 둔다.
 
 ## 5. GETTING-STARTED 재구성
 
@@ -97,7 +104,8 @@
 
 - **1부 "첫 결과까지"**: ① 클론+빌드(`git clone` → `./gradlew :tia-cli:installDist`, CLI 별칭 안내) ② `tia demo` 체험(기대 출력 포함) ③ 내 프로젝트 적용 — `tia init` → 토폴로지별 최소 수집 명령 → `tia index`/`impact` ④ 막히면 `tia doctor`.
 - **2부 "레퍼런스"**: 기존 **§0(설치)·§1(수집 상세·결정 트리)·§2(인덱싱)·§3(선별)·§4(리포트)·§5(CI/에이전트 통합)·tia.yml 절·플레이키 절 전부 그대로 유지**하고 1부에서 링크한다(§0은 1부 ①과 중복되는 부분만 슬림화).
-- README 빠른 시작을 `tia demo` 중심으로 갱신(스크립트 직접 실행 경로 병기), **기대 출력 문구를 실제 출력(`✅ inprocess-e2e PASS` 및 demo의 impact 선별 라인)과 일치**시킨다(기존 드리프트 해소).
+- README 빠른 시작을 `tia demo` 중심으로 갱신(스크립트 직접 실행 경로 병기). **README 79~93행 부근의 `run-inprocess-e2e.sh` 동작 서술(index/impact/git diff까지 한다는 기존 오기술)을 실제 범위(수집+convert)로 교정**하고, 기대 출력 문구를 실제 출력과 일치시킨다. 튜토리얼에 demo 예상 소요("첫 실행 1~3분") 명시.
+- **앵커 보존 게이트**: README.md·skills/tia/SKILL.md가 참조하는 `](GETTING-STARTED.md#…)` 앵커 전부를 grep으로 수집해, 재구성 후 GETTING-STARTED의 실제 헤딩과 일치함을 기계적으로 점검한다.
 
 ## 6. 에러 처리
 
