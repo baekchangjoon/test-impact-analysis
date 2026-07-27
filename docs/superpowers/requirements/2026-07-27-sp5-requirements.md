@@ -94,14 +94,14 @@
 | REQ-ID | 요구사항 | 수용 테스트 | Level | Status |
 |--------|----------|-------------|-------|--------|
 | SP5-REQ-001 | 옵트인·하위호환 | action.yml diff 검토 + 전체 스위트 | manual+suite | 🔴 planned |
-| SP5-REQ-002 | DRY_RUN 계약 | PrCommentScriptE2ETest#dryRunPrintsApiPathAndBody | E2E | 🔴 planned |
-| SP5-REQ-003 | 소프트 스킵 | PrCommentScriptE2ETest#emptyPrNumberWarnsExitZero / #missingBodyFileFails | E2E | 🔴 planned |
-| SP5-REQ-004 | -F 파일 본문 전달 | PrCommentScriptE2ETest#stubGhReceivesFileBody | E2E | 🔴 planned |
-| SP5-REQ-005 | 실패 내성+권한 안내 | PrCommentScriptE2ETest#ghFailureWarnsWithPermissionHint | E2E | 🔴 planned |
-| SP5-REQ-006 | 65,536자 절단+하드캡 | PrCommentScriptE2ETest#oversizedBodyTruncated / #oversizedHeadHardCapped | E2E | 🔴 planned |
+| SP5-REQ-002 | DRY_RUN 계약 | PrCommentScriptE2ETest#dryRunPrintsApiPathAndBody | E2E | 🟢 green |
+| SP5-REQ-003 | 소프트 스킵 | PrCommentScriptE2ETest#emptyPrNumberWarnsExitZero / #missingBodyFileFails | E2E | 🟢 green |
+| SP5-REQ-004 | -F 파일 본문 전달 | PrCommentScriptE2ETest#stubGhReceivesFileBody | E2E | 🟢 green |
+| SP5-REQ-005 | 실패 내성+권한 안내 | PrCommentScriptE2ETest#ghFailureWarnsWithPermissionHint | E2E | 🟢 green |
+| SP5-REQ-006 | 65,536자 절단+하드캡 | PrCommentScriptE2ETest#oversizedBodyTruncated / #oversizedHeadHardCapped | E2E | 🟢 green |
 | SP5-REQ-007 | 액션 스텝 배선 | action.yml 정적 검토 (구현 task 산출물 대조) | manual | 🔴 planned |
 | SP5-REQ-008 | 탭 가이드 | ReportBuilderTest#tabGuidesRenderedFiveTimes + 전체 스위트 | unit | 🔴 planned |
 | SP5-REQ-009 | 빈 상태 1·2·5 (탭5 구분) | ReportBuilderTest#emptyStateHintsForSparseTabs / #fullCoverageBlindTabShowsPositiveMessage | unit | 🔴 planned |
 | SP5-REQ-010 | 소비자 문서 | PR 전 docs 게이트 점검 | build | 🔴 planned |
 
-Coverage: 0/10 green (0%) — target 100% (대상: Must 10 = 10; SP5-REQ-001/007은 수동 게이트로 검증 방법 명시)
+Coverage: 5/10 green (50%) — target 100% (대상: Must 10 = 10; SP5-REQ-001/007은 수동 게이트로 검증 방법 명시)
