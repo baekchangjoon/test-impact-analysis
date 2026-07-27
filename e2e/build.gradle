@@ -12,8 +12,8 @@ dependencies {
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.8'   // FormatE2ETest: --format json 스키마 파싱(SP1)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.3.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.3.0'
+    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.4.0'
+    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.4.0'
 }
 
 // 일반 :e2e:test 에서 병렬 테스터/수용 비교 테스트는 제외(오케스트레이터가 별도 구동).
