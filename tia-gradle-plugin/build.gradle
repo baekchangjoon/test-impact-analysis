@@ -11,10 +11,40 @@ gradlePlugin {
             description = 'Wires tia convert/index/impact/report into the build and attaches the per-test coverage agent.'
         }
     }
+    // SP2-REQ-007: PluginCcSmokeFunctionalTest가 GradleRunner.withPluginClasspath()로 실제 apply 검증
+    testSourceSets sourceSets.test
 }
 
 dependencies {
+    // SP2-REQ-001/002/004: tia.yml 로더 재사용. 전이 의존은 명시 제외해 플러그인 클래스패스 오염 방지
+    // (spec §2 — 내장 jacoco 플러그인 충돌 등). 로더 경로(TiaConfigLoader/TiaConfig/GlobMatcher)는
+    // jackson(-yaml)만 필요. jackson 잔존은 리스크로 문서화(§5).
+    implementation(project(':tia-core')) {
+        exclude group: 'org.jacoco'          // 내장 jacoco 플러그인과 충돌 방지
+        exclude group: 'org.xerial'          // sqlite — 로더 경로에서 불필요
+        exclude group: 'org.roaringbitmap'   // 비트맵 — 로더 경로에서 불필요
+    }
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     // SP2-REQ-003: GlobToClassPatternTest가 실제 WildcardMatcher로 매칭 단언 (문자열 비교 아님)
     testImplementation 'org.jacoco:org.jacoco.core:0.8.12'
+    // SP2-REQ-007: PluginCcSmokeFunctionalTest (GradleRunner/TestKit)
+    testImplementation gradleTestKit()
 }
+
+// SP2-REQ-005: tia-core exclude가 실제로 지켜지는지 상시 회귀 게이트 — runtimeClasspath에
+// org.jacoco/org.xerial/org.roaringbitmap 그룹이 유입되면 check에서 실패한다.
+def verifyPluginClasspath = tasks.register('verifyPluginClasspath') {
+    def runtimeClasspath = configurations.runtimeClasspath
+    inputs.files(runtimeClasspath)
+    doLast {
+        List<String> forbiddenGroups = ['org.jacoco', 'org.xerial', 'org.roaringbitmap']
+        def offenders = runtimeClasspath.resolvedConfiguration.resolvedArtifacts
+                .collect { it.moduleVersion.id }
+                .findAll { forbiddenGroups.contains(it.group) }
+        if (!offenders.isEmpty()) {
+            throw new GradleException("tia-gradle-plugin 클래스패스 위생 위반 [SP2-REQ-005]: " + offenders
+                    + " — tia-core 의존의 exclude 3그룹(org.jacoco/org.xerial/org.roaringbitmap) 확인")
+        }
+    }
+}
+tasks.named('check') { dependsOn verifyPluginClasspath }
