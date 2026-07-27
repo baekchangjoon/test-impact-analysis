@@ -137,12 +137,14 @@
 | FU-REQ-004 | worktree 토폴로지 | DbPathsTest#worktreeResolvesToMainCommonDir | unit | 🟢 green |
 | FU-REQ-005 | doctor E2E 허메틱 | McpCommandE2ETest#doctorFailIsNotError(강화) | E2E | 🟢 green |
 | FU-REQ-006 | "N/M개 선별" 단언 | FormatE2ETest#impactSummaryPipedNoAnsi(강화) | E2E | 🟢 green |
-| FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡(본 PR CI 자기실증) | CI | 🔴 planned |
-| FU-REQ-008 | demo 주간 잡 | demo-weekly.yml + dispatch 1회 기록 | CI | 🔴 planned |
+| FU-REQ-007 | pr-comment 실PR 스모크 | ci.yml `action-pr-comment-smoke` 잡(본 PR CI 자기실증) | CI | 🟡 작성됨 (PR CI 자기실증 대기) |
+| FU-REQ-008 | demo 주간 잡 | demo-weekly.yml + dispatch 1회 기록 | CI | 🟡 작성됨 (dispatch 대기) |
 | FU-REQ-009 | 릴리스 노트 | docs 게이트(파일·Inputs 명시·README 링크) | docs | 🔴 planned |
 
-Coverage: 6/9 green (67%) — Task 1(FU-REQ-001..006) 완료. target: 머지 전 8/9(FU-REQ-008 제외) + 머지 후
-FU-REQ-008 dispatch 기록으로 9/9 (대상: Must 9; tia-config 분리는 기각으로 매트릭스 제외)
+Coverage: 6/9 green (67%) — Task 1(FU-REQ-001..006) 완료. Task 2(FU-REQ-007/008) CI 잡 작성 완료(로컬
+검증: actionlint 0 errors + 픽스처/diff 셰이프 로컬 실증 — 실 CI 자기실증은 아직). target: 머지 전 8/9
+(FU-REQ-008 제외) + 머지 후 FU-REQ-008 dispatch 기록으로 9/9 (대상: Must 9; tia-config 분리는 기각으로
+매트릭스 제외)
 
 ## 3. 태스크 플랜 (SDD)
 

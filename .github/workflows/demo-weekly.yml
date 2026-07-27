@@ -1,0 +1,63 @@
+name: Demo weekly
+
+# demo 실경로 저빈도 CI 잡 [FU-REQ-008] — PR CI(ci.yml)에는 미포함(저빈도 취지).
+# workflow_dispatch로 수동 1회 실행(머지 직후 기록) + 주 1회 schedule.
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # 매주 월요일 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    name: tia demo (설치된 실 바이너리, 실경로) [FU-REQ-008]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      # 기존 CI(ci.yml `test`/`parallel-e2e`/`inprocess-e2e` 잡)와 동일 해소 관례.
+      # tia demo 스테이지 [1/6]도 내부적으로 이 스크립트를 재호출하지만(멱등 — 이미 있으면 재사용),
+      # 여기서 먼저 해소해 두면 tia demo 실행 중 최초 네트워크 다운로드로 인한 지연/실패를 앞당겨 드러낸다.
+      - name: pjacoco 해소 (릴리스 다운로드, 폴백 소스 빌드) (기존 CI와 동일 해소)
+        env:
+          PJACOCO_REF: v1.4.0
+        run: bash scripts/setup-pjacoco.sh
+
+      - name: tia-cli 설치 (installDist)
+        run: ./gradlew :tia-cli:installDist --no-daemon
+
+      # working-directory 오버라이드 없음 — 체크아웃 루트 cwd 유지(레포 루트 탐지 전제, DemoCommand).
+      - name: tia demo 실행 (설치된 실 바이너리)
+        run: |
+          set -euo pipefail
+          ./tia-cli/build/install/tia/bin/tia demo | tee demo-stdout.log
+
+      - name: 단언 — stdout에 [6/6] 스테이지 마커
+        run: |
+          set -euo pipefail
+          grep -qF '[6/6]' demo-stdout.log
+
+      - name: 단언 — report.html 산출물 존재·비어있지 않음
+        run: |
+          set -euo pipefail
+          test -s build/inprocess-e2e/demo/report.html
+
+      - name: 데모 산출물 업로드 (dispatch 실행 기록용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-weekly-artifacts
+          path: |
+            demo-stdout.log
+            build/inprocess-e2e/demo/

@@ -185,3 +185,93 @@ jobs:
         env:
           PJACOCO_REF: v1.4.0
         run: bash scripts/run-inprocess-e2e.sh
+
+  action-pr-comment-smoke:
+    name: Action pr-comment 실PR 스모크 (label 게이트, 온디맨드) [FU-REQ-007]
+    # 온디맨드 잡 — 모든 PR/push에 이미지 빌드+봇 코멘트를 영구 부과하지 않는다.
+    # same-repo 가드는 fork PR에 대한 GitHub 기본 토큰 다운그레이드("Send write tokens to
+    # workflows from fork PRs" OFF)에 대한 코드 레벨 심층 방어.
+    # 자기실증 절차: 본 배치 PR 오픈 → 'tia-smoke' 라벨 부착 → 커밋 푸시(synchronize — 라벨이
+    # payload에 실림)로 트리거 → green + 코멘트 마커 확인. 이후엔 라벨 붙인 PR에서만 온디맨드 재검증.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'tia-smoke')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: fat-jar 빌드
+        run: ./gradlew :tia-cli:shadowJar --no-daemon
+
+      - name: tia:ci 이미지 빌드
+        run: docker build -t tia:ci -f docker/Dockerfile .
+
+      - name: 픽스처 준비 — testwise JSON 워크스페이스 복사 + 컨테이너로 인덱싱
+        run: |
+          set -euo pipefail
+          cp e2e/src/test/resources/spec-testwise.json tia-smoke-testwise.json
+          docker run --rm -v "$PWD:/work" -w /work tia:ci \
+            index --report tia-smoke-testwise.json --repo fixture --commit C0 --db tia-smoke.db
+
+      - name: 스모크 diff 생성 (인덱싱된 클래스에 매칭 — FormatE2ETest#mixedDiff()와 동형)
+        run: |
+          set -euo pipefail
+          cat > tia-smoke.diff <<'EOF'
+          diff --git a/fixture-app/src/main/java/io/tia/fixture/PricingService.java b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+          --- a/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+          +++ b/fixture-app/src/main/java/io/tia/fixture/PricingService.java
+          @@ -8,1 +8,1 @@
+          -old
+          +new
+          diff --git a/com/acme/gen/G.java b/com/acme/gen/G.java
+          --- a/com/acme/gen/G.java
+          +++ b/com/acme/gen/G.java
+          @@ -1,1 +1,1 @@
+          -old
+          +new
+          EOF
+
+      - name: TIA impact 실행 + PR 코멘트 게시 (opt-in)
+        id: tia
+        uses: ./
+        with:
+          db: tia-smoke.db
+          commit: C0
+          diff-file: tia-smoke.diff
+          image: tia:ci
+          pr-comment: 'true'
+
+      - name: 단언 — run-all=false, selected 비어있지 않음
+        env:
+          RUN_ALL: ${{ steps.tia.outputs.run-all }}
+          SELECTED: ${{ steps.tia.outputs.selected }}
+        run: |
+          set -euo pipefail
+          [ "$RUN_ALL" = "false" ] || { echo "::error::run-all이 false가 아님: $RUN_ALL"; exit 1; }
+          [ -n "$SELECTED" ] || { echo "::error::selected가 비어있음"; exit 1; }
+          echo "selected: $SELECTED"
+
+      - name: 단언 — PR 코멘트에 마커 존재 (전체 페이지 조회 — 30개 페이지 밖 밀림 오탐 방지)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          comments="$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[].body')"
+          if printf '%s' "$comments" | grep -qF '<!-- tia-impact-comment -->'; then
+            echo "marker found"
+          else
+            echo "::error::PR 코멘트에 <!-- tia-impact-comment --> 마커가 없음"
+            exit 1
+          fi
