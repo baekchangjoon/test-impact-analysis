@@ -33,7 +33,7 @@
 
 **REQ-IDs:** SP4-REQ-004(시임 부분), SP4-REQ-009(하위호환)
 
-- [ ] 실패 테스트: `DbPathsTest`에 workingDir 오버로드 케이스(@TempDir git 레포 → 그 레포의 common-dir 반환; 비-git → 기존 폴백) + `ImpactCommandTest`에 `--working-dir`로 다른 레포의 diff·기본 DB를 쓰는 케이스(기존 테스트 픽스처 패턴 재사용). red.
+- [ ] 실패 테스트: `DbPathsTest`에 workingDir 오버로드 케이스(@TempDir git 레포 → 그 레포의 common-dir 반환; 비-git → 기존 폴백) + `ImpactCommandTest`에 `--working-dir`로 다른 레포의 diff·기본 DB를 쓰는 케이스(기존 테스트 픽스처 패턴 재사용) + `CliWiringTest`에 impact/doctor `--working-dir` **hidden 단언**(기존 --repo-root 관례). red.
 - [ ] 구현: `DbPaths.gitCommonDir(Path workingDir)`(`.directory(workingDir.toFile())`; 기존 무인자는 위임) + `resolveDefault(Path workingDir)`; ImpactCommand 히든 `--working-dir` → `runGitDiff(base, workingDirFile)`·`DbPaths.resolveDefault(workingDir)`에 배선(미지정 null → 기존 경로); DoctorCommand 동일(기본 DB 해석만).
 - [ ] green + 전체 스위트 무변경 green → Commit `feat(cli): working-dir 시임 — DbPaths·impact·doctor [SP4-REQ-004]` + 매트릭스(부분 기록).
 
@@ -41,16 +41,17 @@
 
 **REQ-IDs:** SP4-REQ-001..007
 
-- [ ] 실패 E2E 작성: `McpCommandE2ETest` — 매트릭스 13케이스(@DisplayName SP4-REQ 태그, spec §6 시나리오 그대로: 협상 2·tools/list·impact JSON·working_dir 2·doctor·오류 5·notification/EOF) + `CliWiringTest#optionsForMcp`. 헬퍼: 요청 라인들을 `\n` 연결한 ByteArrayInputStream → System.setIn, 응답 stdout 캡처 후 라인별 jackson 파싱, finally 복원. red.
-- [ ] 구현: `McpCommand`(§3 계약 그대로 — 저장된 stdout 참조·개행 JSON-RPC 루프·협상 목록·2도구 스키마 상수·수제 required 검사·인프로세스 실행 out/err 스왑·상대경로 working_dir 절대화·EOF exit 0). TiaCommand 등록·usage.
+- [ ] 실패 E2E 작성: `McpCommandE2ETest` — **요구명세 추적 매트릭스의 테스트명 전부(총 17 메서드 — 매트릭스가 유일한 소스오브트루스)**, @DisplayName SP4-REQ 태그, spec §6 시나리오·픽스처 레시피 그대로(특히 workingDir 케이스는 `DbPaths.resolveDefault(workingDir)` 경로에 직접 인덱싱+비-0 선별 단언; doctor는 깨진 tia.yml FAIL 픽스처) + `CliWiringTest#subcommandsIncludeMcp`(존재만 — mcp는 CLI 옵션 없음). 헬퍼: 요청 라인들을 `\n` 연결한 ByteArrayInputStream → System.setIn, 응답 stdout 캡처 후 라인별 jackson 파싱, finally 복원. 메시지 형태는 spec §3 리터럴 예시 기준. red.
+- [ ] 구현: `McpCommand`(§3 계약·리터럴 예시 그대로 — 저장된 stdout 참조·개행 JSON-RPC 루프·협상 목록·2도구 스키마/description 상수·수제 required 검사(-32602는 도구 미존재·required 부재만)·ping·인프로세스 실행 out/err 스왑·상대 db/diff_file working_dir 절대화·EOF exit 0). TiaCommand 등록·usage.
 - [ ] green + 전체 스위트 green → Commit `feat(cli): tia mcp — 최소 stdio MCP 서버(도구 2종) [SP4-REQ-001..007]` + 매트릭스.
 
 ### Task 3: 문서 + 실 클라이언트 스모크
 
 **REQ-IDs:** SP4-REQ-008, SP4-REQ-009
 
-- [ ] SKILL.md(json-우선 예시·tia.yml 안내·MCP 1줄 — 기존 doctor 문구와 통합)·README(사용 형태 표 MCP 행, 한계 절 갱신). 전체 스위트 green.
-- [ ] 실 클라이언트 스모크: `claude mcp add tia-local -- <installDist 경로>/tia mcp` 등록 → tools/list·tia_doctor 1회 호출 → 협상 protocolVersion 기록 → 등록 해제(`claude mcp remove tia-local`) — 결과·버전을 리포트에 기록(정리 포함).
+- [ ] SKILL.md(json-우선 예시·tia.yml 안내·MCP 1줄 — 기존 doctor 문구와 통합)·README(사용 형태 표 MCP 행; "현재 범위 & 한계" 불릿은 **"자체 MCP 서버"만 제거하고 "PR 코멘트 이원화"는 유지**). REQ-008 체크리스트 5항목 전부. 전체 스위트 green.
+- [ ] 실 클라이언트 스모크(모든 종료 경로 정리): `./gradlew :tia-cli:installDist` 후
+  `trap 'claude mcp remove tia-local 2>/dev/null' EXIT; claude mcp add tia-local -- "$PWD/tia-cli/build/install/tia/bin/tia" mcp` → tools/list·tia_doctor 1회 → 협상 protocolVersion 기록. **`claude` CLI 부재/등록 실패 시**: 사유를 리포트에 기록하고 REQ-009를 미충족으로 표기(침묵 스킵 금지).
 - [ ] 매트릭스 9/9 → Commit `docs(skill,readme): MCP 표면·json 우선 안내 [SP4-REQ-008/009]`.
 
 ## 완료 정의

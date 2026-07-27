@@ -21,10 +21,10 @@
 
 ## 2. 도구 정의
 
-| 도구 | 입력 스키마(JSON Schema) | 동작 |
-|---|---|---|
-| `tia_impact` | `commit`(required string), `db`(string, 선택 — 미지정 시 tia.yml/기본값 해석), `diff_file`(string 선택), `git_ref`(string 선택), `working_dir`(string 선택 — 탐색·git·기본 DB 기준, 기본 서버 프로세스 cwd) | 인프로세스로 `impact --format json` 실행(해당 옵션 매핑) → stdout JSON을 text 콘텐츠로 반환. exit≠0이면 `isError: true` + stderr 요약 |
-| `tia_doctor` | `working_dir`(string 선택) | 인프로세스 `doctor --format json` → JSON 반환. doctor의 exit 1(FAIL 존재)도 **정상 도구 결과**(isError 아님; 실행 자체 실패만 isError). 근거: SP3 §3 불변식 "doctor는 예외로 죽지 않는다 — FAIL ≥1 → exit 1"이라 exit 1은 진단 내용이지 실행 실패가 아니다 |
+| 도구 | description(확정 문구) | 입력 스키마(JSON Schema) | 동작 |
+|---|---|---|---|
+| `tia_impact` | "Select the tests impacted by a code change. Given a baseline commit (and optionally a diff file or git ref), returns the minimal set of tests to run as JSON (schemaVersion 1)." | `commit`(required string), `db`(string, 선택 — 미지정 시 tia.yml/기본값 해석), `diff_file`(string 선택), `git_ref`(string 선택), `working_dir`(string 선택 — 탐색·git·기본 DB 기준, 기본 서버 프로세스 cwd) | 인프로세스로 `impact --format json` 실행(모든 선택 인자를 대응 CLI 옵션에 매핑 — `git_ref`→`--git-ref` 포함) → stdout JSON을 text 콘텐츠로 반환. exit≠0이면 `isError: true` + stderr 요약 |
+| `tia_doctor` | "Diagnose the TIA environment and configuration (JDK, git, tia.yml, index DB, baseline alignment). Returns per-check status and fix hints as JSON." | `working_dir`(string 선택) | 인프로세스 `doctor --format json` → JSON 반환. **`DoctorCommand.call()`이 정상 실행되어 반환한 exit 1(FAIL 존재)은 정상 도구 결과**(isError 아님) — 근거: SP3 §3 불변식(진단은 예외로 죽지 않음). 어댑터/파싱 수준 실패는 이 면제에서 제외(isError) |
 
 - **인프로세스 실행**: DemoCommand의 캡처+finally-복원 관용구를 따르되 **System.out도 함께 스왑**한다(DemoCommand는 err만 스왑 — 도구 결과 JSON은 stdout 캡처가 본질). 서브프로세스 없음(단일 JVM).
 - **working_dir의 실효 범위(기존 시임만으로는 불충분 — 리뷰 확인 사실)**: `--search-root`는 tia.yml 탐색에만 쓰이고, ①`DbPaths.resolveDefault()`의 `git rev-parse --git-common-dir`는 `.directory()` 미지정(프로세스 cwd 고정) ②`ImpactCommand`의 암시적 diff는 `runGitDiff(base, null)`(cwd 고정)이다. 따라서 SP4는 다음 시임을 함께 뚫는다:
@@ -45,7 +45,17 @@
   - `tools/list` → §2의 2개 도구(JSON Schema 포함)
   - `tools/call` → 실행 결과 `{content: [{type: "text", text: <JSON 문자열>}], isError: <bool>}`
   - `ping` → `{}` / 알 수 없는 메서드 → JSON-RPC 오류 `-32601`
-- **입력 검증(-32602의 범위)**: JSON Schema 완전 검증기 없음(수제 최소 구현) — 서버는 **도구 미존재·required 필드 부재·명백한 타입 불일치만 사전 검사**해 `-32602`를 반환하고, 그 외 값-수준 문제는 커맨드 실행 실패(isError: true)로 수렴한다(명시).
+- **입력 검증(-32602의 범위 — 의도적 축소)**: JSON Schema 완전 검증기 없음(수제 최소 구현) — 서버는 **도구 미존재·required 필드 부재 두 가지만** 사전 검사해 `-32602`를 반환하고, 타입/값-수준 문제는 커맨드 실행 실패(isError: true)로 수렴한다(REQ와 정합하도록 범위 고정).
+- **리터럴 메시지 예시(수제 구현의 1차 근거 — 요청측 필드 경로 포함)**:
+
+```json
+// initialize 요청/응답
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"claude","version":"1.0"}}}
+{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"tia","version":"0.2.0"}}}
+// tools/call 요청/응답
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"tia_impact","arguments":{"commit":"abc123","db":"/tmp/tia.db","diff_file":"/tmp/change.diff"}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"schemaVersion\":1,...}"}],"isError":false}}
+```
 - 종료: stdin EOF에서 정상 종료(exit 0). 파싱 불능 라인은 JSON-RPC `-32700` 오류 응답(**id는 null** — 요청 id 파싱 불가) 후 계속(서버 생존).
 - id 없는 요청(notification)은 응답을 쓰지 않는다.
 - **CLI 배선**: `TiaCommand` subcommands 배열·usage 문자열에 `mcp` 추가(기존 관례; CliWiringTest 등록 단언 포함).
@@ -69,13 +79,15 @@
 **E2E(인프로세스 stdio 블랙박스)**: `McpCommandE2ETest` — System.in을 준비된 JSON-RPC 라인 스트림으로, System.out을 캡처 버퍼로 스왑해 `tia mcp`를 실행하고 응답 라인을 파싱 단언. @Execution(SAME_THREAD) + **System.in/out을 finally/@AfterEach에서 반드시 복원**(System.setIn은 이 코드베이스 최초 패턴 — 복원 규율 명시):
 
 1. `initialize`(신형 protocolVersion 2025-11-25 요청) → **에코 응답** + capabilities.tools·serverInfo(version에 "tia " 접두 없음) 존재; 미지원 버전 요청 → 2025-06-18 응답.
-2. `tools/list` → 2개 도구 + inputSchema에 required `commit`(impact).
+2. `tools/list` → 2개 도구(**description 비어있지 않음 단언**) + inputSchema에 required `commit`(impact).
 3. `tools/call tia_impact`(사전 인덱싱된 @TempDir db + diff_file, 절대 경로) → content[0].text가 SP1 impact JSON(schemaVersion=1, tests[])로 파싱됨, isError=false.
-4. **working_dir 실효 E2E**: `db`·`diff_file` 모두 생략 + `working_dir`=프로세스 cwd와 **다른** @TempDir git 레포(커밋·인덱스 존재, git_ref 기본) → 결과가 working_dir 레포 기준으로 계산됨(diff·기본 DB 해석 모두 — I1/I2 시임 고정).
-5. `tools/call tia_doctor`(빈 디렉터리 working_dir) → doctor JSON 파싱 + isError=false(WARN이어도).
-6. 오류 경로: 알 수 없는 메서드 → -32601; 깨진 JSON 라인 → -32700(id=null) 후 후속 요청 정상 처리(서버 생존); 미존재 도구 → -32602; **required 필드(commit) 부재 → -32602**(사전 검사); impact 실행 실패(존재하지 않는 diff_file) → isError=true.
-7. notification(id 없음) → 응답 없음; EOF → exit 0.
-8. 상대 `diff_file` + working_dir → working_dir 기준 절대화되어 성공.
+4. **git_ref 매핑**: `git_ref` 지정 호출이 `--git-ref`로 전달됨(인덱싱 커밋과 다른 ref를 줘 결과 차이로 단언).
+5. **working_dir 실효 E2E**: `db`·`diff_file` 모두 생략 + `working_dir`=프로세스 cwd와 **다른** @TempDir git 레포 → 결과가 working_dir 레포 기준(diff·기본 DB 해석 모두). **픽스처 레시피(공허 방지)**: 인덱스는 `DbPaths.resolveDefault(workingDir)`가 계산하는 바로 그 경로(일반 레포면 `<repo>/.git/tia/tia.db`)에 `tia index --db <그 경로>`로 미리 넣고, impact가 **0이 아닌 특정 테스트를 선별**함을 단언한다(no-baseline 0건 성공으로 새는 것 금지).
+6. **상대 경로 절대화**: 상대 `diff_file`+working_dir 성공 / **상대 `db`+working_dir**가 working_dir 기준 경로의 인덱스를 사용(CoverageStore가 오경로에 빈 DB를 만들며 조용히 0건 성공하는 함정 차단 — 비-0 선별 단언).
+7. `tools/call tia_doctor`(**깨진 tia.yml working_dir — FAIL·exit 1 확정 픽스처**) → doctor JSON 파싱 + **isError=false**(FAIL≠isError 불변식 실증; 기존 '빈 디렉터리 WARN' 케이스로는 FAIL 경로가 영영 미검증).
+8. `ping` → `{}` 응답.
+9. 오류 경로: 알 수 없는 메서드 → -32601; 깨진 JSON 라인 → -32700(id=null) 후 후속 요청 정상 처리(서버 생존); 미존재 도구 → -32602; required 필드(commit) 부재 → -32602(사전 검사); impact 실행 실패(존재하지 않는 diff_file) → isError=true.
+10. notification(id 없음) → 응답 없음; EOF → exit 0.
 
 **CLI 배선**: CliWiringTest에 mcp 등록 단언. **스킬 문서**: docs 게이트(json 우선·MCP 설정·tia.yml 안내 존재). **하위호환**: 기존 스위트 무변경 green.
 
