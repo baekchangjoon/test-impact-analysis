@@ -170,7 +170,7 @@ public class InitCommand implements Callable<Integer> {
         return switch (tool) {
             case GRADLE -> null;
             case MAVEN -> "     (Maven 프로젝트 감지됨 — io.github.beltian.pjacoco:pjacoco-maven-plugin:2.0.0"
-                    + "(Maven Central)으로 에이전트를 배선하세요.)";
+                    + " (Maven Central)으로 에이전트를 배선하세요.)";
             case UNKNOWN -> "     (빌드 도구를 자동감지하지 못했습니다 — 사용 중인 빌드 시스템에 맞게"
                     + " 에이전트를 수동 배선하세요.)";
         };
