@@ -61,7 +61,8 @@
   기준으로(**플러그인 id는 업스트림 v2 소스에서 실확인** — Central/Portal 미게시이므로 "로컬 게시 필요"
   캐비앗은 플러그인에 한정해 유지), InitCommand Maven 힌트에서 "미배포 시" 헤지 제거(maven-plugin 실좌표
   안내), RELEASE-NOTES 미릴리스 절에 항목 추가.
-- 수용기준(기계적): `git grep -nE "io\.pjacoco:|id ['\"]io\.pjacoco|jacocoagent-parallel" -- ':!docs/superpowers'`
+- 수용기준(기계적): `git grep -nE "io\.pjacoco:|id ['\"]io\.pjacoco|jacocoagent-parallel" -- ':!docs/superpowers' ':!docs/RELEASE-NOTES.md'`
+  (RELEASE-NOTES는 개명 이력 문서화를 위해 구 파일명을 의도적으로 명기 — 제외)
   잔존 0(좌표형·jar명만 — 패키지형 `io.pjacoco.`는 불변이라 패턴에서 제외됨) + "미게시(준비 중)"류 캐비앗
   잔존 0(대상 파일 수동 확인) + docs 게이트.
 

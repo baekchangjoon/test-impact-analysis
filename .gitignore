@@ -9,3 +9,6 @@ gradle.properties
 .remember/
 petclinic-demo/jacoco/
 .gstack/
+
+# SDD 내부 작업 산출물(리포트·원장) — 추적 금지
+.superpowers/

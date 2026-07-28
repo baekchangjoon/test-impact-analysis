@@ -130,7 +130,7 @@ jobs:
       - name: Set up Gradle (cache)
         uses: gradle/actions/setup-gradle@v4
 
-      - name: pjacoco 빌드
+      - name: pjacoco 해소 (Central 다운로드)
         run: bash scripts/setup-pjacoco.sh
 
       - name: SUT/CLI 아티팩트 + 테스트 의존성 캐시 워밍

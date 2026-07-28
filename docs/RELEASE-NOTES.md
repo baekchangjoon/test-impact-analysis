@@ -30,7 +30,7 @@
   타임에 자동 해소되며(과거의 합성 POM mavenLocal 게시 불필요), `scripts/setup-pjacoco.sh`는
   에이전트 jar를 repo1(Maven Central)에서 다운로드+sha256 검증하도록 재작성됐습니다(오프라인
   폴백은 소스 클론 빌드로 유지).
-- **행동 변경(사용자 영향): 에이전트 jar 파일명이 바뀌었습니다** — v1.x의 구 파일명에서
+- **행동 변경(사용자 영향): 에이전트 jar 파일명이 바뀌었습니다** — v1.x의 `jacocoagent-parallel.jar`에서
   `tools/pjacoco/pjacoco-agent.jar`로 개명됐습니다. 이 경로를 직접 참조하던 스크립트·`-javaagent`
   배선·문서 예시가 있다면 새 파일명으로 갱신하세요(`tia doctor` 출력, `docker-compose.e2e.yml`,
   `tia-gradle-plugin`의 `attachCoverageAgent(FromConfig)` 헬퍼 예시 등 저장소 내 지점은 이미 갱신
