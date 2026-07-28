@@ -11,7 +11,7 @@ services:
       - cov:/cov
     command:
       - java
-      - "-javaagent:/agent/jacocoagent-parallel.jar=destfile=/cov,port=6310,address=0.0.0.0,aggregate=false,includes=io.tia.fixture.*"
+      - "-javaagent:/agent/pjacoco-agent.jar=destfile=/cov,port=6310,address=0.0.0.0,aggregate=false,includes=io.tia.fixture.*"
       - -jar
       - /libs/fixture-app.jar
       - --server.port=8080
@@ -26,7 +26,7 @@ services:
     volumes:
       - .:/work
       - ${HOME}/.gradle:/root/.gradle      # 호스트 의존성/래퍼 캐시 재사용 (재다운로드 회피)
-      - ${HOME}/.m2:/root/.m2:ro           # pjacoco testkit(mavenLocal 게시) 해소용
+      - ${HOME}/.m2:/root/.m2:ro           # pjacoco testkit 해소용: Central 우선, mavenLocal 폴백
       - cov:/cov
     entrypoint: ["bash", "/work/scripts/docker-e2e-tester.sh"]
 

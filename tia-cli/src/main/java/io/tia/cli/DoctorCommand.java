@@ -143,7 +143,7 @@ public class DoctorCommand implements Callable<Integer> {
         if (tiaRoot == null) {
             return skip("pjacoco-agent", "pjacoco 에이전트 jar", "TIA 레포가 아님");
         }
-        Path jar = tiaRoot.resolve("tools/pjacoco/jacocoagent-parallel.jar");
+        Path jar = tiaRoot.resolve("tools/pjacoco/pjacoco-agent.jar");
         return Files.exists(jar)
                 ? pass("pjacoco-agent", "pjacoco 에이전트 jar", "존재: " + jar)
                 : warn("pjacoco-agent", "pjacoco 에이전트 jar", "없음: " + jar,

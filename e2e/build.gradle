@@ -1,7 +1,10 @@
 // 스펙 수용(E2E) 테스트 모듈 — CLI를 end-to-end로 구동해 설계 명세 동작을 검증.
 plugins { id 'info.solidsoft.pitest' version '1.15.0' }   // E2E가 tia-core mutant를 죽이는지 측정
 
-repositories { mavenLocal(); mavenCentral() }   // pjacoco testkit(mavenLocal) 해소
+// pjacoco testkit(io.github.beltian.pjacoco:*) 해소. Central 우선 — mavenLocal은 오프라인 폴백 경로로
+// 유지한다(scripts/setup-pjacoco.sh의 소스 빌드 폴백이 publishToMavenLocal로 여기 채워줌. 순서를 바꾸면
+// 정상 시에도 mavenLocal을 먼저 뒤져 불필요한 로컬 조회가 생기므로 mavenCentral()을 앞에 둔다).
+repositories { mavenCentral(); mavenLocal() }
 
 dependencies {
     testImplementation project(':tia-cli')
@@ -12,8 +15,8 @@ dependencies {
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.8'   // FormatE2ETest: --format json 스키마 파싱(SP1)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.4.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.4.0'
+    testImplementation 'io.github.beltian.pjacoco:pjacoco-testkit-junit5:2.0.0'
+    testImplementation 'io.github.beltian.pjacoco:pjacoco-testkit-restassured:2.0.0'
 }
 
 // 일반 :e2e:test 에서 병렬 테스터/수용 비교 테스트는 제외(오케스트레이터가 별도 구동).
@@ -49,7 +52,7 @@ tasks.register('parallelCollectionE2ETest', Test) {
 tasks.register('inProcessTesterTest', Test) {
     useJUnitPlatform { includeTags 'inprocess-tester' }
     def repo = rootProject.projectDir
-    def agentJar = (project.findProperty('inprocess.agentJar') ?: "${repo}/tools/pjacoco/jacocoagent-parallel.jar").toString()
+    def agentJar = (project.findProperty('inprocess.agentJar') ?: "${repo}/tools/pjacoco/pjacoco-agent.jar").toString()
     def covDir = (project.findProperty('inprocess.covDir') ?: "${repo}/build/inprocess-e2e/cov-serial").toString()
     jvmArgs "-javaagent:${agentJar}=destfile=${covDir},aggregate=false,includes=io.tia.fixture.*,port=0"
     systemProperties System.getProperties().findAll { it.key.toString().startsWith('tia.inprocess.') }
