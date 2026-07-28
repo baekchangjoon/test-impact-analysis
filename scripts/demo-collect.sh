@@ -41,7 +41,7 @@ export JAVA_HOME
 echo "Using JAVA_HOME=$JAVA_HOME" >&2
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AGENT_JAR="$REPO_ROOT/tools/pjacoco/jacocoagent-parallel.jar"
+AGENT_JAR="$REPO_ROOT/tools/pjacoco/pjacoco-agent.jar"
 [ -f "$AGENT_JAR" ] || {
   echo "❌ pjacoco 에이전트 jar 없음: $AGENT_JAR (scripts/setup-pjacoco.sh 먼저 실행하세요)" >&2
   exit 1
