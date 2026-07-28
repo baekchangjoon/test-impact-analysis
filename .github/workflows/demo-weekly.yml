@@ -26,12 +26,13 @@ jobs:
       - name: Set up Gradle (cache)
         uses: gradle/actions/setup-gradle@v4
 
-      # 기존 CI(ci.yml `test`/`parallel-e2e`/`inprocess-e2e` 잡)와 동일 해소 관례.
+      # 에이전트 jar는 Maven Central(repo1)에서 다운로드하고, 오프라인 등으로 실패하면 태그 클론 +
+      # 버전 스탬프 빌드로 폴백한다(setup-pjacoco.sh 참고). testkit은 e2e/build.gradle 의존성 선언만으로
+      # 컴파일 타임에 Central에서 자동 해소되므로 이 스크립트가 다룰 필요가 없다(ci.yml의
+      # `parallel-e2e`/`inprocess-e2e` 잡과 동일 해소 관례 — `test` 잡은 testkit만 쓰므로 미해당).
       # tia demo 스테이지 [1/6]도 내부적으로 이 스크립트를 재호출하지만(멱등 — 이미 있으면 재사용),
       # 여기서 먼저 해소해 두면 tia demo 실행 중 최초 네트워크 다운로드로 인한 지연/실패를 앞당겨 드러낸다.
-      - name: pjacoco 해소 (릴리스 다운로드, 폴백 소스 빌드) (기존 CI와 동일 해소)
-        env:
-          PJACOCO_REF: v1.4.0
+      - name: pjacoco 해소 (Central 다운로드, 폴백 소스 빌드) (기존 CI와 동일 해소)
         run: bash scripts/setup-pjacoco.sh
 
       - name: tia-cli 설치 (installDist)

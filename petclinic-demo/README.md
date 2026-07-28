@@ -20,7 +20,7 @@ touched by the black-box suite (the MVC/Thymeleaf layer and security infra are b
 ## Pipeline
 
 ```
-petclinic bootJar (JDK21) ─► running app ◄─ -javaagent: jacocoagent-parallel.jar (port 6310)
+petclinic bootJar (JDK21) ─► running app ◄─ -javaagent: pjacoco-agent.jar (port 6310)
         ▲                                       │ 1 vanilla-JaCoCo .exec per test
    ./gradlew blackboxTest (REST Assured + baggage: test.id) ┘
         │   /tmp/petclinic-coverage/<Class#method>.exec ×24

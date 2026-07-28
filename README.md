@@ -99,7 +99,7 @@ DETERMINISTIC	io.tia.e2e.inprocess.GreetingInProcessIT#greetAlice
 따로 보고 싶다면 기존 수집 스크립트를 직접 씁니다.
 
 ```bash
-# 1) pjacoco 소스 빌드 → mavenLocal (에이전트·확장 해소)
+# 1) pjacoco 에이전트 확보 (Maven Central 다운로드, 오프라인 시 소스 빌드로 폴백)
 bash scripts/setup-pjacoco.sh
 
 # 2) in-process 수집(3모드: serial/forks/injvm) → tia convert → 일관성 검사
@@ -305,7 +305,7 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 - **실패 분류기 → qe-rca-action DETERMINISTIC 신호 주입** — 이후 확장
 - **PR 코멘트 이원화** — 이후 확장 (현재는 CLI 텍스트 출력)
 - **staleness 저신뢰 플래그·라인 재조정** — 현재는 "diff 베이스 = 인덱싱 커밋" 불변식으로 우회
-- **병렬 수집**(`jacocoagent-parallel.jar` 드롭인) — 직렬 스위트가 나이틀리 윈도우를 초과할 때 전환
+- **병렬 수집**(`pjacoco-agent.jar` 드롭인) — 직렬 스위트가 나이틀리 윈도우를 초과할 때 전환
 
 알려진 환경 제약: 일부 샌드박스에서 Gradle 테스트 워커의 아웃바운드가 막힙니다. 가장 충실한 검증은 위 **컨테이너 E2E**로 하며, in-process/out-of-process 양쪽 모두 pjacoco를 통해 네트워크 제약 없이 동작합니다.
 
