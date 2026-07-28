@@ -137,7 +137,7 @@ DB 베이스라인↔HEAD 정렬 · pjacoco 에이전트 jar)으로 진단하고
 [WARN] tia.yml 존재·유효성 — tia.yml 없음 — 기본값으로 동작 (tia init 으로 tia.yml을 생성하세요)
 [PASS] 인덱스 DB 존재 — DB 파일 존재: /path/to/repo/.git/tia/tia.db
 [WARN] DB 베이스라인 ↔ HEAD 정렬 — HEAD(<sha>) 베이스라인 없음 (tia index --commit <sha> 로 재인덱싱하세요)
-[PASS] pjacoco 에이전트 jar — 존재: /path/to/repo/tools/pjacoco/jacocoagent-parallel.jar
+[PASS] pjacoco 에이전트 jar — 존재: /path/to/repo/tools/pjacoco/pjacoco-agent.jar
 요약: PASS 4, WARN 2, FAIL 0, SKIP 0
 ```
 
@@ -181,7 +181,8 @@ FAIL이 하나라도 있으면 exit 1(그 외 WARN/SKIP은 0). 진단은 읽기 
   ```bash
   "$CLI" convert --exec-dir <execDir> --classes build/classes/java/main --out testwise.json
   ```
-  와이어링은 pjacoco 자체 Gradle 플러그인 + 테스트킷이 권장 경로다(공개 배포 후) — [플러그인 가이드 §(a)](tia-gradle-plugin/README.md).
+  와이어링은 pjacoco 자체 Gradle 플러그인 + 테스트킷이 권장 경로다(테스트킷은 `io.github.beltian.pjacoco:*:2.0.0`로
+  Maven Central 게시됨; Gradle 플러그인만 아직 Plugin Portal 미게시라 로컬 게시 필요) — [플러그인 가이드 §(a)](tia-gradle-plugin/README.md).
   per-test만 소비하므로 에이전트의 `aggregate`는 끈다(`aggregate=false`; 기본 ON이면 전체-실행 `aggregate.exec`가 함께 떨어진다).
   워크된 예: [petclinic-demo](petclinic-demo/README.md).
 

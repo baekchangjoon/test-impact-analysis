@@ -63,28 +63,32 @@ per-test 수집은 에이전트마다 모델이 다르다. 플러그인은 각�
 
 ### (a) out-of-process — parallel-per-test-coverage (baggage)
 
-**권장 — pjacoco 네이티브 플러그인 + 테스트킷.** pjacoco가 자체 Gradle 플러그인(`io.pjacoco.gradle`)과
+**권장 — pjacoco 네이티브 플러그인 + 테스트킷.** pjacoco가 자체 Gradle 플러그인(`io.github.beltian.pjacoco`)과
 테스트킷(`pjacoco-testkit-junit5`·`pjacoco-testkit-restassured`)을 제공한다. 에이전트 attach,
 control-url 주입, 테스트별 start/stop, 요청의 `baggage: test.id` 전파를 플러그인+테스트킷이 모두 처리하므로
 TIA는 산출물(per-test `.exec`)을 `tia convert`로 받기만 하면 된다.
 
 ```gradle
-plugins { id 'io.pjacoco.gradle' version '1.4.0' }   // ※ 공개 배포(Maven Central/Plugin Portal) 후 사용 가능
+plugins { id 'io.github.beltian.pjacoco' version '2.0.0' }   // ※ Gradle Plugin Portal 미게시 — 로컬 게시 필요(아래 캐비앗)
 pjacoco {
     includes.set(['com.acme.*'])
     attachTo.set(['integrationTest'])
     aggregate.set(false)            // TIA는 per-test만 소비 → 전체-실행 aggregate.exec 끔
 }
 dependencies {
-    testImplementation 'io.pjacoco:pjacoco-testkit-junit5:1.4.0'
-    testImplementation 'io.pjacoco:pjacoco-testkit-restassured:1.4.0'
+    testImplementation 'io.github.beltian.pjacoco:pjacoco-testkit-junit5:2.0.0'
+    testImplementation 'io.github.beltian.pjacoco:pjacoco-testkit-restassured:2.0.0'
 }
 // 이후: tia convert --exec-dir <pjacoco 출력 dir> --classes ... → testwise.json → tiaIndex
 ```
 
-> **현재 상태:** pjacoco 플러그인/테스트킷은 아직 공개 저장소에 배포되지 않았다(`mavenLocal`로만 검증 가능).
-> 공개 배포 전까지는 아래 TIA 내장 헬퍼로 같은 계약을 직접 와이어한다. pjacoco가 Maven Central /
-> Gradle Plugin Portal에 올라오면 위 블록으로 전환하고 TIA 내장 헬퍼는 제거한다.
+> **현재 상태:** 테스트킷(`pjacoco-testkit-*`)과 에이전트(`pjacoco-agent`)는 **Maven Central에 실좌표로
+> 게시돼 있어**(`io.github.beltian.pjacoco:*:2.0.0`) 위 `dependencies` 블록은 그대로 resolve된다. **Gradle
+> 플러그인만** Gradle Plugin Portal에 아직 게시되지 않았다 — `plugins { id 'io.github.beltian.pjacoco' ... }`
+> 를 쓰려면 소스를 클론해 `:gradle-plugin:publishToMavenLocal`로 로컬 게시하고 소비 측
+> `pluginManagement { repositories { mavenLocal() } }`가 필요하다. 플러그인만 쓸 수 없는 동안에는 아래
+> TIA 내장 헬퍼로 같은 계약을 직접 와이어한다. Gradle 플러그인이 Plugin Portal에 올라오면 위 블록만으로
+> 충분해지고 TIA 내장 헬퍼는 제거한다.
 
 **대안 — TIA 내장 헬퍼 (공개 배포 전 임시).** 이 헬퍼는 에이전트를 **Test JVM**에 붙이는
 **직렬·in-JVM 부착 브리지**다 — 에이전트와 테스터가 같은 JVM에 있으므로 `maxParallelForks=1`이어야 한다.
@@ -97,7 +101,7 @@ dependencies {
 
 ```gradle
 io.tia.gradle.TiaPlugin.attachCoverageAgent(
-    t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
+    t, file('libs/pjacoco-agent.jar'), file("$buildDir/tia/cov"), 6310, 'com.acme.*')
 // 이후: tia convert --exec-dir build/tia/cov --classes ... → testwise.json
 ```
 
@@ -109,7 +113,7 @@ io.tia.gradle.TiaPlugin.attachCoverageAgent(
 
 ```gradle
 io.tia.gradle.TiaPlugin.attachCoverageAgentFromConfig(
-    project, t, file('libs/jacocoagent-parallel.jar'), file("$buildDir/tia/cov"), 6310)
+    project, t, file('libs/pjacoco-agent.jar'), file("$buildDir/tia/cov"), 6310)
 // tia.yml의 filters.code.include/exclude를 변환해 includes=/excludes= 로 부착한다.
 // filters.code가 비어 있거나 tia.yml 자체가 없으면 두 옵션 모두 생략(에이전트 기본값 사용, 에러 없음).
 ```
@@ -132,7 +136,7 @@ per-test `.exec` → `tia convert` → `testwise.json` → `tia index`.
 ```gradle
 // build.gradle.kts (또는 Groovy 동등)
 dependencies {
-    testImplementation("io.pjacoco:pjacoco-inprocess-junit5:<ver>")  // PjacocoInProcessExtension
+    testImplementation("io.github.beltian.pjacoco:pjacoco-testkit-junit5:<ver>")  // PjacocoInProcessExtension
 }
 
 tasks.withType<Test>().configureEach {

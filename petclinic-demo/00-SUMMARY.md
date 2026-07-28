@@ -8,7 +8,7 @@ across 5 classes (`Auth/Owner/Pet/Vet/Concurrency …BlackBoxIT`).
 ## How the data was produced (real, end-to-end — no mock data)
 
 ```
-petclinic bootJar  ──(JDK21)──►  running server  ◄── -javaagent: jacocoagent-parallel.jar
+petclinic bootJar  ──(JDK21)──►  running server  ◄── -javaagent: pjacoco-agent.jar
                                                        (parallel-per-test-coverage, port 6310)
         ▲                                                     │ emits 1 vanilla-JaCoCo .exec / test
         │ HTTP (REST Assured + baggage: test.id=<Class#method>)│ attributed even under parallelism=8

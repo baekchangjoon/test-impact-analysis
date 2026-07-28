@@ -22,10 +22,23 @@
 - **SP5 — Action PR 코멘트 + 리포트 가이드 내장.** GitHub Action에 opt-in PR 코멘트 게시 스텝이
   추가되고, HTML 리포트의 각 탭에 "이 탭 읽는 법" 해설이 내장되었습니다.
 
+### pjacoco 2.0.0 Maven Central 이전
+
+- pjacoco가 `io.github.beltian.pjacoco:*` **2.0.0**으로 Maven Central에 게시됨에 따라 TIA의 소비
+  지점을 Central 기준으로 전환했습니다. `e2e/build.gradle`의 testkit 의존성이 이제 실좌표
+  (`io.github.beltian.pjacoco:pjacoco-testkit-{junit5,restassured}:2.0.0`)로 Central에서 컴파일
+  타임에 자동 해소되며(과거의 합성 POM mavenLocal 게시 불필요), `scripts/setup-pjacoco.sh`는
+  에이전트 jar를 repo1(Maven Central)에서 다운로드+sha256 검증하도록 재작성됐습니다(오프라인
+  폴백은 소스 클론 빌드로 유지).
+- **행동 변경(사용자 영향): 에이전트 jar 파일명이 바뀌었습니다** — v1.x의 구 파일명에서
+  `tools/pjacoco/pjacoco-agent.jar`로 개명됐습니다. 이 경로를 직접 참조하던 스크립트·`-javaagent`
+  배선·문서 예시가 있다면 새 파일명으로 갱신하세요(`tia doctor` 출력, `docker-compose.e2e.yml`,
+  `tia-gradle-plugin`의 `attachCoverageAgent(FromConfig)` 헬퍼 예시 등 저장소 내 지점은 이미 갱신
+  완료). Gradle 플러그인(`io.github.beltian.pjacoco`)은 아직 Gradle Plugin Portal에 게시되지
+  않아 로컬 게시(`publishToMavenLocal`)가 필요합니다.
+
 ### 부수 개선
 
-- `scripts/setup-pjacoco.sh`가 pjacoco 소스 빌드 대신 릴리스 에셋 다운로드를 우선 사용(sha256
-  검증 포함)하도록 전환되어 CI 실행 시간이 줄었습니다.
 - 의존성 `jackson` 2.17.2 → 2.18.8 (Trivy HIGH 취약점 해소, GHSA-r7wm-3cxj-wff9).
 - 같은 commit에 여러 모듈을 각각 인덱싱해도 `impact`가 모든 build를 test_id별 최신-build-wins로
   병합해 선별하도록 개선(과거엔 마지막 build만 반영되어 다른 모듈 테스트가 누락될 수 있었음).
