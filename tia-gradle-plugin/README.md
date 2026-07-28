@@ -137,6 +137,7 @@ per-test `.exec` → `tia convert` → `testwise.json` → `tia index`.
 // build.gradle.kts (또는 Groovy 동등)
 dependencies {
     testImplementation("io.github.beltian.pjacoco:pjacoco-testkit-junit5:<ver>")  // PjacocoInProcessExtension
+    testRuntimeOnly("io.github.beltian.pjacoco:pjacoco-agent:<ver>")  // 아래 find가 testRuntimeClasspath에서 에이전트 jar를 찾으려면 필요(testkit은 agent를 전이 의존하지 않음)
 }
 
 tasks.withType<Test>().configureEach {
