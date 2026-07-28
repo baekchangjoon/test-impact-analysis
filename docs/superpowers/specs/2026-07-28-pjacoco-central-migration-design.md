@@ -70,13 +70,12 @@
 
 | REQ-ID | 요구사항 | 수용 검증 | Level | Status |
 |--------|----------|-----------|-------|--------|
-| MIG-REQ-001 | testkit Central 소비 | 깨끗한 m2(양 그룹 대피)에서 :e2e:test green + CI 전체 | suite+CI | 🟡 로컬 실증 완료·CI 대기 |
-| MIG-REQ-002 | setup 스크립트 Central 전환 | 로컬 실증(정상+폴백 강제 각 1회) + CI E2E green | script+CI | 🟡 로컬 실증 완료·CI 대기 |
-| MIG-REQ-003 | 파일명 전파(5지점) | 전체 스위트 + Container/In-process E2E CI green | E2E+CI | 🟡 로컬 실증 완료·CI 대기 |
-| MIG-REQ-004 | CI·문서 정리 | 기계적 git grep 잔존 0 + docs 게이트 | docs | 🟡 작성 완료·CI/PR 게이트 대기 |
+| MIG-REQ-001 | testkit Central 소비 | 깨끗한 m2(양 그룹 대피)에서 :e2e:test green + CI 전체 | suite+CI | 🟢 green (PR #34 CI) |
+| MIG-REQ-002 | setup 스크립트 Central 전환 | 로컬 실증(정상+폴백 강제 각 1회) + CI E2E green | script+CI | 🟢 green (PR #34 CI) |
+| MIG-REQ-003 | 파일명 전파(5지점) | 전체 스위트 + Container/In-process E2E CI green | E2E+CI | 🟢 green (PR #34 Container/In-process E2E) |
+| MIG-REQ-004 | CI·문서 정리 | 기계적 git grep 잔존 0 + docs 게이트 | docs | 🟢 green (grep 0·actionlint·PR CI) |
 
-Coverage: 0/4 green — target 100%(대상: Must 4). CI green(PR 단계 게이트)까지는 전부 🟡 — 🟢 전환은
-PR CI의 실 E2E 잡 3종 + 전체 스위트 확인 후.
+Coverage: 4/4 green (100%) — PR #34 CI 전체 green(E2E 3잡 포함)으로 수용 게이트 충족.
 
 ## 3. 태스크 플랜
 
