@@ -52,6 +52,8 @@
 ### 부수 개선
 
 - 의존성 `jackson` 2.17.2 → 2.18.8 (Trivy HIGH 취약점 해소, GHSA-r7wm-3cxj-wff9).
+- 의존성 `jackson` 2.18.8 → 2.18.11 (Trivy HIGH 5건 해소: CVE-2026-89407, CVE-2026-89425, CVE-2026-68497,
+  CVE-2026-91776, CVE-2026-91777).
 - 같은 commit에 여러 모듈을 각각 인덱싱해도 `impact`가 모든 build를 test_id별 최신-build-wins로
   병합해 선별하도록 개선(과거엔 마지막 build만 반영되어 다른 모듈 테스트가 누락될 수 있었음).
 
