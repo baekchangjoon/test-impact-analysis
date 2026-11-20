@@ -86,6 +86,17 @@ jobs:
       - name: 스킬 스모크(wrapper end-to-end + 사전점검 실패)
         run: TIA_JAR="$PWD/tia-cli/build/libs/tia.jar" bash skills/tia/test/skill-smoke.sh
 
+      # README "HTML 리포트 › CI에 적용"과 같은 명령(index → impact json → report --impact)을 실제로 돌린다.
+      - name: 리포트 스모크(index → impact --format json → report --impact)
+        run: TIA_JAR="$PWD/tia-cli/build/libs/tia.jar" bash scripts/report-smoke.sh
+
+      - name: HTML 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tia-report
+          path: build/report-smoke/*.html
+
   security:
     name: SBOM + 취약점 스캔 (게이트)
     runs-on: ubuntu-latest
