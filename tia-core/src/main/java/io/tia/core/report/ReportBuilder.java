@@ -57,10 +57,10 @@ public final class ReportBuilder {
         // null filters == no filtering [Inputs.filters javadoc]
         FilterSet filters = (in.filters() != null) ? in.filters() : FilterSet.none();
         JsonNode root = om.readTree(in.testwise().toFile());
-        Object scenarios = usable(in.scenarios(), "scenarios") ? om.readValue(in.scenarios().toFile(), Object.class) : new ArrayList<>();
+        Object scenarios = optionalJson(in.scenarios(), "scenarios", new ArrayList<>());
         // `tia impact --format json` 출력 그대로(이미 필터 적용됨). 없으면 null → 변경 영향 페이지 없음 [RPT-REQ-002]
-        Object impact = usable(in.impact(), "impact") ? om.readValue(in.impact().toFile(), Object.class) : null;
-        Object flaky = usable(in.flaky(), "flaky") ? om.readValue(in.flaky().toFile(), Object.class) : null;   // flaky tab: opaque schema, NOT filtered [REQ-011 descope]
+        Object impact = optionalJson(in.impact(), "impact", null);
+        Object flaky = optionalJson(in.flaky(), "flaky", null);   // flaky tab: opaque schema, NOT filtered [REQ-011 descope]
         List<String> prod = usable(in.prodFiles(), "prod-files")
                 ? readProd(in.prodFiles()).stream().filter(filters::acceptsCode).toList()   // prod denominator respects code filters
                 : new ArrayList<>();
@@ -71,66 +71,17 @@ public final class ReportBuilder {
         Map<String, List<String>> rev = new LinkedHashMap<>();
         for (JsonNode t : root.path("tests")) {
             String id = t.path("uniformPath").asText();
-            if (!filters.acceptsTest(id)) {
-                continue;   // excluded test row: drop entirely, never enters perTest/rev [REQ-011]
+            if (filters.acceptsTest(id)) {   // excluded test row: drop entirely, never enters perTest/rev [REQ-011]
+                perTest.put(id, readTest(t, id, filters, rev));
             }
-            String result = t.path("result").asText("UNKNOWN");
-            List<FileCov> files = new ArrayList<>();
-            for (JsonNode p : t.path("paths")) {
-                String pkg = p.path("path").asText("");
-                for (JsonNode f : p.path("files")) {
-                    String fname = f.path("fileName").asText();
-                    String full = pkg.isEmpty() ? fname : pkg + "/" + fname;
-                    if (!filters.acceptsCode(full)) {
-                        continue;   // excluded file: drop from this surviving test's list + reverse index [REQ-011]
-                    }
-                    String covered = f.path("coveredLines").asText("");
-                    files.add(new FileCov(full, pkg.replace("/", "."), fname, linesOf(covered), firstLine(covered)));
-                    rev.computeIfAbsent(full, k -> new ArrayList<>()).add(id);
-                }
-            }
-            files.sort(Comparator.comparingInt((FileCov c) -> c.n).reversed());
-            int total = files.stream().mapToInt(c -> c.n).sum();
-            perTest.put(id, new PerTest(result, files, total));
         }
 
-        // perTest model entries, sorted by id
-        List<Map<String, Object>> perTestModel = new ArrayList<>();
-        for (Map.Entry<String, PerTest> e : new TreeMap<>(perTest).entrySet()) {
-            PerTest d = e.getValue();
-            List<Map<String, Object>> fileEntries = new ArrayList<>();
-            for (FileCov c : d.files) {
-                fileEntries.add(ordered("f", shorten(c.full, in.prefixStrip()), "file", c.file,
-                        "pkg", c.pkg, "n", c.n, "line", c.line));
-            }
-            perTestModel.add(ordered("id", e.getKey(), "result", d.result,
-                    "nfiles", d.files.size(), "lines", d.total, "files", fileEntries));
-        }
-
-        // reverse entries, sorted by (-fan-in, full path)
-        List<Map.Entry<String, List<String>>> revSorted = new ArrayList<>(rev.entrySet());
-        revSorted.sort(Comparator.<Map.Entry<String, List<String>>>comparingInt(en -> -en.getValue().size())
-                .thenComparing(Map.Entry::getKey));
-        List<Map<String, Object>> reverseModel = new ArrayList<>();
-        for (Map.Entry<String, List<String>> en : revSorted) {
-            String full = en.getKey();
-            String pkg = full.contains("/") ? full.substring(0, full.lastIndexOf('/')) : "";
-            String fname = full.substring(full.lastIndexOf('/') + 1);
-            List<String> tests = new ArrayList<>(en.getValue());
-            tests.sort(Comparator.naturalOrder());
-            reverseModel.add(ordered("file", shorten(full, in.prefixStrip()), "pkg", pkg.replace("/", "."),
-                    "fname", fname, "n", en.getValue().size(), "tests", tests));
-        }
+        List<Map<String, Object>> perTestModel = perTestModel(perTest, in.prefixStrip());
+        List<Map<String, Object>> reverseModel = reverseModel(rev, in.prefixStrip());
 
         // blind spots = prod files no test covered
-        List<String> blind = new ArrayList<>();
-        for (String p : prod) {
-            if (!rev.containsKey(p)) {
-                blind.add(p);
-            }
-        }
-        blind.sort(Comparator.naturalOrder());
-        List<String> blindShort = blind.stream().map(p -> shorten(p, in.prefixStrip())).toList();
+        List<String> blindShort = prod.stream().filter(p -> !rev.containsKey(p)).sorted()
+                .map(p -> shorten(p, in.prefixStrip())).toList();
 
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("commit", in.commit());
@@ -151,6 +102,65 @@ public final class ReportBuilder {
     }
 
     // ---- helpers ----
+
+    /** Optional JSON input: parsed as-is, or {@code fallback} when omitted/missing. */
+    private Object optionalJson(Path p, String label, Object fallback) throws IOException {
+        return usable(p, label) ? om.readValue(p.toFile(), Object.class) : fallback;
+    }
+
+    /** One surviving test's covered files (code filters applied); also feeds the reverse index. */
+    private static PerTest readTest(JsonNode t, String id, FilterSet filters, Map<String, List<String>> rev) {
+        List<FileCov> files = new ArrayList<>();
+        for (JsonNode p : t.path("paths")) {
+            String pkg = p.path("path").asText("");
+            for (JsonNode f : p.path("files")) {
+                String fname = f.path("fileName").asText();
+                String full = pkg.isEmpty() ? fname : pkg + "/" + fname;
+                if (!filters.acceptsCode(full)) {
+                    continue;   // excluded file: drop from this surviving test's list + reverse index [REQ-011]
+                }
+                String covered = f.path("coveredLines").asText("");
+                files.add(new FileCov(full, pkg.replace("/", "."), fname, linesOf(covered), firstLine(covered)));
+                rev.computeIfAbsent(full, k -> new ArrayList<>()).add(id);
+            }
+        }
+        files.sort(Comparator.comparingInt((FileCov c) -> c.n).reversed());
+        return new PerTest(t.path("result").asText("UNKNOWN"), files, files.stream().mapToInt(c -> c.n).sum());
+    }
+
+    /** perTest model entries, sorted by id. */
+    private List<Map<String, Object>> perTestModel(Map<String, PerTest> perTest, String prefixStrip) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map.Entry<String, PerTest> e : new TreeMap<>(perTest).entrySet()) {
+            PerTest d = e.getValue();
+            List<Map<String, Object>> fileEntries = new ArrayList<>();
+            for (FileCov c : d.files) {
+                fileEntries.add(ordered("f", shorten(c.full, prefixStrip), "file", c.file,
+                        "pkg", c.pkg, "n", c.n, "line", c.line));
+            }
+            out.add(ordered("id", e.getKey(), "result", d.result,
+                    "nfiles", d.files.size(), "lines", d.total, "files", fileEntries));
+        }
+        return out;
+    }
+
+    /** reverse entries, sorted by (-fan-in, full path). */
+    private List<Map<String, Object>> reverseModel(Map<String, List<String>> rev, String prefixStrip) {
+        List<Map.Entry<String, List<String>>> revSorted = new ArrayList<>(rev.entrySet());
+        revSorted.sort(Comparator.<Map.Entry<String, List<String>>>comparingInt(en -> -en.getValue().size())
+                .thenComparing(Map.Entry::getKey));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map.Entry<String, List<String>> en : revSorted) {
+            String full = en.getKey();
+            String pkg = full.contains("/") ? full.substring(0, full.lastIndexOf('/')) : "";
+            String fname = full.substring(full.lastIndexOf('/') + 1);
+            List<String> tests = new ArrayList<>(en.getValue());
+            tests.sort(Comparator.naturalOrder());
+            out.add(ordered("file", shorten(full, prefixStrip), "pkg", pkg.replace("/", "."),
+                    "fname", fname, "n", en.getValue().size(), "tests", tests));
+        }
+        return out;
+    }
 
     private record FileCov(String full, String pkg, String file, int n, int line) {}
 

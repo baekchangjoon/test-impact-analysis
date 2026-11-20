@@ -43,6 +43,8 @@ jobs:
           else
             SONAR_ARGS="-Dsonar.branch.name=$REF_NAME"
           fi
-          $GRADLE assemble -x test
+          # 테스트 + 집계 커버리지(XML)를 먼저 만들어 Sonar에 넘긴다. 이 단계가 없으면 신규 코드 커버리지가 항상 0%로 집계된다.
+          $GRADLE test testCodeCoverageReport
           $GRADLE -I /tmp/sonar-init.gradle sonar \
-            -Dsonar.projectKey=test-impact-analysis $SONAR_ARGS
+            -Dsonar.projectKey=test-impact-analysis $SONAR_ARGS \
+            -Dsonar.coverage.jacoco.xmlReportPaths="$GITHUB_WORKSPACE/coverage/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml"
