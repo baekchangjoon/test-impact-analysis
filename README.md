@@ -214,15 +214,95 @@ bash scripts/measure-flaky.sh 10   # 10회 실행 후 tia flaky 집계
 
 ### 4. `report` — 인터랙티브 HTML 리포트
 
+테스트와 프로덕션 코드의 실제 실행 관계를 HTML 한 장으로 보여준다. 외부 요청이 없어 파일만 있으면
+열리고, LLM 없이 입력에서 계산하므로 같은 입력이면 항상 같은 결과가 나온다.
+
+#### 만들기
+
 ```bash
+# (a) 베이스라인 실행 — diff 없음. 연결 구조·커버리지 지도·안정성 페이지가 나온다
 $CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-name my-service
-# 옵셔널 입력(scenarios/flaky/prod-files)은 '-' 로 생략 → 해당 탭 graceful
+
+# (b) PR·커밋 실행 — diff 있음. impact 결과를 넘기면 "변경 영향" 페이지가 첫 화면으로 추가된다
+$CLI impact --db tia.db --commit "$SHA" --diff-file change.diff --format json > impact.json
+$CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-name my-service \
+  --impact impact.json
 ```
 
-4개 페이지(변경 영향·연결 구조·커버리지 지도·안정성) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
-변경 영향 페이지는 `tia impact --format json` 출력을 `--impact`로 넘긴 실행(diff가 있는 실행)에만 생긴다.
-각 페이지 제목 아래 "이 탭 읽는 법" 접이식 요약이 `report.html` 안에 내장돼 있어, 리포트만 열어도
-핵심을 바로 확인할 수 있다(REPORT-GUIDE는 더 상세한 버전).
+`--testwise`와 `--commit`만 필수다. 나머지 입력은 생략하거나 `-`를 주면 되고, 그 입력이 채우는
+부분만 비거나 사라진다.
+
+| 입력 | 만드는 방법 | 채우는 곳 |
+|---|---|---|
+| `--testwise` (필수) | `tia convert` 출력(per-test 커버리지) | 모든 페이지 |
+| `--impact` | `tia impact --format json` 출력을 파일로 저장 | **변경 영향** 페이지. 없으면 페이지 자체가 없다 |
+| `--prod-files` | 프로덕션 `.java` 경로 목록(한 줄에 하나, 소스 루트 기준). 예: `(cd src/main/java && find . -name '*.java' \| sed 's#^\./##') > prod-files.txt` | 사각지대 목록, 상단의 도달 파일 수 |
+| `--flaky` | `{"real":{"ratio","flaky":[…],"total","runs"}}` 형태의 JSON. `tia flaky` 출력을 이 형태로 조립해야 한다([`run-petclinic-tia.sh`](petclinic-demo/run-petclinic-tia.sh) 6단계 참조) | **안정성** 페이지. 없으면 안내 문구만 나온다 |
+| `--jacoco-dir` | JaCoCo HTML 리포트 상대경로 | 파일 이름 → 커버 라인 링크 |
+| `--test-src-root` | 테스트 소스 루트 | 테스트 이름 → 로컬 소스 링크 |
+| `--scenarios` | 데모용 가상 변경 목록(`petclinic-demo/run_scenarios.py`) | `--impact`가 없을 때 변경 영향 페이지를 시나리오로 채운다 |
+
+`tia.yml`의 code/test 필터와 `sut-name`은 `report`에도 적용된다.
+
+#### 보기
+
+`report.html`을 브라우저로 연다. 페이지 하나가 질문 하나에 답한다.
+
+| 페이지 | 답하는 질문 |
+|---|---|
+| 변경 영향 | 이번 변경이면 테스트를 몇 개 돌려야 하나 (diff가 있는 실행에만 있음) |
+| 연결 구조 | 테스트와 프로덕션 코드는 어떻게 연결돼 있나, 어떤 파일에 아무 테스트도 닿지 않나 |
+| 커버리지 지도 | 어디가 지켜지고 어디가 비어 있나 |
+| 안정성 | 이 측정 결과를 믿어도 되나 (반복 실행에서 결과가 바뀐 테스트) |
+
+- 변경 영향의 왼쪽 목록은 조치가 필요한 순서다: 보호하는 테스트 없음 → 전체 실행을 유발 → 정밀 선별.
+- 테스트·파일이 많으면 패키지·클래스 묶음으로 접혀 나온다. 묶음을 누르면 한 단계 안으로 들어가고,
+  "N개 전체 보기 →"는 전체 목록 페이지(50개씩, 이름으로 거르기)로 간다.
+- 각 페이지 제목 아래 "이 탭 읽는 법"에 요약이 내장돼 있다. 상세 해설은
+  [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
+
+#### CI에 적용
+
+리포트는 CI에서 두 번 만든다: 기준 브랜치에서 베이스라인을 인덱싱할 때, 그리고 PR에서 diff를 평가할 때.
+아래는 GitHub Actions 예시이며, 다른 CI도 같은 명령을 순서대로 실행하면 된다.
+
+```yaml
+# main 푸시: 베이스라인 인덱싱 + 리포트(변경 영향 페이지 없음)
+- run: |
+    java -jar tia.jar index --report testwise.json --repo my-service --commit "$GITHUB_SHA" --db tia.db
+    java -jar tia.jar report --testwise testwise.json --commit "$GITHUB_SHA" --sut-name my-service \
+      --prod-files prod-files.txt --out report.html
+- uses: actions/upload-artifact@v4          # tia.db 는 PR 실행이 다시 받아 쓴다
+  with: { name: tia-baseline, path: tia.db }
+- uses: actions/upload-artifact@v4
+  with: { name: tia-report, path: report.html }
+```
+
+```yaml
+# PR: 베이스라인 DB를 받아 diff를 평가하고, 변경 영향 페이지가 있는 리포트를 올린다
+- run: |
+    git diff --unified=0 "$BASE_SHA" > change.diff          # BASE_SHA = 인덱싱된 베이스라인 커밋
+    java -jar tia.jar impact --db tia.db --commit "$BASE_SHA" --diff-file change.diff --format json > impact.json
+    java -jar tia.jar report --testwise testwise.json --commit "$BASE_SHA" --sut-name my-service \
+      --prod-files prod-files.txt --impact impact.json --out report.html
+- uses: actions/upload-artifact@v4
+  with: { name: tia-report, path: report.html }
+```
+
+- **`testwise.json`** 은 테스트를 per-test 커버리지로 실행해 얻는다. 수집 방법은
+  [GETTING-STARTED.md](GETTING-STARTED.md) 참조.
+- **`--commit`과 diff의 베이스는 인덱싱된 커밋과 같아야 한다**(위 `impact`의 라인 공간 정렬 주의 참조).
+  PR 실행에서 `testwise.json`을 새로 수집하지 않는다면 베이스라인 실행의 것을 아티팩트로 받아 쓴다.
+- **베이스라인 DB가 없으면** `impact`는 `no-baseline` 경고를 내고, 리포트의 변경 영향 페이지는
+  "전체 실행을 권장한다"로 표시된다.
+- **PR에서 영향 테스트만 실행**하는 단계는 리포트와 별개다. [`action.yml`](action.yml)의 `selected`/`run-all`
+  출력을 쓴다([docker/README](docker/README.md)). 이 Action은 리포트를 만들지 않으므로 위 명령을 따로 실행한다.
+- **게시**: 리포트는 HTML 한 장이므로 아티팩트로 올리거나 정적 호스팅(GitHub Pages, 사내 리포트 사이트)에
+  그대로 복사하면 된다. JaCoCo·소스 링크는 생성한 머신의 경로 기준이라, 호스팅할 때는 `--jacoco-dir`가
+  가리키는 디렉터리를 같이 올려야 링크가 동작한다.
+
+이 저장소의 CI도 같은 명령을 매 PR마다 돌려 확인한다: [`scripts/report-smoke.sh`](scripts/report-smoke.sh)
+(`index → impact --format json → report --impact`), 결과는 `tia-report` 아티팩트로 올라간다.
 
 ### 5. 온보딩 명령 — `init` / `doctor` / `demo`
 
@@ -293,7 +373,7 @@ docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-cod
 ./gradlew test testCodeCoverageReport   # 전체 단위·수용 테스트 + 집계 커버리지
 ```
 
-GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·main 푸시마다 ① 전체 테스트 + 커버리지 ② 컨테이너 간 블랙박스 E2E ③ in-process E2E(pjacoco)를 돌립니다.
+GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·main 푸시마다 ① 전체 테스트 + 커버리지 ② 컨테이너 간 블랙박스 E2E ③ in-process E2E(pjacoco) ④ 리포트 스모크(`scripts/report-smoke.sh`, `tia-report` 아티팩트)를 돌립니다.
 
 ---
 
