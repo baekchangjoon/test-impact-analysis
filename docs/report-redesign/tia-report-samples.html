@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIA 리포트 시안</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: 상단 시안 전환 바 → 시안 노트(점선) → 실제 petclinic 측정값으로 동작하는 리포트 목업 한 장 */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --sunk:#eaeef3; --ink:#131a24; --ink2:#465263; --muted:#6b7686; --line:#d9dfe7;
+  --accent:#2a78d6; --warn:#b97a00; --crit:#cf3d3d; --good:#16855a;
+  --display:"Space Grotesk","Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --body:"Inter","Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1017; --surface:#131a24; --sunk:#0f151d; --ink:#e8edf3; --ink2:#b4bdc9; --muted:#8490a0; --line:#263141;
+  --accent:#4a94ee; --warn:#e0a030; --crit:#ee6b6b; --good:#2bb583; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1017; --surface:#131a24; --sunk:#0f151d; --ink:#e8edf3; --ink2:#b4bdc9; --muted:#8490a0; --line:#263141;
+  --accent:#4a94ee; --warn:#e0a030; --crit:#ee6b6b; --good:#2bb583; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.55 var(--body);--hl:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+
+/* 시안 전환 바 */
+.top{border-bottom:1px solid var(--line);background:var(--surface)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-block:14px}
+.top h1{font:700 18px/1.2 var(--display);margin:0;letter-spacing:-.01em}
+.top p{margin:0;color:var(--muted);font-size:12.5px}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--sunk);padding:4px;border-radius:10px;margin-left:auto}
+.seg button{border:0;background:none;padding:7px 14px;border-radius:7px;color:var(--ink2);font-weight:500}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.seg b{font-family:var(--display);margin-right:6px;color:var(--accent)}
+main.wrap{padding-block:20px 56px;display:flex;flex-direction:column;gap:18px}
+.note{border:1px dashed var(--line);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px 24px;font-size:13px;color:var(--ink2)}
+.note h2{font:700 15px/1.3 var(--display);margin:0 0 2px;color:var(--ink)}
+.note dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.note dd{margin:0}
+@media (max-width:760px){.note{grid-template-columns:1fr}.seg{margin-left:0}}
+
+/* 리포트 목업 공통 */
+.mock{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.mhead h2{font:700 22px/1.2 var(--display);margin:0;letter-spacing:-.02em}
+.mhead .meta{color:var(--muted);font-size:12.5px}
+.mhead .stats{margin-left:auto;display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px}
+.mhead .stats b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.mbody{padding:20px 22px;display:flex;flex-direction:column;gap:20px;min-width:0}
+@media (max-width:600px){.mhead,.mbody{padding-left:14px;padding-right:14px}}
+h3.sec{font:700 16px/1.3 var(--display);margin:0}
+p.sub{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.scroll{overflow-x:auto;min-width:0}
+
+.scbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.scbar .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px 5px 6px;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)}
+.chip i{font:700 11px var(--display);font-style:normal;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--sunk);color:var(--ink)}
+.chip .n{color:var(--muted);font-variant-numeric:tabular-nums}
+.chip:hover{border-color:var(--ink2)}
+.chip[aria-pressed="true"]{border-color:var(--hl);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hl)}
+.chip[aria-pressed="true"] i{background:var(--hl);color:var(--surface)}
+.t-precise{--hl:var(--accent)} .t-conservative{--hl:var(--warn)} .t-blind{--hl:var(--crit)} .t-file{--hl:var(--accent)}
+.badge{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--hl);color:var(--ink)}
+.badge::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--hl)}
+.t-conservative .badge::before,.badge.t-conservative::before{border-radius:2px}
+.t-blind .badge::before,.badge.t-blind::before{background:none;border:2px solid var(--hl)}
+pre.diff{margin:0;background:var(--sunk);border-radius:8px;padding:10px 12px;font:12px/1.6 var(--mono);overflow-x:auto;color:var(--ink2);tab-size:2}
+pre.diff .a{color:var(--good)} pre.diff .d{color:var(--crit)}
+ul.plain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+ul.plain li{display:flex;gap:8px;align-items:center;font:12px/1.5 var(--mono);color:var(--ink2);min-width:0}
+ul.plain li span.nm{overflow-wrap:anywhere;min-width:0;flex:1}
+ul.plain li .bar{flex:none;width:60px;height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+ul.plain li .bar s{display:block;height:100%;background:var(--accent);border-radius:2px}
+ul.plain li .v{flex:none;width:24px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);padding:7px 10px;border-radius:7px;font-size:12px;line-height:1.45;max-width:320px;overflow-wrap:anywhere}
+#tip b{font-family:var(--mono);font-weight:600}
+
+/* A · 그래프 */
+.gwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+@media (max-width:980px){.gwrap{grid-template-columns:1fr}}
+.gsvg svg{display:block;min-width:780px;width:100%;height:auto}
+.gsvg text{font:11px var(--mono);fill:var(--ink2)}
+.gsvg text.grp{font:600 11px var(--body);fill:var(--muted);letter-spacing:.05em}
+.gsvg text.colh{font:700 12px var(--display);fill:var(--ink)}
+.gsvg .cnt{fill:var(--muted)}
+.lk{fill:none;stroke:var(--ink2);opacity:.17;transition:opacity .15s}
+.nd{cursor:pointer;transition:opacity .15s}
+.nd circle.dot{fill:var(--surface);stroke:var(--ink2);stroke-width:1.5}
+.nd.zero circle.dot{stroke-dasharray:2 2}
+.nd circle.ring{fill:none;stroke:none}
+svg.focus .lk{opacity:.04}
+svg.focus .lk.on{stroke:var(--hl);opacity:.85}
+svg.focus .nd{opacity:.5}
+svg.focus .nd.on{opacity:1}
+svg.focus .nd.on circle.dot{fill:var(--hl);stroke:var(--hl)}
+svg.focus .nd.on text{fill:var(--ink)}
+.nd.changed circle.ring{stroke:var(--hl);stroke-width:2;animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{from{r:8px;opacity:.9}to{r:20px;opacity:0}}
+@media (prefers-reduced-motion:reduce){.nd.changed circle.ring{animation:none;r:13px;opacity:.6}}
+.panel{border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h4{font:700 14px/1.35 var(--display);margin:0;overflow-wrap:anywhere}
+.panel .big{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}.panel .big>div{white-space:nowrap}
+.panel .big b{font:700 26px/1 var(--display);letter-spacing:-.02em}
+.panel .big span{color:var(--muted);font-size:12px}
+.panel p{margin:0;color:var(--ink2);font-size:12.5px}
+.blindstrip{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{font:11px var(--mono);padding:3px 8px;border-radius:5px;border:1px dashed var(--line);color:var(--muted)}
+.bchip.hit{border:1px solid var(--crit);color:var(--ink);background:color-mix(in srgb,var(--crit) 14%,var(--surface))}
+
+/* B · 시뮬레이터 */
+.sim{display:grid;grid-template-columns:270px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.sim{grid-template-columns:1fr}}
+.sclist{display:flex;flex-direction:column;gap:6px}
+.scrow{border:1px solid var(--line);background:none;border-radius:9px;padding:9px 12px;text-align:left;display:grid;grid-template-columns:22px 1fr auto;gap:2px 10px;align-items:center}
+.scrow i{font:700 12px var(--display);font-style:normal;color:var(--muted)}
+.scrow .t{font:12px var(--mono);overflow-wrap:anywhere;min-width:0}
+.scrow .n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.scrow .mb{grid-column:2/4;height:3px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.scrow .mb s{display:block;height:100%;background:var(--hl);border-radius:2px}
+.scrow[aria-pressed="true"]{border-color:var(--hl);box-shadow:inset 0 0 0 1px var(--hl)}
+.scrow[aria-pressed="true"] i{color:var(--hl)}
+.sim label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin:14px 0 6px}
+.sim select{width:100%;font:12.5px var(--mono);padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:20px;align-items:center}
+@media (max-width:560px){.hero{grid-template-columns:1fr}}
+.hero h3{font:700 clamp(21px,3vw,30px)/1.3 var(--display);letter-spacing:-.02em;margin:10px 0 0;text-wrap:balance}
+.hero h3 b{color:var(--hl)} .hero h3 code{font:600 .8em var(--mono);overflow-wrap:anywhere}
+.ring{width:150px;height:150px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10}
+.ring .bg{stroke:var(--sunk)} .ring .fg{stroke:var(--hl);stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring div{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring b{font:700 28px/1 var(--display);letter-spacing:-.02em}.ring span{font-size:11px;color:var(--muted)}
+.waffle{display:flex;flex-wrap:wrap;gap:14px 26px;padding:16px;background:var(--sunk);border-radius:10px}
+.waffle .g{display:flex;flex-direction:column;gap:6px}
+.waffle .g small{font-size:11px;color:var(--muted)}
+.waffle .dots{display:flex;gap:5px;flex-wrap:wrap}
+.wd{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--muted);background:none;opacity:.55;transition:all .25s}
+.wd.on{background:var(--hl);border-color:var(--hl);opacity:1}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.two>div{min-width:0;display:flex;flex-direction:column;gap:8px}
+.hbar{display:grid;grid-template-columns:minmax(120px,220px) 1fr 28px;gap:10px;align-items:center;border:0;background:none;padding:4px 6px;border-radius:6px;text-align:left;width:100%}
+.hbar:hover,.hbar[aria-pressed="true"]{background:var(--sunk)}
+.hbar .nm{font:12px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .tr{height:10px}.hbar .tr s{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.hbar .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12.5px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font:700 26px/1.2 var(--display)}
+.mini{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.mini s{width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--good) 55%,var(--surface))}
+.mini s.f{background:var(--warn)}
+.covbar{height:12px;border-radius:6px;background:var(--sunk);overflow:hidden}
+.covbar s{display:block;height:100%;background:var(--accent);border-radius:6px}
+
+/* C · 매트릭스 */
+.mxwrap{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:22px;align-items:start}
+@media (max-width:1020px){.mxwrap{grid-template-columns:1fr}}
+.tools{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:12.5px;color:var(--muted)}
+.tg{display:inline-flex;background:var(--sunk);border-radius:7px;padding:3px}
+.tg button{border:0;background:none;padding:4px 10px;border-radius:5px;font-size:12.5px;color:var(--ink2)}
+.tg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+table.mx{border-collapse:separate;border-spacing:2px;font-size:12px}
+.mx th{font-weight:400}
+.mx th.ch{height:150px;vertical-align:bottom;padding:0 0 4px;width:24px}
+.mx th.ch span{writing-mode:vertical-rl;transform:rotate(180deg);font:11px var(--mono);color:var(--ink2);white-space:nowrap}
+.mx th.rh{text-align:right;font:11px var(--mono);color:var(--ink2);padding:0 8px 0 0;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:var(--surface);z-index:1}
+.mx tr.grp th{text-align:right;font:600 11px var(--body);color:var(--muted);letter-spacing:.05em;padding:8px 8px 2px 0;position:sticky;left:0;background:var(--surface)}
+.mx td.c{width:24px;height:24px;border-radius:4px;background:var(--sunk);padding:0}
+.mx td.c[data-p]{background:color-mix(in srgb,var(--accent) calc(var(--p)*1%),var(--surface))}
+.mx td.mk{width:14px;text-align:center;color:var(--hl);font-size:10px;padding:0}
+.mx td.tot{padding-left:8px;white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+.mx td.tot s{display:inline-block;height:6px;background:var(--ink2);border-radius:0 3px 3px 0;vertical-align:middle;margin-right:6px;opacity:.55}
+.mx tfoot td{text-align:center;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;padding-top:4px}
+.mx tfoot th{text-align:right;padding-right:8px;font-size:11px;color:var(--muted);position:sticky;left:0;background:var(--surface)}
+.mx .colhot{outline:1.5px solid var(--ink2);outline-offset:-1px}
+.mx th.colhot{outline:none}.mx th.colhot span,.mx tr.rowhot th.rh{color:var(--ink);font-weight:600}
+.mx tr.rowhot td.c{outline:1.5px solid var(--ink2);outline-offset:-1px}
+.mx.sc tbody tr:not(.sel):not(.grp){opacity:.3}
+.mx.sc tr.sel th.rh{color:var(--ink);font-weight:600}
+.mx th.ch.changed span{color:var(--hl);font-weight:600}
+.mx th.ch.changed::after{content:"";display:block;margin:4px auto 0;width:0;height:0;border:5px solid transparent;border-top-color:var(--hl)}
+.legend{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.legend s{width:16px;height:16px;border-radius:4px;display:inline-block}
+.pk{display:flex;flex-direction:column;gap:12px}
+.pk .p small{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.pk .p small b{font:600 12px var(--mono);color:var(--ink)}
+.pk .tiles{display:flex;flex-wrap:wrap;gap:3px}
+.pt{width:22px;height:22px;border-radius:4px;border:0;padding:0}
+.pt.cv{background:color-mix(in srgb,var(--accent) calc(var(--p)*1%),var(--surface))}
+.pt.bl{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--crit) 55%,var(--surface)) 0 2px,transparent 2px 6px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--crit) 55%,var(--surface))}
+.pt.hot{outline:2px solid var(--ink);outline-offset:1px}
+.sumline{font-size:13px;color:var(--ink2);min-height:26px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+
+/* v2 추가 */
+.top .segs{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.top .seg{margin-left:0}
+.seg.small button{padding:5px 10px;font-size:12.5px}
+.synth{font-size:12px;font-weight:600;color:var(--ink);border:1px solid var(--warn);border-radius:6px;padding:2px 8px;background:color-mix(in srgb,var(--warn) 14%,var(--surface))}
+.note{grid-template-columns:1fr 1fr}
+@media (max-width:760px){.note{grid-template-columns:1fr}.top .segs{margin-left:0}}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:12.5px;color:var(--muted);align-items:center}
+.crumbs button{border:0;background:none;padding:2px 4px;border-radius:4px;color:var(--accent);font:12.5px var(--mono)}
+.crumbs button:disabled{color:var(--ink);cursor:default;font-weight:600}
+.crumbs .hint{margin-left:auto}
+.nd.grpn text{font-weight:600}
+.gsvg .selc{fill:var(--hl);font-weight:600}
+.gbars{display:flex;flex-direction:column;gap:7px;padding:16px;background:var(--sunk);border-radius:10px}
+.gbar{display:grid;grid-template-columns:minmax(90px,200px) 1fr 92px;gap:12px;align-items:center;font-size:12.5px}
+.gbar .nm{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbar .tr{height:10px;background:var(--surface);border-radius:5px;overflow:hidden}
+.gbar .tr s{display:block;height:100%;background:var(--hl);border-radius:5px;min-width:3px}
+.gbar .v{text-align:right;color:var(--ink2);font-variant-numeric:tabular-nums}
+.gbars p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.sim input{width:100%;font:12.5px var(--mono);padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.mx th.rh.dr,.mx th.ch.dr{cursor:pointer}
+.mx th.rh.dr:hover,.mx th.ch.dr:hover span{color:var(--accent)}
+.mx th.rh em{font-style:normal;color:var(--muted)}
+.reach{display:grid;grid-template-columns:minmax(70px,1fr) 80px 54px;gap:8px;align-items:center;font-size:12px}
+.reach .nm{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reach .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.stab h3{font:700 clamp(21px,3vw,30px)/1.3 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.stab h3 b{color:var(--hl)}
+.runs{display:flex;flex-wrap:wrap;gap:4px;padding:16px;background:var(--sunk);border-radius:10px}
+.runs s{width:16px;height:16px;border-radius:4px;background:color-mix(in srgb,var(--good) 60%,var(--surface))}
+.runs s.f{background:var(--warn);border-radius:50%}
+.link{border:0;background:none;padding:4px 0;color:var(--accent);font-size:12.5px;font-weight:600;text-align:left}
+.link:hover{text-decoration:underline}
+.chip i.dot,.scrow i.dot{width:10px;height:10px;border-radius:50%;background:var(--hl);justify-self:center}
+.chip i.dot{margin:0 2px 0 6px}
+.t-conservative i.dot{border-radius:2px}.t-blind i.dot{background:none;border:2px solid var(--hl)}
+.chip[aria-pressed="true"] i.dot{background:var(--hl)}.chip.t-blind[aria-pressed="true"] i.dot{background:none}
+.sclist small.gh{font-size:11px;letter-spacing:.04em;color:var(--muted);margin:10px 0 0}
+.scrow.all{padding-block:12px}
+.mx td.c{cursor:pointer}.mx td.pick{outline:2.5px solid var(--ink);outline-offset:-1px}
+#m-side{min-width:0}
+.lq{font:13px var(--body);padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:200px}
+table.lt{border-collapse:collapse;width:100%;font-size:12.5px}
+.lt th{text-align:left;font-weight:600;color:var(--muted);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.lt td{padding:7px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.lt .r{text-align:right}.lt td.mono{font-size:12px}
+.tg button:disabled{opacity:.4;cursor:default}
+</style>
+</head>
+<body style="margin:0">
+
+
+<div class="top"><div class="wrap">
+  <div><h1>TIA 리포트 시안</h1><p>페이지마다 질문 하나 · 규모가 커져도 화면 길이는 고정</p></div>
+  <div class="segs"><div class="seg small" id="dsseg" aria-label="데이터 규모"></div><div class="seg" role="tablist" id="seg"></div></div>
+</div></div>
+<main class="wrap">
+  <dl class="note" id="note"></dl>
+  <div class="mock"><div class="mhead" id="mhead"></div><div class="mbody" id="view"></div></div>
+</main>
+<div id="tip" hidden></div>
+
+<script>
+const RAW={"commit":"fe8128079e12fd1a47b4c2757a4b51a12fa3adf2","sut":"spring-petclinic","jacoco":"jacoco","perTest":[{"id":"AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400","result":"PASSED","nfiles":2,"lines":16,"files":[{"file":"AuthController.java","n":13},{"file":"CustomUserDetailsService.java","n":3}]},{"id":"AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken","result":"PASSED","nfiles":3,"lines":30,"files":[{"file":"AuthController.java","n":17},{"file":"JwtUtil.java","n":10},{"file":"CustomUserDetailsService.java","n":3}]},{"id":"AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse","result":"PASSED","nfiles":2,"lines":8,"files":[{"file":"AuthController.java","n":7},{"file":"JwtUtil.java","n":1}]},{"id":"AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue","result":"PASSED","nfiles":2,"lines":17,"files":[{"file":"JwtUtil.java","n":9},{"file":"AuthController.java","n":8}]},{"id":"ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds","result":"PASSED","nfiles":4,"lines":24,"files":[{"file":"Owner.java","n":12},{"file":"Person.java","n":7},{"file":"BaseEntity.java","n":3},{"file":"OwnerRestController.java","n":2}]},{"id":"ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted","result":"PASSED","nfiles":9,"lines":44,"files":[{"file":"Owner.java","n":9},{"file":"Pet.java","n":9},{"file":"PetRestController.java","n":6},{"file":"BaseEntity.java","n":5},{"file":"Visit.java","n":5},{"file":"NamedEntity.java","n":4},{"file":"Person.java","n":3},{"file":"OwnerRestController.java","n":2},{"file":"PetType.java","n":1}]},{"id":"OwnerApiBlackBoxIT#createOwner","result":"PASSED","nfiles":4,"lines":24,"files":[{"file":"Owner.java","n":12},{"file":"Person.java","n":7},{"file":"BaseEntity.java","n":3},{"file":"OwnerRestController.java","n":2}]},{"id":"OwnerApiBlackBoxIT#filterOwnersByLastName","result":"PASSED","nfiles":8,"lines":28,"files":[{"file":"Owner.java","n":6},{"file":"OwnerRestController.java","n":5},{"file":"Pet.java","n":5},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"Visit.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"PetType.java","n":1}]},{"id":"OwnerApiBlackBoxIT#getMissingOwnerReturns404","result":"PASSED","nfiles":1,"lines":2,"files":[{"file":"OwnerRestController.java","n":2}]},{"id":"OwnerApiBlackBoxIT#getOwnerById","result":"PASSED","nfiles":7,"lines":22,"files":[{"file":"Owner.java","n":6},{"file":"Pet.java","n":5},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"OwnerRestController.java","n":2},{"file":"PetType.java","n":1}]},{"id":"OwnerApiBlackBoxIT#listAllOwners","result":"PASSED","nfiles":8,"lines":28,"files":[{"file":"Owner.java","n":6},{"file":"Pet.java","n":5},{"file":"Visit.java","n":5},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"OwnerRestController.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"PetType.java","n":1}]},{"id":"OwnerApiBlackBoxIT#listingOwnersRequiresAuthentication","result":"PASSED","nfiles":0,"lines":0,"files":[]},{"id":"OwnerApiBlackBoxIT#updateMissingOwnerReturns404","result":"PASSED","nfiles":4,"lines":16,"files":[{"file":"Owner.java","n":8},{"file":"Person.java","n":5},{"file":"OwnerRestController.java","n":2},{"file":"BaseEntity.java","n":1}]},{"id":"OwnerApiBlackBoxIT#updateOwner","result":"PASSED","nfiles":4,"lines":30,"files":[{"file":"Owner.java","n":12},{"file":"Person.java","n":7},{"file":"OwnerRestController.java","n":6},{"file":"BaseEntity.java","n":5}]},{"id":"PetApiBlackBoxIT#createPet","result":"PASSED","nfiles":7,"lines":32,"files":[{"file":"Pet.java","n":9},{"file":"Owner.java","n":6},{"file":"PetRestController.java","n":6},{"file":"BaseEntity.java","n":5},{"file":"NamedEntity.java","n":4},{"file":"Person.java","n":1},{"file":"PetType.java","n":1}]},{"id":"PetApiBlackBoxIT#getMissingPetReturns404","result":"PASSED","nfiles":8,"lines":25,"files":[{"file":"Owner.java","n":9},{"file":"PetRestController.java","n":5},{"file":"BaseEntity.java","n":3},{"file":"Visit.java","n":3},{"file":"Pet.java","n":2},{"file":"NamedEntity.java","n":1},{"file":"Person.java","n":1},{"file":"PetType.java","n":1}]},{"id":"PetApiBlackBoxIT#getPetById","result":"PASSED","nfiles":8,"lines":28,"files":[{"file":"Owner.java","n":9},{"file":"Pet.java","n":5},{"file":"PetRestController.java","n":4},{"file":"BaseEntity.java","n":3},{"file":"Visit.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"Person.java","n":1},{"file":"PetType.java","n":1}]},{"id":"PetApiBlackBoxIT#getPetTypes","result":"PASSED","nfiles":7,"lines":37,"files":[{"file":"AuthController.java","n":17},{"file":"JwtUtil.java","n":10},{"file":"BaseEntity.java","n":3},{"file":"CustomUserDetailsService.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"PetType.java","n":1},{"file":"PetRestController.java","n":1}]},{"id":"PetApiBlackBoxIT#readingPetsRequiresAuthentication","result":"PASSED","nfiles":0,"lines":0,"files":[]},{"id":"VetApiBlackBoxIT#filterVetsBySpecialty","result":"PASSED","nfiles":6,"lines":23,"files":[{"file":"Vet.java","n":7},{"file":"VetRestController.java","n":7},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"Specialty.java","n":1}]},{"id":"VetApiBlackBoxIT#getMissingVetReturnsEmptyBody","result":"PASSED","nfiles":6,"lines":7,"files":[{"file":"BaseEntity.java","n":2},{"file":"NamedEntity.java","n":1},{"file":"Person.java","n":1},{"file":"Vet.java","n":1},{"file":"VetRestController.java","n":1},{"file":"Specialty.java","n":1}]},{"id":"VetApiBlackBoxIT#getVetById","result":"PASSED","nfiles":6,"lines":17,"files":[{"file":"Vet.java","n":7},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"VetRestController.java","n":1},{"file":"Specialty.java","n":1}]},{"id":"VetApiBlackBoxIT#listAllVets","result":"PASSED","nfiles":6,"lines":19,"files":[{"file":"Vet.java","n":7},{"file":"BaseEntity.java","n":3},{"file":"Person.java","n":3},{"file":"VetRestController.java","n":3},{"file":"NamedEntity.java","n":2},{"file":"Specialty.java","n":1}]},{"id":"VetApiBlackBoxIT#listingVetsRequiresAuthentication","result":"PASSED","nfiles":0,"lines":0,"files":[]}],"reverse":[{"pkg":"org.springframework.samples.petclinic.model","fname":"BaseEntity.java","n":16},{"pkg":"org.springframework.samples.petclinic.model","fname":"Person.java","n":15},{"pkg":"org.springframework.samples.petclinic.model","fname":"NamedEntity.java","n":12},{"pkg":"org.springframework.samples.petclinic.owner","fname":"Owner.java","n":11},{"pkg":"org.springframework.samples.petclinic.owner","fname":"OwnerRestController.java","n":9},{"pkg":"org.springframework.samples.petclinic.owner","fname":"PetType.java","n":8},{"pkg":"org.springframework.samples.petclinic.owner","fname":"Pet.java","n":7},{"pkg":"org.springframework.samples.petclinic.owner","fname":"PetRestController.java","n":5},{"pkg":"org.springframework.samples.petclinic.owner","fname":"Visit.java","n":5},{"pkg":"org.springframework.samples.petclinic.security","fname":"AuthController.java","n":5},{"pkg":"org.springframework.samples.petclinic.security","fname":"JwtUtil.java","n":4},{"pkg":"org.springframework.samples.petclinic.vet","fname":"Specialty.java","n":4},{"pkg":"org.springframework.samples.petclinic.vet","fname":"Vet.java","n":4},{"pkg":"org.springframework.samples.petclinic.vet","fname":"VetRestController.java","n":4},{"pkg":"org.springframework.samples.petclinic.security","fname":"CustomUserDetailsService.java","n":3}],"scenarios":[{"id":"A","title":"precise — change OwnerRestController:53 (a covered line)","kind":"modify","target":"src/main/java/org/springframework/samples/petclinic/owner/OwnerRestController.java","line":53,"diff":"@@ -53 +53 @@ public class OwnerRestController {\n-\t\treturn owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());\n+\t\treturn owner.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build()); // tia-probe","selected":[{"confidence":"DETERMINISTIC","testId":"ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#getMissingOwnerReturns404"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#getOwnerById"}],"reasons":[],"count":3,"total":24,"conservative":false},{"id":"B","title":"module-scoped — change VetRestController:40","kind":"modify","target":"src/main/java/org/springframework/samples/petclinic/vet/VetRestController.java","line":40,"diff":"@@ -40 +40 @@ public class VetRestController {\n-\t\t\t\t\t.stream()\n+\t\t\t\t\t.stream() // tia-probe","selected":[{"confidence":"DETERMINISTIC","testId":"VetApiBlackBoxIT#filterVetsBySpecialty"}],"reasons":[],"count":1,"total":24,"conservative":false},{"id":"C","title":"security — change JwtUtil:56","kind":"modify","target":"src/main/java/org/springframework/samples/petclinic/security/JwtUtil.java","line":56,"diff":"@@ -56 +56 @@ public class JwtUtil {\n-\t\treturn Jwts.builder()\n+\t\treturn Jwts.builder() // tia-probe","selected":[{"confidence":"DETERMINISTIC","testId":"AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"},{"confidence":"DETERMINISTIC","testId":"PetApiBlackBoxIT#getPetTypes"}],"reasons":[],"count":2,"total":24,"conservative":false},{"id":"D","title":"shared model fan-out — change Owner.java:94","kind":"modify","target":"src/main/java/org/springframework/samples/petclinic/owner/Owner.java","line":94,"diff":"@@ -94 +94 @@ public class Owner extends Person {\n-\t\treturn this.pets;\n+\t\treturn this.pets; // tia-probe","selected":[{"confidence":"DETERMINISTIC","testId":"ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"},{"confidence":"DETERMINISTIC","testId":"ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#createOwner"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#filterOwnersByLastName"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#getOwnerById"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#listAllOwners"},{"confidence":"DETERMINISTIC","testId":"OwnerApiBlackBoxIT#updateOwner"},{"confidence":"DETERMINISTIC","testId":"PetApiBlackBoxIT#createPet"},{"confidence":"DETERMINISTIC","testId":"PetApiBlackBoxIT#getMissingPetReturns404"},{"confidence":"DETERMINISTIC","testId":"PetApiBlackBoxIT#getPetById"}],"reasons":[],"count":10,"total":24,"conservative":false},{"id":"E","title":"BLIND SPOT — change SecurityConfig:50 (no black-box test covers it)","kind":"modify","target":"src/main/java/org/springframework/samples/petclinic/security/SecurityConfig.java","line":50,"diff":"@@ -50 +50 @@ public class SecurityConfig {\n-\t\t\t\t.anyRequest()\n+\t\t\t\t.anyRequest() // tia-probe","selected":[],"reasons":[],"count":0,"total":24,"conservative":false},{"id":"F","title":"non-code change (application.properties) → conservative select-all","kind":"noncode","target":"src/main/resources/application.properties","line":null,"diff":"@@ -32,0 +33,2 @@ spring.main.allow-circular-references=true\n+\n+# tia-probe","selected":[{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue"},{"confidence":"CONSERVATIVE","testId":"ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"},{"confidence":"CONSERVATIVE","testId":"ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#createOwner"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#filterOwnersByLastName"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#getMissingOwnerReturns404"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#getOwnerById"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#listAllOwners"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#updateMissingOwnerReturns404"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#updateOwner"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#createPet"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getMissingPetReturns404"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getPetById"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getPetTypes"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#filterVetsBySpecialty"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#getMissingVetReturnsEmptyBody"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#getVetById"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#listAllVets"}],"reasons":["커버리지 매핑 불가 변경 [application.properties] → 보수적 전체 선택 (목적1) / triage UNKNOWN (목적2)"],"count":21,"total":24,"conservative":true},{"id":"G","title":"new .java file → conservative select-all (no prior coverage)","kind":"newfile","target":"src/main/java/org/springframework/samples/petclinic/owner/NewFeature.java","line":null,"diff":"@@ -0,0 +1,2 @@\n+package org.springframework.samples.petclinic.owner;\n+public class NewFeature { public int answer() { return 42; } }","selected":[{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#loginWithInvalidCredentialsReturns400"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#loginWithValidCredentialsReturnsToken"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#validateInvalidTokenReturnsValidFalse"},{"confidence":"CONSERVATIVE","testId":"AuthApiBlackBoxIT#validateValidTokenReturnsValidTrue"},{"confidence":"CONSERVATIVE","testId":"ConcurrencyBlackBoxIT#concurrentOwnerCreatesAllSucceedWithDistinctIds"},{"confidence":"CONSERVATIVE","testId":"ConcurrencyBlackBoxIT#concurrentPetCreatesForSameOwnerAreAllPersisted"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#createOwner"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#filterOwnersByLastName"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#getMissingOwnerReturns404"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#getOwnerById"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#listAllOwners"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#updateMissingOwnerReturns404"},{"confidence":"CONSERVATIVE","testId":"OwnerApiBlackBoxIT#updateOwner"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#createPet"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getMissingPetReturns404"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getPetById"},{"confidence":"CONSERVATIVE","testId":"PetApiBlackBoxIT#getPetTypes"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#filterVetsBySpecialty"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#getMissingVetReturnsEmptyBody"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#getVetById"},{"confidence":"CONSERVATIVE","testId":"VetApiBlackBoxIT#listAllVets"}],"reasons":["신규 .java [org/springframework/samples/petclinic/owner/NewFeature.java] → 과거 커버리지 없음, 정적 폴백은 이후 확장 → 보수적 전체 선택"],"count":21,"total":24,"conservative":true}],"flaky":{"real":{"ratio":0.0,"flaky":[],"total":24,"runs":5},"synthetic":{"ratio":0.042,"flaky":["ConcurrencyBlackBoxIT#Concurrent POST /api/owners all succeed with distinct ids"],"total":24}},"blind":["org/springframework/data/util/TypeInformation.java","…/PetClinicApplication.java","…/PetClinicRuntimeHints.java","…/config/OpenApiConfig.java","…/model/package-info.java","…/owner/OwnerController.java","…/owner/OwnerRepository.java","…/owner/PetController.java","…/owner/PetTypeFormatter.java","…/owner/PetTypeRepository.java","…/owner/PetValidator.java","…/owner/VisitController.java","…/owner/package-info.java","…/package-info.java","…/security/JwtAuthenticationFilter.java","…/security/SecurityConfig.java","…/system/CacheConfiguration.java","…/system/CrashController.java","…/system/WebConfiguration.java","…/system/WelcomeController.java","…/system/package-info.java","…/vet/VetController.java","…/vet/VetRepository.java","…/vet/Vets.java","…/vet/package-info.java"],"nProd":40,"nCovered":15,"nTests":24,"totalPoints":477};
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=x=>(Math.round(x*1000)/10)+'%';
+const fmt=n=>n.toLocaleString('en-US');
+const noExt=f=>f.replace(/\.java$/,'');
+const CAP=26, LIST=12;
+const TONE={precise:'정밀 선별',conservative:'보수적 선별',blind:'사각지대',file:'파일 단위 추정'};
+
+/* ---- 데이터셋 ---- */
+function mkTree(items){
+  const root={name:'전체',kids:new Map(),leaves:[],parent:null,leaf:null};
+  items.forEach(it=>{let n=root;n.leaves.push(it.i);
+    it.path.forEach(seg=>{let c=n.kids.get(seg);if(!c){c={name:seg,kids:new Map(),leaves:[],parent:n,leaf:null};n.kids.set(seg,c)}c.leaves.push(it.i);n=c});
+    n.leaf=it.i});
+  return root}
+function finalize(ds){
+  ds.files.forEach(f=>{f.n=0;f.tests=[]});
+  ds.points=0;
+  ds.tests.forEach((t,i)=>{t.lines=0;ds.covF[i].forEach((f,j)=>{ds.files[f].n++;ds.files[f].tests.push(i);t.lines+=ds.covN[i][j]});ds.points+=t.lines});
+  ds.nCov=ds.files.filter(f=>f.n).length;ds.nBlind=ds.files.length-ds.nCov;
+  ds.tT=mkTree(ds.tests);ds.fT=mkTree(ds.files);ds.isCov=i=>ds.files[i].n>0;
+  return ds}
+function mkPR(ds){const ord={blind:0,conservative:1,precise:2};ds.scen.sort((a,b)=>ord[a.tone]-ord[b.tone]||b.count-a.count);
+  const u=new Set(),nc=new Set();ds.scen.forEach(s=>s.sel.forEach(i=>{u.add(i);if(s.tone!=='conservative')nc.add(i)}));
+  const cons=ds.scen.filter(s=>s.tone==='conservative').length;
+  ds.pr={label:`변경 파일 ${ds.scen.length}개`,sel:u,count:u.size,total:ds.tests.length,tone:cons?'conservative':'precise',cons,blind:ds.scen.filter(s=>s.tone==='blind').length,without:nc.size,files:ds.scen.length,diff:'',reasons:[]};
+  ds.defSc=(ds.scen.find(s=>s.tone==='precise')||ds.scen[0]).id;return ds}
+function realDS(){
+  const D=RAW,tests=D.perTest.map((t,i)=>({i,id:t.id,path:[t.id.split('#')[0].replace('BlackBoxIT',''),t.id.split('#')[1]]}));
+  const tIdx=Object.fromEntries(tests.map(t=>[t.id,t.i]));
+  const files=D.reverse.map((r,i)=>({i,path:[r.pkg.split('.').pop(),r.fname]}));
+  D.blind.forEach(p=>{const s=p.split('/');const fn=s.pop();files.push({i:files.length,path:[s.pop().replace('…','(root)'),fn]})});
+  const fx=Object.fromEntries(files.map(f=>[f.path[1],f.i]));
+  const covF=D.perTest.map(t=>Int32Array.from(t.files.map(f=>fx[f.file]))),covN=D.perTest.map(t=>Int32Array.from(t.files.map(f=>f.n)));
+  const scen=D.scenarios.map(s=>{const fname=s.target.split('/').pop();
+    return{id:s.id,label:fname+(s.line?':'+s.line:'')+(s.kind==='newfile'?' (신규)':''),tone:s.conservative?'conservative':s.count===0?'blind':'precise',
+      sel:new Set(s.selected.map(x=>tIdx[x.testId]).filter(x=>x!=null)),count:s.count,total:s.total,file:fx[fname]??null,diff:s.diff||'',reasons:s.reasons||[]}});
+  const nm=new Set((D.flaky&&D.flaky.real?D.flaky.real.flaky:[]));
+  return mkPR(finalize({key:'real',synthetic:false,sut:D.sut,commit:D.commit,tests,files,covF,covN,scen,defSc:'D',
+    flaky:D.flaky&&D.flaky.real?{runs:D.flaky.real.runs,flaky:[...nm],control:D.flaky.synthetic?D.flaky.synthetic.flaky.length:null}:null}));
+}
+function synthDS(nT,nF){
+  let s=nT*7+13;const rnd=()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1)),cap=m=>m[0].toUpperCase()+m.slice(1);
+  const MOD=['billing','order','payment','customer','catalog','inventory','shipping','auth','notification','report','search','pricing','promotion','settlement','contract','device','network','roaming','usage','invoice','partner','support','audit','admin'].slice(0,nT>=5000?24:10);
+  const ROLE=[['api','Controller',.06],['service','Service',.08],['domain','Entity',.1],['repository','Repository',.4],['config','Config',.9],['batch','Job',.85]];
+  const VERB=['create','get','list','update','delete','search','validate','cancel','approve','export','import','retry'];
+  const files=[],own={},per=Math.floor(nF*.95/MOD.length);
+  MOD.forEach(m=>{own[m]=[];for(let k=0;k<per;k++){const r=ROLE[k%6];const f={i:files.length,path:[m,r[0],cap(m)+r[1]+(Math.floor(k/6)+1)+'.java']};files.push(f);if(rnd()>r[2])own[m].push(f.i)}});
+  const common=[];for(let k=0;k<Math.max(6,Math.floor(nF*.05));k++){const f={i:files.length,path:['common',k%2?'util':'model',(k%2?'CommonUtil':'BaseModel')+(Math.floor(k/2)+1)+'.java']};files.push(f);common.push(f.i)}
+  const tests=[],covF=[],covN=[],perM=Math.floor(nT/MOD.length);
+  MOD.forEach(m=>{for(let k=0;k<perM;k++){const set=new Map(),o=own[m];
+    for(let j=ri(4,12);j>0;j--)set.set(o[Math.floor(o.length*Math.pow(rnd(),1.6))],ri(1,22));
+    for(let j=ri(2,5);j>0;j--)set.set(common[Math.floor(common.length*Math.pow(rnd(),2.5))],ri(1,9));
+    if(rnd()<.1){const x=own[MOD[ri(0,MOD.length-1)]];set.set(x[ri(0,x.length-1)],ri(1,6))}
+    const c=Math.floor(k/12)+1;tests.push({i:tests.length,id:`${cap(m)}ApiIT${c}#${VERB[k%12]}${cap(m)}`,path:[m,`${cap(m)}ApiIT${c}`,VERB[k%12]+cap(m)]});
+    covF.push(Int32Array.from(set.keys()));covN.push(Int32Array.from(set.values()))}});
+  const ds=finalize({key:'s'+nT,synthetic:true,sut:`synthetic-${fmt(tests.length)}`,commit:'0000000000',tests,files,covF,covN,scen:[],defSc:'C',flaky:null});
+  const nm=f=>f.path[f.path.length-1],sub=(f,p)=>{const x=f.tests.filter(()=>rnd()<p);return new Set(x.length?x:[f.tests[0]])};
+  const pick=(seg,best)=>ds.files.filter(f=>f.path[1]===seg&&f.n>0).sort((a,b)=>best?b.n-a.n:a.n-b.n)[0];
+  const mk=(id,f,tone,sel,ln)=>({id,label:nm(f)+':'+ln,tone,sel,count:sel.size,total:tests.length,file:f.i,diff:'',reasons:[]});
+  const a=pick('api',false),b=pick('service',true),c=common.map(i=>ds.files[i]).sort((x,y)=>y.n-x.n)[0],d=ds.files.find(f=>f.n===0);
+  ds.scen=[mk('A',a,'precise',sub(a,.5),41),mk('B',b,'precise',sub(b,.6),118),mk('C',c,'precise',sub(c,.85),27),mk('D',d,'blind',new Set(),33),
+    {id:'E',label:'application.yml',tone:'conservative',sel:new Set(tests.map(t=>t.i)),count:tests.length,total:tests.length,file:null,diff:'',reasons:['커버리지에 매핑할 수 없는 변경 → 보수적 전체 선택']}];
+  const fl=[];while(fl.length<Math.round(tests.length*.003))fl.push(tests[ri(0,tests.length-1)].id);
+  ds.flaky={runs:5,flaky:[...new Set(fl)],control:null};
+  return mkPR(ds)}
+const DSETS={real:{label:'실측 24',make:realDS},s1000:{label:'합성 1,000',make:()=>synthDS(1000,400)},s10000:{label:'합성 10,000',make:()=>synthDS(10000,3000)}};
+const cache={};let DS,dsKey='real';
+const scById=id=>DS.scen.find(s=>s.id===id);
+const leafName=(side,i)=>{const p=(side==='t'?DS.tests:DS.files)[i].path;return p[p.length-1]};
+const parentName=(side,i)=>{const p=(side==='t'?DS.tests:DS.files)[i].path;return p[p.length-2]};
+
+/* 한 화면에 올릴 항목: 잎이 CAP 이하면 잎 그대로, 넘으면 하위 묶음(많으면 상위 CAP-1 + 그 외) */
+function visible(node,ok,side){
+  const wt=k=>k.leaf==null?0:side==='f'?DS.files[k.leaf].n:DS.tests[k.leaf].lines;
+  const lv=ok?node.leaves.filter(ok):node.leaves;
+  if(lv.length<=CAP)return{leafLevel:true,items:lv.map(i=>({leaf:i,leaves:[i]}))};
+  let n=node;while(n.kids.size===1)n=[...n.kids.values()][0];
+  let kids=[...n.kids.values()].map(k=>({node:k.kids.size?k:null,leaf:k.kids.size?null:k.leaf,name:k.name,leaves:ok?k.leaves.filter(ok):k.leaves})).filter(k=>k.leaves.length);
+  kids.sort((a,b)=>b.leaves.length-a.leaves.length||wt(b)-wt(a));
+  if(kids.length>CAP){const rest=kids.slice(CAP-1);kids=kids.slice(0,CAP-1);kids.push({node:null,leaf:null,other:rest.length,name:`그 외 ${fmt(rest.length)}개`,leaves:rest.flatMap(r=>r.leaves)})}
+  return{leafLevel:false,items:kids}}
+function aggregate(L,R){
+  const mT=new Int32Array(DS.tests.length).fill(-1),mF=new Int32Array(DS.files.length).fill(-1);
+  L.items.forEach((it,k)=>it.leaves.forEach(i=>mT[i]=k));R.items.forEach((it,k)=>it.leaves.forEach(i=>mF[i]=k));
+  const W=R.items.length,lines=new Float64Array(L.items.length*W),cnt=new Int32Array(L.items.length*W),rowT=new Float64Array(L.items.length);let max=0;
+  for(let t=0;t<DS.tests.length;t++){const a=mT[t];if(a<0)continue;const F=DS.covF[t],Nn=DS.covN[t];
+    for(let j=0;j<F.length;j++){const b=mF[F[j]];if(b<0)continue;cnt[a*W+b]++;const v=lines[a*W+b]+=Nn[j];rowT[a]+=Nn[j];if(v>max)max=v}}
+  return{mT,mF,W,lines,cnt,rowT,max}}
+const itemName=(side,it)=>it.leaf!=null?leafName(side,it.leaf):it.name;
+const selCount=(L,A,sc)=>{const c=new Int32Array(L.items.length);if(sc)sc.sel.forEach(i=>{const a=A.mT[i];if(a>=0)c[a]++});return c};
+function crumbs(el,st,rebuild,hint){
+  const chain=n=>{const a=[];for(;n;n=n.parent)a.unshift(n);return a};
+  const one=(side,lab,node)=>`<span>${lab} `+chain(node).map((n,i,a)=>`<button data-side="${side}" data-d="${i}" ${i===a.length-1?'disabled':''}>${esc(n.name)}</button>`).join('›')+'</span>';
+  el.className='crumbs';el.innerHTML=one('t','테스트',st.tf)+one('f','파일',st.ff)+(hint?`<span class="hint">${hint}</span>`:'');
+  el.onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const k=b.dataset.side==='t'?'tf':'ff';
+    let a=[];for(let n=st[k];n;n=n.parent)a.unshift(n);st[k]=a[+b.dataset.d];rebuild()}}
+
+/* ---- 공통 조각 ---- */
+const tip=$('#tip');
+document.addEventListener('mousemove',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');
+  if(!el){tip.hidden=true;return}
+  tip.innerHTML=el.dataset.tip;tip.hidden=false;const r=tip.getBoundingClientRect();
+  let x=e.clientX+14,y=e.clientY+14;if(x+r.width>innerWidth-8)x=e.clientX-r.width-14;if(y+r.height>innerHeight-8)y=e.clientY-r.height-14;
+  tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px'});
+function scbar(el,cur,onPick){
+  el.className='scbar';
+  el.innerHTML='<span class="lab">이번 변경의 파일</span>'+DS.scen.map(s=>`<button class="chip t-${s.tone}" data-id="${s.id}" aria-pressed="${s.id===cur}"><i class="dot"></i><span class="mono">${esc(s.label)}</span><span class="n">${fmt(s.count)}/${fmt(s.total)}</span></button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('.chip');if(b)onPick(b.getAttribute('aria-pressed')==='true'?null:b.dataset.id)};
+}
+const diffHtml=d=>d?'<pre class="diff">'+d.split('\n').map(l=>`<span class="${l[0]==='+'?'a':l[0]==='-'?'d':''}">${esc(l)}</span>`).join('\n')+'</pre>':'';
+let LISTS={},listCtx=null;const VS={};
+const vstate=(k,init)=>VS[dsKey+k]||(VS[dsKey+k]=init);
+function more(n,label,fn){const id='l'+Object.keys(LISTS).length;LISTS[id]=fn;return `<button class="link" data-list="${id}">${esc(label)} ${fmt(n)}개 전체 보기 →</button>`}
+const testRows=ix=>[...ix].map(i=>{const t=DS.tests[i];return[t.path.slice(0,-1).join(' / '),t.path[t.path.length-1],DS.covF[i].length,t.lines]});
+const TEST_HEAD=['묶음','테스트','실행한 파일 수','실행 라인'];
+function testList(ix,title){const a=[...ix];
+  return '<ul class="plain">'+a.slice(0,LIST).map(i=>`<li><span class="nm">${esc(DS.tests[i].path.slice(-2).join(' · '))}</span></li>`).join('')+'</ul>'+(a.length>LIST?more(a.length,'테스트',()=>({title,sub:'tia impact 가 선별한 테스트 전체',head:TEST_HEAD,rows:testRows(a)})):'')}
+function head(){
+  $('#mhead').innerHTML=`<h2>${esc(DS.sut)}</h2>${DS.synthetic?'<span class="synth">합성 데이터 · 규모 확인용, 실측 아님</span>':`<span class="meta">indexed commit <span class="mono">${DS.commit.slice(0,10)}</span> · 블랙박스 스위트 실측</span>`}
+  <div class="stats"><span><b class="num">${fmt(DS.tests.length)}</b>테스트</span><span><b class="num">${fmt(DS.nCov)}/${fmt(DS.files.length)}</b>파일 도달</span><span><b class="num">${fmt(DS.nBlind)}</b>사각지대</span></div>`;
+}
+
+/* ================= 변경 영향 ================= */
+function viewImpact(root){
+  const st=vstate('impact',{sel:null}),P=DS.pr;
+  const grp=[['blind','보호하는 테스트 없음'],['conservative','전체 실행을 유발'],['precise','정밀 선별 · 선별 많은 순']];
+  root.innerHTML=`<div class="sim"><div><div class="sclist" id="s-list"></div><p class="sub" style="margin-top:10px">시안에서는 데모 시나리오 ${DS.scen.length}개를 한 PR의 변경 파일로 가정했다.</p></div>
+    <div id="s-res" style="display:flex;flex-direction:column;gap:18px;min-width:0" aria-live="polite"></div></div>`;
+  const V=visible(DS.tT,null,'t'),A=aggregate(V,{items:[]});
+  function draw(){
+    LISTS={};
+    const rowH=s=>`<button class="scrow t-${s.tone}" data-id="${s.id}" aria-pressed="${st.sel===s.id}"><i class="dot"></i><span class="t">${esc(s.label)}</span><span class="n">${fmt(s.count)}/${fmt(s.total)}</span><span class="mb"><s style="width:${s.count/s.total*100}%"></s></span></button>`;
+    $('#s-list').innerHTML=`<button class="scrow all t-${P.tone}" data-id="" aria-pressed="${st.sel==null}"><i class="dot"></i><span class="t" style="font-family:var(--body);font-weight:600">이번 변경 전체 · 파일 ${P.files}개</span><span class="n">${fmt(P.count)}/${fmt(P.total)}</span><span class="mb"><s style="width:${P.count/P.total*100}%"></s></span></button>`
+      +grp.map(([t,l])=>{const xs=DS.scen.filter(s=>s.tone===t);return xs.length?`<small class="gh">${l}</small>`+xs.map(rowH).join(''):''}).join('');
+    const r=st.sel?scById(st.sel):P,skip=1-r.count/r.total,C=2*Math.PI*52,lab=`<code>${esc(r.label)}</code>`,tot=fmt(r.total),cnt=fmt(r.count);
+    let line,subs=[];
+    if(!st.sel){
+      if(P.tone==='conservative'){line=`변경 파일 ${P.files}개 중 ${P.cons}개가 커버리지에 매핑되지 않아 ${tot}개 중 <b>${cnt}개</b>를 모두 돌린다.`;
+        subs.push(`그 ${P.cons}개를 빼면 ${fmt(P.without)}개만 돌리면 된다 (${pct(1-P.without/P.total)} 절감).`)}
+      else line=`이번 변경 ${P.files}개 파일이면 ${tot}개 중 <b>${cnt}개</b>만 돌리면 된다.`;
+      if(P.blind)subs.push(`변경 파일 ${P.blind}개는 보호하는 테스트가 없다.`);
+    }else line={precise:`${lab} 변경은 ${tot}개 중 <b>${cnt}개</b>를 선별한다.`,
+      conservative:`${lab} 변경은 커버리지에 매핑할 수 없어 <b>${cnt}개</b>를 안전하게 모두 돌린다.`,
+      blind:`${lab} 은 어떤 테스트도 지나가지 않는다. <b>선별 0개</b>.`}[r.tone];
+    const ring=r.tone==='blind'?`<b>0</b><span>보호하는 테스트 없음</span>`:`<b class="num">${pct(skip)}</b><span>실행 절감</span>`;
+    const sc=selCount(V,A,r);let viz;
+    if(V.leafLevel){const groups=[...new Set(V.items.map(it=>parentName('t',it.leaf)))];
+      viz='<div class="waffle">'+groups.map(g=>`<div class="g"><small>${esc(g)}</small><div class="dots">${V.items.filter(it=>parentName('t',it.leaf)===g).map(it=>`<span class="wd${r.sel.has(it.leaf)?' on':''}" data-tip="<b>${esc(leafName('t',it.leaf))}</b><br>${r.sel.has(it.leaf)?'실행':'건너뜀'}"></span>`).join('')}</div></div>`).join('')+'</div>';
+    }else{const rows=V.items.map((it,k)=>({it,n:sc[k]})).filter(x=>x.n).sort((a,b)=>b.n-a.n),top=rows.slice(0,10),zero=V.items.length-rows.length;
+      viz='<div class="gbars">'+top.map(x=>`<div class="gbar"><span class="nm">${esc(x.it.name)}</span><span class="tr"><s style="width:${x.n/x.it.leaves.length*100}%"></s></span><span class="v">${fmt(x.n)} / ${fmt(x.it.leaves.length)}</span></div>`).join('')
+        +`<p>${rows.length>10?`선별이 있는 묶음 ${rows.length}개 중 상위 10개. `:''}${zero?`선별 0인 묶음 ${zero}개는 통째로 건너뛴다.`:''}${!rows.length?'선별된 테스트가 없다.':''}</p></div>`}
+    const el=$('#s-res');el.className='t-'+r.tone;
+    el.innerHTML=`<div class="hero"><div><span class="badge">${st.sel?TONE[r.tone]:(P.tone==='conservative'?'보수적 전체 실행':'정밀 선별')}</span><h3>${line}</h3>${subs.map(x=>`<p class="sub" style="font-size:14px;margin-top:8px">${x}</p>`).join('')}</div>
+      <div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-(r.tone==='blind'?0:skip))}"/></svg><div>${ring}</div></div></div>
+      ${viz}
+      <div class="two">${r.diff||r.reasons.length?`<div><h3 class="sec">변경</h3>${diffHtml(r.diff)}${r.reasons.map(x=>`<p class="sub">${esc(x)}</p>`).join('')}</div>`:''}
+      ${r.count?`<div><h3 class="sec">돌릴 테스트 ${cnt}</h3>${testList(r.sel,`돌릴 테스트 · ${r.label}`)}</div>`:''}</div>`;
+  }
+  $('#s-list').onclick=e=>{const b=e.target.closest('.scrow');if(b){st.sel=b.dataset.id||null;draw()}};
+  draw();
+}
+
+/* ================= 연결 구조 ================= */
+function viewGraph(root){
+  const TX=330,FX=590,W=860;
+  const st=vstate('graph',{sc:DS.defSc,pin:null,hov:null,tf:DS.tT,ff:DS.fT});st.hov=null;
+  root.innerHTML=`<div id="g-sc"></div><div id="g-ex"></div><div id="g-cr"></div><div class="gwrap"><div class="gsvg scroll" id="g-svg"></div><aside class="panel" id="g-panel" aria-live="polite"></aside></div><div id="g-blind"></div>`;
+  const box=$('#g-svg'),panel=$('#g-panel');let L,R,A,SC;
+  const bl=DS.files.filter(f=>!f.n);
+  if(bl.length<=40)$('#g-blind').innerHTML=`<h3 class="sec">어떤 테스트도 닿지 않는 파일 <span class="num">${bl.length}</span></h3><p class="sub">그래프에 선이 하나도 없는 파일. 여기를 고치면 선별되는 테스트가 없다.</p><div class="blindstrip" style="margin-top:10px">${bl.map(b=>`<span class="bchip" data-i="${b.i}">${esc(b.path.slice(-2).join('/').replace('.java',''))}</span>`).join('')}</div>`;
+  else{const by={};bl.forEach(b=>{const k=b.path.slice(0,-1).join('/');by[k]=(by[k]||0)+1});const e=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+    $('#g-blind').innerHTML=`<h3 class="sec">어떤 테스트도 닿지 않는 파일 <span class="num">${fmt(bl.length)}</span></h3><p class="sub">패키지별 사각지대 파일 수, 많은 순 상위 ${Math.min(20,e.length)}개${e.length>20?` (전체 ${e.length}개 패키지)`:''}.</p><div class="blindstrip" style="margin-top:10px">${e.slice(0,20).map(([k,n])=>`<span class="bchip">${esc(k)} <b>${n}</b></span>`).join('')}</div>`}
+  function build(){
+    L=visible(st.tf,null,'t');R=visible(st.ff,DS.isCov,'f');A=aggregate(L,R);SC=selCount(L,A,st.sc&&scById(st.sc));
+    const cut=s=>s.length>36?s.slice(0,35)+'…':s;
+    const lay=(V,side,rowH)=>{let y=34;const ys=[],g=[];let prev=null;
+      V.items.forEach((it,k)=>{if(V.leafLevel){const p=parentName(side,it.leaf);if(p!==prev){y+=30;g.push({p,y});y+=4;prev=p}}y+=rowH;ys[k]=y});return{ys,g,h:y+24}};
+    const lt=lay(L,'t',20),lf=lay(R,'f',R.leafLevel?28:22),H=Math.max(lt.h,lf.h,160);
+    const off=(H-lf.h)/2;lf.ys=lf.ys.map(y=>y+off);lf.g.forEach(g=>g.y+=off);const off2=(H-lt.h)/2;lt.ys=lt.ys.map(y=>y+off2);lt.g.forEach(g=>g.y+=off2);
+    let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="테스트와 프로덕션 파일의 실행 관계"><text class="colh" x="${TX}" y="18" text-anchor="end">${L.leafLevel?'테스트':'테스트 묶음'} ${L.items.length}</text><text class="colh" x="${FX}" y="18">${R.leafLevel?'프로덕션 파일':'파일 묶음'} ${R.items.length}</text><g>`;
+    for(let a=0;a<L.items.length;a++)for(let b=0;b<A.W;b++){const v=A.lines[a*A.W+b];if(!v)continue;
+      s+=`<path class="lk" data-a="${a}" data-b="${b}" stroke-width="${(1+3*Math.sqrt(v/A.max)).toFixed(1)}" d="M${TX},${lt.ys[a]} C${TX+130},${lt.ys[a]} ${FX-130},${lf.ys[b]} ${FX},${lf.ys[b]}"/>`}
+    s+='</g>';
+    lt.g.forEach(g=>s+=`<text class="grp" x="${TX-14}" y="${g.y}" text-anchor="end">${esc(g.p)}</text>`);
+    lf.g.forEach(g=>s+=`<text class="grp" x="${FX+16}" y="${g.y}">${esc(g.p)}</text>`);
+    L.items.forEach((it,k)=>{const n=it.leaves.length,leaf=it.leaf!=null,ln=leaf?DS.tests[it.leaf].lines:0;
+      const r=leaf?(ln?3+Math.sqrt(ln)*.75:3.5):Math.min(10,4+Math.sqrt(n)*.25),y=lt.ys[k];
+      s+=`<g class="nd tn${leaf?(ln?'':' zero'):' grpn'}" data-s="t" data-k="${k}" tabindex="0" data-tip="<b>${esc(itemName('t',it))}</b><br>${leaf?`${DS.covF[it.leaf].length}개 파일 · ${ln}라인 실행`:`테스트 ${fmt(n)}개${it.node?' · 누르면 안으로':''}`}"><rect x="20" y="${y-10}" width="${TX-6}" height="20" fill="transparent"/><circle class="dot" cx="${TX}" cy="${y}" r="${r.toFixed(1)}"/><text x="${TX-16}" y="${y+4}" text-anchor="end"><tspan class="selc"></tspan>${esc(cut(itemName('t',it)))}${leaf?'':`<tspan class="cnt"> · ${fmt(n)}</tspan>`}</text></g>`});
+    R.items.forEach((it,k)=>{const n=it.leaves.length,leaf=it.leaf!=null,fan=leaf?DS.files[it.leaf].n:0;
+      const r=leaf?Math.min(11,4+Math.sqrt(fan)):Math.min(10,4+Math.sqrt(n)*.4),y=lf.ys[k];
+      s+=`<g class="nd fn${leaf?'':' grpn'}" data-s="f" data-k="${k}" tabindex="0" data-tip="<b>${esc(itemName('f',it))}</b><br>${leaf?`이 파일을 실행하는 테스트 ${fmt(fan)}개`:`테스트가 닿는 파일 ${fmt(n)}개${it.node?' · 누르면 안으로':''}`}"><rect x="${FX-12}" y="${y-11}" width="${W-FX+10}" height="22" fill="transparent"/><circle class="ring" cx="${FX}" cy="${y}" r="8"/><circle class="dot" cx="${FX}" cy="${y}" r="${r.toFixed(1)}"/><text x="${FX+16}" y="${y+4}">${esc(cut(noExt(itemName('f',it))))}<tspan class="cnt"> · ${fmt(leaf?fan:n)}</tspan></text></g>`});
+    box.innerHTML=s+'</svg>';
+    crumbs($('#g-cr'),st,()=>{st.pin=st.hov=null;build()},(!L.leafLevel||!R.leafLevel)?'묶음을 누르면 한 단계 안으로 들어간다':'');
+    apply();
+  }
+  function apply(){
+    const svg=$('svg',box),fo=st.hov||st.pin,sc=st.sc&&scById(st.sc);
+    let T=new Set(),F=new Set(),Lk=()=>false,tone='precise',changed=-1;
+    if(fo){if(fo.s==='t'){T.add(fo.k);for(let b=0;b<A.W;b++)if(A.lines[fo.k*A.W+b])F.add(b);Lk=(a,b)=>a===fo.k}
+      else{F.add(fo.k);for(let a=0;a<L.items.length;a++)if(A.lines[a*A.W+fo.k])T.add(a);Lk=(a,b)=>b===fo.k}}
+    else if(sc){tone=sc.tone;SC.forEach((n,a)=>{if(n)T.add(a)});
+      if(sc.tone==='precise'&&sc.file!=null){changed=A.mF[sc.file];if(changed>=0){F.add(changed);Lk=(a,b)=>b===changed&&SC[a]>0&&A.lines[a*A.W+b]>0}}}
+    svg.setAttribute('class',(fo||sc?'focus ':'')+'t-'+tone);
+    $$('.tn',svg).forEach(g=>{const k=+g.dataset.k;g.classList.toggle('on',T.has(k));
+      $('.selc',g).textContent=!fo&&sc&&SC[k]&&L.items[k].leaf==null?`${fmt(SC[k])} 선별  `:''});
+    $$('.fn',svg).forEach(g=>{g.classList.toggle('on',F.has(+g.dataset.k));g.classList.toggle('changed',changed===+g.dataset.k)});
+    $$('.lk',svg).forEach(p=>p.classList.toggle('on',Lk(+p.dataset.a,+p.dataset.b)));
+    $$('#g-blind .bchip[data-i]').forEach(c=>c.classList.toggle('hit',!fo&&!!sc&&sc.tone==='blind'&&+c.dataset.i===sc.file));
+    scbar($('#g-sc'),st.sc,id=>{st.sc=id;st.pin=null;build()});
+    panel.className='panel t-'+(fo?'precise':sc?sc.tone:'precise');
+    LISTS={};
+    if(fo){const side=fo.s,it=(side==='t'?L:R).items[fo.k],O=side==='t'?R:L,os=side==='t'?'f':'t',leaf=it.leaf!=null;
+      const con=O.items.map((o,j)=>{const x=side==='t'?fo.k*A.W+j:j*A.W+fo.k;return{o,v:A.lines[x],c:A.cnt[x]}}).filter(x=>x.c).sort((a,b)=>b.c-a.c),mx=con.length?con[0].c:1;
+      const ou=(O.leafLevel?'':'묶음 ')+(os==='f'?'파일':'테스트'),unit=leaf?(O.leafLevel?'실행 라인':(os==='f'?'파일 수':'테스트 수')):'연결 수';
+      const val=x=>leaf&&O.leafLevel?x.v:x.c,mv=con.length?Math.max(...con.map(val)):1;
+      panel.innerHTML=`<p>${side==='t'?(leaf?'테스트':'테스트 묶음'):(leaf?'프로덕션 파일':'파일 묶음')}${st.pin&&!st.hov?' · 고정됨':''}</p><h4 class="mono">${esc(itemName(side,it))}</h4>
+      <div class="big"><div><b class="num">${fmt(con.length)}</b> <span>/ ${fmt(O.items.length)} ${os==='f'?(O.leafLevel?'파일':'파일 묶음'):(O.leafLevel?'테스트':'테스트 묶음')}과 연결</span></div></div>
+      ${con.length?`<p>${unit} 많은 순</p><ul class="plain">`+con.slice(0,LIST).map(x=>`<li><span class="nm">${esc(noExt(itemName(os,x.o)))}</span><span class="bar"><s style="width:${val(x)/mv*100}%"></s></span><span class="v" style="width:44px">${fmt(val(x))}</span></li>`).join('')+'</ul>'
+        +(con.length>LIST?more(con.length,'연결',()=>({title:`${itemName(side,it)} 의 연결`,sub:'연결 수 = 테스트–파일 쌍의 수',head:['이름','연결 수','실행 라인'],rows:con.map(x=>[itemName(os,x.o),x.c,x.v])})):'')
+        +(!leaf&&side==='t'?more(it.leaves.length,'이 묶음의 테스트',()=>({title:`${itemName(side,it)} 의 테스트`,sub:'',head:TEST_HEAD,rows:testRows(it.leaves)})):''):'<p>측정된 프로덕션 파일 도달이 없다.</p>'}`;
+    }else if(sc){
+      panel.innerHTML=`<span class="badge">${TONE[sc.tone]}</span><h4 class="mono">${esc(sc.label)}</h4>
+      <div class="big"><div><b class="num">${fmt(sc.count)}</b> <span>/ ${fmt(sc.total)} 실행</span></div><div><b class="num">${pct(1-sc.count/sc.total)}</b> <span>절감</span></div></div>
+      ${sc.tone==='precise'&&sc.file!=null?`<p>이 파일을 실행하는 테스트는 ${fmt(DS.files[sc.file].n)}개, 그중 변경 라인을 지나는 ${fmt(sc.count)}개만 선별.</p>`:''}
+      ${sc.tone==='blind'?'<p>변경 파일에 닿는 테스트가 없어 선별 0개.</p>':''}
+      ${sc.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${diffHtml(sc.diff)}${sc.count?testList(sc.sel,`돌릴 테스트 · ${sc.label}`):''}`;
+    }else panel.innerHTML=`<h4>읽는 법</h4><p>왼쪽은 테스트, 오른쪽은 프로덕션 파일. 선은 "실행했다"이고 굵기는 실행 라인 수다.</p><p>노드에 올리면 연결만 남는다. 위의 변경 파일을 누르면 그 변경이 선별하는 테스트가 켜진다.</p>`;
+  }
+  const nodeOf=g=>({s:g.dataset.s,k:+g.dataset.k});
+  box.addEventListener('mouseover',e=>{const g=e.target.closest('.nd');st.hov=g?nodeOf(g):null;apply()});
+  box.addEventListener('mouseleave',()=>{st.hov=null;apply()});
+  const act=g=>{const n=nodeOf(g),it=(n.s==='t'?L:R).items[n.k];
+    if(it.node){st[n.s==='t'?'tf':'ff']=it.node;st.pin=st.hov=null;build();return}
+    const same=st.pin&&st.pin.s===n.s&&st.pin.k===n.k;st.pin=same?null:n;st.hov=null;apply()};
+  box.addEventListener('click',e=>{const g=e.target.closest('.nd');if(g)act(g);else{st.pin=null;apply()}});
+  box.addEventListener('keydown',e=>{if(e.key==='Enter'){const g=e.target.closest('.nd');if(g)act(g)}});
+  if(!visible(DS.tT,null,'t').leafLevel){
+    $('#g-ex').className='tools';$('#g-ex').innerHTML='<span>사례 바로 보기</span><span class="tg"><button data-ex="t">여러 파일 묶음에 걸친 테스트 하나</button><button data-ex="f">여러 테스트 묶음이 실행하는 파일 하나</button></span>';
+    $('#g-ex').onclick=e=>{const b=e.target.closest('button');if(!b)return;st.sc=null;const walk=(n,p)=>{p.slice(0,-1).forEach(s=>n=n.kids.get(s));return n};
+      if(b.dataset.ex==='t'){let best=-1,bi=0;DS.tests.forEach((t,i)=>{const s=new Set();DS.covF[i].forEach(f=>s.add(DS.files[f].path[0]));if(s.size>best){best=s.size;bi=i}});
+        st.tf=walk(DS.tT,DS.tests[bi].path);st.ff=DS.fT;st.pin=null;build();const k=L.items.findIndex(it=>it.leaf===bi);if(k>=0)st.pin={s:'t',k}}
+      else{const f=DS.files.reduce((a,b)=>b.n>a.n?b:a);st.ff=walk(DS.fT,f.path);st.tf=DS.tT;st.pin=null;build();const k=R.items.findIndex(it=>it.leaf===f.i);if(k>=0)st.pin={s:'f',k}}
+      apply()}}
+  build();
+}
+
+/* ================= 커버리지 지도 ================= */
+function viewMatrix(root){
+  const st=vstate('matrix',{sc:null,tf:DS.tT,ff:DS.fT,cell:null});
+  const bin=p=>p<=.08?22:p<=.22?42:p<=.42?62:p<=.68?82:100;
+  let side;
+  if(DS.files.length<=80){const pk=[...new Set(DS.files.map(f=>f.path[f.path.length-2]))];const mxn=Math.max(...DS.files.map(f=>f.n));
+    side=`<p class="sub">타일 하나가 프로덕션 파일 하나. 진할수록 많은 테스트가 실행하고, 빗금은 사각지대다.</p><div class="pk" style="margin-top:12px">${pk.map(p=>{const fs=DS.files.filter(f=>f.path[f.path.length-2]===p),cv=fs.filter(f=>f.n);
+      return `<div class="p"><small><b>${esc(p)}</b><span class="num">${cv.length}/${fs.length} 도달</span></small><div class="tiles">${fs.map(f=>f.n?`<span class="pt cv" data-fi="${f.i}" style="--p:${bin(f.n/mxn)}" data-tip="<b>${esc(leafName('f',f.i))}</b><br>${f.n}개 테스트가 실행"></span>`:`<span class="pt bl" data-tip="<b>${esc(leafName('f',f.i))}</b><br>사각지대 · 실행하는 테스트 없음"></span>`).join('')}</div></div>`}).join('')}</div>`;
+  }else{let n=DS.fT;while(n.kids.size===1)n=[...n.kids.values()][0];
+    const rows=[...n.kids.values()].map(k=>({name:k.name,t:k.leaves.length,c:k.leaves.filter(DS.isCov).length})).sort((a,b)=>(b.t-b.c)-(a.t-a.c));
+    side=`<p class="sub">묶음별 도달 파일 비율. 사각지대가 많은 순 상위 ${Math.min(14,rows.length)}개${rows.length>14?` (전체 ${rows.length}개)`:''}.</p><div class="pk" style="margin-top:12px;gap:7px">${rows.slice(0,14).map(r=>`<div class="reach" data-tip="<b>${esc(r.name)}</b><br>도달 ${fmt(r.c)} · 사각지대 ${fmt(r.t-r.c)}"><span class="nm">${esc(r.name)}</span><span class="covbar" style="height:8px"><s style="width:${r.c/r.t*100}%"></s></span><span class="v">${fmt(r.c)}/${fmt(r.t)}</span></div>`).join('')}</div>`}
+  root.innerHTML=`<div id="m-sc"></div><div id="m-cr"></div>
+  <div class="tools"><span class="legend">실행 라인 수 적음 ${[22,42,62,82,100].map(p=>`<s style="background:color-mix(in srgb,var(--accent) ${p}%,var(--surface))"></s>`).join('')} 많음 · 정확한 값은 칸에 올리면 표시</span></div>
+  <div class="sumline" id="m-sum" aria-live="polite"></div>
+  <div class="mxwrap"><div class="scroll" id="m-tbl"></div><div id="m-side"></div></div>`;
+  let L,R,A;
+  function table(){
+    const sc=st.sc&&scById(st.sc);L=visible(st.tf,null,'t');R=visible(st.ff,DS.isCov,'f');A=aggregate(L,R);const SC=selCount(L,A,sc);
+    const mxr=Math.max(1,...A.rowT),ch=sc&&sc.tone==='precise'&&sc.file!=null?A.mF[sc.file]:-1;
+    const row=(it,k)=>{const nm=itemName('t',it),leaf=it.leaf!=null;
+      return `<tr data-k="${k}" class="${SC[k]?'sel':''}"><th class="rh${it.node?' dr':''}" data-drill="t" title="${esc(nm)}">${esc(nm)}${leaf?'':` <em>${fmt(it.leaves.length)}</em>`}</th><td class="mk">${SC[k]?(sc.tone==='conservative'?'■':'●'):''}</td>${R.items.map((c,j)=>{const v=A.lines[k*A.W+j];return v?`<td class="c" data-j="${j}" data-p style="--p:${bin(v/A.max)}" data-tip="<b>${esc(nm)}</b><br>× <b>${esc(itemName('f',c))}</b><br>${fmt(v)}라인 실행"></td>`:`<td class="c" data-j="${j}"></td>`}).join('')}<td class="tot"><s style="width:${A.rowT[k]/mxr*60}px"></s>${fmt(A.rowT[k])}${SC[k]&&!leaf?` · ${fmt(SC[k])} 선별`:''}</td></tr>`};
+    let body='',prev=null;
+    L.items.forEach((it,k)=>{if(L.leafLevel){const p=parentName('t',it.leaf);if(p!==prev){body+=`<tr class="grp"><th>${esc(p)}</th><td colspan="${R.items.length+2}"></td></tr>`;prev=p}}body+=row(it,k)});
+    $('#m-tbl').innerHTML=`<table class="mx${sc?' sc t-'+sc.tone:''}"><thead><tr><th></th><th></th>${R.items.map((c,j)=>`<th class="ch${ch===j?' changed':''}${c.node?' dr':''}" data-j="${j}" data-drill="f" data-tip="<b>${esc(itemName('f',c))}</b><br>${c.leaf!=null?`${fmt(DS.files[c.leaf].n)}개 테스트가 실행`:`도달 파일 ${fmt(c.leaves.length)}개${c.node?' · 누르면 안으로':''}`}"><span>${esc(noExt(itemName('f',c)))}</span></th>`).join('')}<th></th></tr></thead>
+      <tbody>${body}</tbody><tfoot><tr><th>${R.leafLevel?'실행하는 테스트 수':'도달 파일 수'}</th><td></td>${R.items.map(c=>`<td>${fmt(c.leaf!=null?DS.files[c.leaf].n:c.leaves.length)}</td>`).join('')}<td></td></tr></tfoot></table>`;
+    scbar($('#m-sc'),st.sc,id=>{st.sc=id;table()});
+    crumbs($('#m-cr'),st,()=>{st.cell=null;table()},(!L.leafLevel||!R.leafLevel)?`한 화면 최대 ${CAP}×${CAP} · 칸을 누르면 상세, 행·열 이름을 누르면 한 단계 안으로`:'');
+    sidePanel();
+    const sum=$('#m-sum');sum.className='sumline'+(sc?' t-'+sc.tone:'');
+    sum.innerHTML=sc?`<span class="badge">${TONE[sc.tone]}</span><span><span class="mono">${esc(sc.label)}</span> → <b class="num">${fmt(sc.count)}/${fmt(sc.total)}</b> 실행 · <b class="num">${pct(1-sc.count/sc.total)}</b> 절감</span>${sc.tone==='blind'?'<span>변경 파일이 지도에 열로 존재하지 않는다(사각지대).</span>':''}${sc.tone==='conservative'?'<span>열에 매핑할 수 없는 변경이라 인덱스에 있는 테스트를 모두 선별.</span>':''}`
+      :'<span>세로줄이 길수록 여러 테스트가 공유하는 코드다. 위의 변경 파일을 누르면 변경 열과 선별된 행이 표시된다.</span>';
+  }
+  function sidePanel(){
+    LISTS={};const el=$('#m-side');$$('#m-tbl td.pick').forEach(e=>e.classList.remove('pick'));
+    if(!st.cell||!L.items[st.cell.k]||!R.items[st.cell.j]){el.className='';el.innerHTML=`<h3 class="sec">도달 범위</h3>${side}<p class="sub" style="margin-top:14px">지도의 칸을 누르면 여기에 그 칸의 테스트와 파일이 나온다.</p>`;return}
+    const {k,j}=st.cell,ri=L.items[k],ci=R.items[j],td=$(`#m-tbl tr[data-k="${k}"] td[data-j="${j}"]`);if(td)td.classList.add('pick');
+    const ts=[],fm=new Map();ri.leaves.forEach(i=>{const F=DS.covF[i],Nn=DS.covN[i];let l=0,n=0;for(let x=0;x<F.length;x++)if(A.mF[F[x]]===j){l+=Nn[x];n++;const o=fm.get(F[x])||[0,0];o[0]++;o[1]+=Nn[x];fm.set(F[x],o)}if(n)ts.push([i,n,l])});
+    ts.sort((a,b)=>b[2]-a[2]);const fs=[...fm].sort((a,b)=>b[1][1]-a[1][1]),rn=itemName('t',ri),cn=itemName('f',ci),mt=ts.length?ts[0][2]:1,mf=fs.length?fs[0][1][1]:1;
+    el.className='panel';
+    el.innerHTML=`<div><button class="link" id="m-x">← 도달 범위로</button></div><p>선택한 칸</p><h4 class="mono">${esc(rn)} × ${esc(noExt(cn))}</h4>`
+     +(ts.length?`<div class="big"><div><b class="num">${fmt(A.lines[k*A.W+j])}</b> <span>실행 라인</span></div><div><b class="num">${fmt(A.cnt[k*A.W+j])}</b> <span>연결</span></div></div>
+      <p>테스트 ${fmt(ts.length)}개 · 실행 라인 많은 순</p><ul class="plain">${ts.slice(0,8).map(x=>`<li><span class="nm">${esc(DS.tests[x[0]].path.slice(-2).join(' · '))}</span><span class="bar"><s style="width:${x[2]/mt*100}%"></s></span><span class="v" style="width:40px">${fmt(x[2])}</span></li>`).join('')}</ul>
+      ${ts.length>8?more(ts.length,'테스트',()=>({title:`${rn} × ${noExt(cn)} 의 테스트`,sub:'이 칸에 속한 테스트와, 이 칸의 파일에서 실행한 라인',head:['묶음','테스트','이 칸의 파일 수','이 칸의 실행 라인'],rows:ts.map(x=>{const p=DS.tests[x[0]].path;return[p.slice(0,-1).join(' / '),p[p.length-1],x[1],x[2]]})})):''}
+      <p>파일 ${fmt(fs.length)}개 · 실행 라인 많은 순</p><ul class="plain">${fs.slice(0,8).map(x=>`<li><span class="nm">${esc(noExt(leafName('f',x[0])))}</span><span class="bar"><s style="width:${x[1][1]/mf*100}%"></s></span><span class="v" style="width:40px">${fmt(x[1][1])}</span></li>`).join('')}</ul>
+      ${fs.length>8?more(fs.length,'파일',()=>({title:`${rn} × ${noExt(cn)} 의 파일`,sub:'이 칸에 속한 파일과, 그 파일을 실행한 이 칸의 테스트 수',head:['패키지','파일','이 칸의 테스트 수','실행 라인'],rows:fs.map(x=>{const p=DS.files[x[0]].path;return[p.slice(0,-1).join('/'),p[p.length-1],x[1][0],x[1][1]]})})):''}`
+      :'<p>연결 없음. 이 행의 테스트는 이 열의 파일을 실행하지 않는다.</p>')
+     +((ri.node||ci.node)?`<div class="tools">${ri.node?'<span class="tg"><button data-in="t">행 안으로</button></span>':''}${ci.node?'<span class="tg"><button data-in="f">열 안으로</button></span>':''}</div>`:'');
+    el.onclick=e=>{if(e.target.closest('#m-x')){st.cell=null;sidePanel()}const b=e.target.closest('[data-in]');if(b){if(b.dataset.in==='t')st.tf=ri.node;else st.ff=ci.node;st.cell=null;table()}};
+  }
+  const hot=(j,k)=>{$$('.colhot,.rowhot',root).forEach(e=>e.classList.remove('colhot','rowhot'));
+    if(j!=null)$$(`#m-tbl [data-j="${j}"]`).forEach(e=>e.classList.add('colhot'));
+    if(k!=null){const r=$(`#m-tbl tr[data-k="${k}"]`);if(r)r.classList.add('rowhot')}};
+  const tb=$('#m-tbl');
+  tb.addEventListener('mouseover',e=>{const c=e.target.closest('[data-j]'),r=e.target.closest('tr[data-k]');hot(c?c.dataset.j:null,r?r.dataset.k:null)});
+  tb.addEventListener('mouseleave',()=>hot(null,null));
+  tb.addEventListener('click',e=>{const c=e.target.closest('td.c');if(c){st.cell={k:+c.closest('tr').dataset.k,j:+c.dataset.j};sidePanel();return}
+    const h=e.target.closest('[data-drill]');if(!h)return;st.cell=null;
+    const it=h.dataset.drill==='t'?L.items[+h.closest('tr').dataset.k]:R.items[+h.dataset.j];
+    if(it&&it.node){st[h.dataset.drill==='t'?'tf':'ff']=it.node;table()}});
+  table();
+}
+
+/* ================= 안정성 ================= */
+function viewStab(root){
+  const f=DS.flaky;LISTS={};
+  if(!f){root.innerHTML='<p>반복 실행 데이터가 없다. <span class="mono">tia flaky</span> 결과가 입력되면 이 페이지가 채워진다.</p>';return}
+  const N=DS.tests.length,k=f.flaky.length,set=new Set(f.flaky);
+  root.innerHTML=`<div class="stab ${k?'t-conservative':'t-precise'}" style="display:flex;flex-direction:column;gap:18px">
+   <h3>같은 스위트를 ${f.runs}회 반복했을 때 결과가 바뀐 테스트는 ${fmt(N)}개 중 <b>${fmt(k)}개</b>다.</h3>
+   ${N<=200?`<div class="runs">${DS.tests.map(t=>`<s class="${set.has(t.id)?'f':''}" data-tip="<b>${esc(t.path.slice(-2).join(' · '))}</b><br>${set.has(t.id)?'결과가 바뀜':f.runs+'회 모두 같은 결과'}"></s>`).join('')}</div>`
+     :`<div><div class="covbar"><s style="width:${(1-k/N)*100}%;background:var(--good)"></s></div><p class="sub">${fmt(N-k)}개는 ${f.runs}회 모두 같은 결과 · 흔들린 비율 ${pct(k/N)}</p></div>`}
+   ${k?`<div><h3 class="sec">결과가 바뀐 테스트</h3><ul class="plain" style="margin-top:8px">${f.flaky.slice(0,LIST).map(x=>`<li><span class="nm">${esc(x)}</span></li>`).join('')}</ul>${k>LIST?more(k,'결과가 바뀐 테스트',()=>({title:'결과가 바뀐 테스트',sub:`${f.runs}회 반복 실행에서 Pass/Fail이 바뀐 테스트`,head:['클래스','테스트'],rows:f.flaky.map(x=>x.split('#'))})):''}</div>`:''}
+   ${f.control!=null?`<div class="tile"><div class="k">이 0은 믿을 수 있나 · 검출기 대조군</div><p style="margin:6px 0 0;color:var(--ink2)">한 테스트의 결과를 일부러 Pass → Fail → Pass 로 뒤집은 가짜 실행을 검출기에 넣었고, 검출기는 그 <b>${f.control}건</b>을 잡아냈다. 위의 0은 검출기가 고장 나서가 아니라 실제로 흔들림이 없어서 나온 값이다.</p></div>`:''}
+  </div>`;
+}
+
+/* ================= 전체 목록 ================= */
+function viewList(root){
+  const c=listCtx;if(!c){location.hash='impact';return}
+  const PAGE=50;let q='',pg=0;
+  root.innerHTML=`<div><button class="link" id="l-back">← ${VIEWS[c.back].name} 페이지로 돌아가기</button></div>
+   <div><h3 class="sec">${esc(c.title)}</h3><p class="sub">${esc(c.sub||'')}</p></div>
+   <div class="tools"><input id="l-q" class="lq" placeholder="이름으로 거르기" autocomplete="off"><span id="l-n"></span><span class="tg" id="l-pg" style="margin-left:auto"></span></div>
+   <div class="scroll"><table class="lt"><thead><tr>${c.head.map((h,i)=>`<th class="${typeof c.rows[0][i]==='number'?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody id="l-b"></tbody></table></div>`;
+  function draw(){
+    const rows=q?c.rows.filter(r=>r.join(' ').toLowerCase().includes(q)):c.rows,Pn=Math.max(1,Math.ceil(rows.length/PAGE));pg=Math.max(0,Math.min(pg,Pn-1));
+    $('#l-b').innerHTML=rows.slice(pg*PAGE,pg*PAGE+PAGE).map(r=>'<tr>'+r.map(v=>typeof v==='number'?`<td class="r num">${fmt(v)}</td>`:`<td class="mono">${esc(v)}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${c.head.length}" style="color:var(--muted)">일치하는 항목이 없다.</td></tr>`;
+    $('#l-n').textContent=`${fmt(rows.length)}개${q?` (전체 ${fmt(c.rows.length)}개 중)`:''} · ${pg+1} / ${fmt(Pn)} 쪽`;
+    $('#l-pg').innerHTML=`<button data-d="-1" ${pg?'':'disabled'}>← 이전</button><button data-d="1" ${pg<Pn-1?'':'disabled'}>다음 →</button>`}
+  $('#l-q').oninput=e=>{q=e.target.value.trim().toLowerCase();pg=0;draw()};
+  $('#l-pg').onclick=e=>{const b=e.target.closest('button');if(b&&!b.disabled){pg+=+b.dataset.d;draw()}};
+  $('#l-back').onclick=()=>{location.hash=c.back};
+  draw();
+}
+
+/* ---- 전환 ---- */
+const VIEWS={
+  impact:{name:'변경 영향',fn:viewImpact,q:'이번 변경이면 테스트를 몇 개 돌려야 하나',
+    scale:'변경 파일은 조치가 필요한 순서로 나열한다: 보호 없음 → 전체 실행 유발 → 정밀 선별(많은 순). 테스트가 많으면 묶음별 막대 상위 10개와 목록 12개만 보이고, 나머지는 전체 목록 페이지로 간다.'},
+  graph:{name:'연결 구조',fn:viewGraph,q:'테스트와 프로덕션 코드는 어떻게 연결돼 있나',
+    scale:`한쪽에 최대 ${CAP}개 노드만 올린다. 넘으면 모듈·패키지·클래스 묶음으로 보여주고, 묶음을 누르면 한 단계 안으로 들어간다. 한쪽만 내려가면 테스트 하나가 여러 파일 묶음에 걸친 모습이 보인다.`},
+  matrix:{name:'커버리지 지도',fn:viewMatrix,q:'어디가 지켜지고 어디가 비어 있나',
+    scale:`지도는 최대 ${CAP}×${CAP}. 칸 하나가 묶음과 묶음 사이의 실행 라인 합이고, 칸을 누르면 오른쪽에 그 칸의 테스트와 파일이 나온다.`},
+  stability:{name:'안정성',fn:viewStab,q:'이 측정 결과를 믿어도 되나',
+    scale:'200개를 넘으면 테스트별 칸 대신 비율 막대와 흔들린 테스트 12개만 남기고, 나머지는 전체 목록 페이지로 간다.'},
+  list:{name:'전체 목록',fn:viewList,hidden:true,q:'전체 목록',scale:'50개씩 쪽으로 나누고 이름으로 거른다. 1만 건이어도 한 화면 길이다.'}};
+let curView='impact';
+function route(){
+  const key=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'impact',v=VIEWS[key];
+  DS=cache[dsKey]||(cache[dsKey]=DSETS[dsKey].make());
+  if(key!=='list')curView=key;else if(!listCtx){location.hash=curView;return}
+  $('#seg').innerHTML=Object.entries(VIEWS).filter(([,x])=>!x.hidden).map(([k,x])=>`<button role="tab" data-k="${k}" aria-selected="${k===curView}">${x.name}</button>`).join('');
+  $('#dsseg').innerHTML=Object.entries(DSETS).map(([k,x])=>`<button data-k="${k}" aria-selected="${k===dsKey}">${x.label}</button>`).join('');
+  $('#note').innerHTML=`<div><dt>이 페이지의 질문</dt><dd><h2>${v.q}</h2></dd></div><div><dt>규모가 커지면</dt><dd>${v.scale}</dd></div>`;
+  head();const old=$('#view'),fresh=old.cloneNode(false);old.replaceWith(fresh);v.fn(fresh);
+}
+$('#seg').onclick=e=>{const b=e.target.closest('button');if(b){if(location.hash.slice(1)===b.dataset.k)route();else location.hash=b.dataset.k}};
+$('#dsseg').onclick=e=>{const b=e.target.closest('button');if(b){dsKey=b.dataset.k;listCtx=null;if(location.hash==='#list')location.hash=curView;else route()}};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-list]');if(!b||!LISTS[b.dataset.list])return;listCtx=LISTS[b.dataset.list]();listCtx.back=curView;location.hash='list'});
+addEventListener('hashchange',route);route();
+</script>
+
+</body>
+</html>
