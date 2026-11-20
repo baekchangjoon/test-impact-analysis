@@ -8,7 +8,7 @@ REST Assured black-box suite of [`baekchangjoon/spring-petclinic`][petclinic] (2
 
 | View | Artifact |
 |---|---|
-| Interactive report (5 tabs) | [`report.html`](report.html) — open in any browser. Every column sorts asc/desc; per-test files deep-link into the JaCoCo HTML line, reverse-index tests open the local test source, the `tia impact` legend explains each term, and flaky ratios show percent + fraction. **Walkthrough: [`REPORT-GUIDE.md`](REPORT-GUIDE.md).** |
+| Interactive report (4 pages) | [`report.html`](report.html) — open in any browser, no network needed. 변경 영향 · 연결 구조 · 커버리지 지도 · 안정성; large suites collapse into package/class groups you drill into, long lists open a full-list page, and file/test names deep-link into the JaCoCo HTML line and the local test source. **Walkthrough: [`REPORT-GUIDE.md`](REPORT-GUIDE.md).** |
 | Executive summary + caveats | [`00-SUMMARY.md`](00-SUMMARY.md) |
 | Per-test impact range, reverse index, hotspots, blind spots | [`01-coverage-report.md`](01-coverage-report.md) |
 | `tia impact` on 7 real diffs | [`02-impact-scenarios.txt`](02-impact-scenarios.txt) / `scenarios.json` |
@@ -108,8 +108,9 @@ open report.html
 - `exec_to_testwise.py` — **deprecated** (D0): `tia convert` 가 대체 (jacoco core, subprocess 없음)
 - `run_scenarios.py` — `tia impact` scenario runner → `scenarios.json`
 - `report.py` — per-test markdown report; `make_html.py` — **deprecated** (D0): `tia report` 가 대체.
-  단, `make_html.py` 의 HTML 템플릿이 `tia report` 가 임베드하는 원본(tia-core `report-template.html`)
-- `REPORT-GUIDE.md` — tab-by-tab walkthrough of `report.html`
+  `tia report` 의 템플릿(tia-core `report-template.html`)은 리디자인되어 더 이상 `make_html.py` 와 같지 않다
+  (모델 계산만 호환). `make_html.py` 는 구 디자인을 그대로 낸다
+- `REPORT-GUIDE.md` — page-by-page walkthrough of `report.html`
 - `test_make_html.py` — Python 생성기 회귀 테스트(참조용; CLI 회귀는 tia-cli/tia-core 테스트)
 - `jacoco/` — JaCoCo HTML coverage report; deep-link target for the per-test tab
 - `testwise.json` · `scenarios.json` · `flaky.json` · `flaky-runs/` · `prod-files.txt` — sample data

@@ -130,16 +130,64 @@ class ReportBuilderTest {
     }
 
     @Test
-    @DisplayName("SP5-REQ-008: 렌더된 HTML에 5개 탭 각각 tab-guide 블록이 정확히 한 번씩 존재한다")
-    void tabGuidesRenderedFiveTimes(@TempDir Path tmp) throws Exception {
+    @DisplayName("SP5-REQ-008 / RPT-REQ-003: 렌더된 HTML에 4개 페이지 각각 tab-guide 블록이 정확히 한 번씩 존재한다")
+    void tabGuidesRenderedOncePerPage(@TempDir Path tmp) throws Exception {
         Path prod = tmp.resolve("prod.txt");
         Files.writeString(prod, "com/x/A.java\n");
 
         String html = new ReportBuilder().render(inputs(tmp, null, null, prod));
 
         int occurrences = html.split("class=\"tab-guide\"", -1).length - 1;
-        assertEquals(5, occurrences, "one tab-guide block per section (per-test/reverse/impact/flaky/blind)");
+        assertEquals(4, occurrences, "one tab-guide block per page (변경 영향/연결 구조/커버리지 지도/안정성)");
         assertTrue(html.contains("이 탭 읽는 법"), "guide summary label present");
+    }
+
+    @Test
+    @DisplayName("RPT-REQ-002: --impact 입력은 모델 impact로 그대로 실리고, 없으면 null이다")
+    void impactJsonIsEmbeddedOrNull(@TempDir Path tmp) throws Exception {
+        JsonNode without = om.valueToTree(new ReportBuilder().buildModel(inputs(tmp, null, null, null)));
+        assertTrue(without.has("impact") && without.get("impact").isNull(), "impact 미지정 → null");
+
+        Path impact = tmp.resolve("impact.json");
+        Files.writeString(impact, """
+            {"schemaVersion":1,"command":"impact","commit":"deadbeefcafe","totalTests":2,"conservative":false,
+             "tests":[{"id":"ATest#a","confidence":"DETERMINISTIC","reason":"covered-line intersects diff"}],
+             "changedFiles":[{"file":"src/main/java/com/x/A.java","kind":"modified","tests":["ATest#a"]}],
+             "ignoredChangedFiles":[],"warnings":[]}""");
+        ReportBuilder.Inputs base = inputs(tmp, null, null, null);
+        var in = new ReportBuilder.Inputs(base.testwise(), null, null, null, base.commit(), base.sut(), base.jacoco(),
+                null, "", FilterSet.none(), impact);
+        JsonNode d = om.valueToTree(new ReportBuilder().buildModel(in));
+        assertEquals(2, d.get("impact").get("totalTests").asInt());
+        assertEquals("modified", d.get("impact").get("changedFiles").get(0).get("kind").asText());
+        assertEquals("ATest#a", d.get("impact").get("tests").get(0).get("id").asText());
+
+        // 존재하지 않는 경로는 다른 선택 입력과 같이 경고 후 null로 강등된다
+        var missing = new ReportBuilder.Inputs(base.testwise(), null, null, null, base.commit(), base.sut(),
+                base.jacoco(), null, "", FilterSet.none(), tmp.resolve("nope.json"));
+        assertTrue(om.valueToTree(new ReportBuilder().buildModel(missing)).get("impact").isNull());
+    }
+
+    @Test
+    @DisplayName("RPT-REQ-003: 변경 영향 페이지는 diff(impact) 또는 시나리오가 있을 때만 생긴다 — 템플릿의 게이트 구조")
+    void impactPageIsGatedOnChangeData(@TempDir Path tmp) throws Exception {
+        String html = new ReportBuilder().render(inputs(tmp, null, null, null));
+        // 구조 검사(브라우저 없이 가능한 범위): 페이지 정의가 DS.mode 유무로 꺼지고, mode는 impact/scenarios에서만 켜진다.
+        assertTrue(html.contains("impact:{name:'변경 영향'") && html.contains("off:!DS.mode}"), "변경 영향 페이지 게이트");
+        assertTrue(html.contains("if(I&&Array.isArray(I.tests)){") && html.contains("ds.mode='pr'"), "diff → pr 모드");
+        assertTrue(html.contains("}else if(D.scenarios&&D.scenarios.length){") && html.contains("ds.mode='scenario'"),
+                "시나리오 → scenario 모드");
+    }
+
+    @Test
+    @DisplayName("RPT-REQ-004: 리포트는 자기완결형이다 — 외부 URL·외부 스크립트/스타일 참조가 없다")
+    void reportIsSelfContained(@TempDir Path tmp) throws Exception {
+        String html = new ReportBuilder().render(inputs(tmp, null, null, null));
+        assertFalse(html.contains("http://"), "no external http URL");
+        assertFalse(html.contains("https://"), "no external https URL");
+        assertFalse(html.contains("<link"), "no external stylesheet/font link");
+        assertFalse(html.contains("<script src"), "no external script");
+        assertFalse(html.contains("@import"), "no CSS import");
     }
 
     /**

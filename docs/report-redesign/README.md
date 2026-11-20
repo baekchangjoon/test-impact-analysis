@@ -3,7 +3,8 @@
 `tia-report-samples.html` 은 `tia report` 가 생성하는 HTML 리포트(`tia-core/src/main/resources/report-template.html`)를
 대체하기 위한 **디자인 시안**이다. 브라우저로 바로 열 수 있다.
 
-> 이 파일은 TIA 가 생성한 산출물이 아니다. 손으로 작성한 목업이며, `tia report` 의 출력은 아직 기존 리포트다.
+> 이 파일은 TIA 가 생성한 산출물이 아니라 손으로 작성한 목업이다. 이 시안을 바탕으로 `tia report` 의 템플릿을
+> 교체했다(요구사항: `docs/superpowers/requirements/2026-11-20-report-redesign-requirements.md`). 시안은 설계 기록으로 남긴다.
 
 ## 무엇이 실측이고 무엇이 가정인가
 
@@ -29,10 +30,12 @@
 
 ## 후속 과제
 
-- [ ] 시안을 `report-template.html` 로 이식하고 `ReportBuilder` 모델을 보강한다 (실제 변경 파일별 선별 결과, 합성 데이터·시안 전환 바 제거).
+- [x] 시안을 `report-template.html` 로 이식하고 실제 diff 를 연결한다 (`tia impact --format json` → `tia report --impact`). 시스템 글꼴 사용, 합성 데이터·시안 전환 바 제거.
 - [ ] 리포트 용량: 모델의 `perTest` 와 `reverse` 가 같은 관계를 두 번 담는다. 대형 SUT 에서는 `reverse` 를 빼고 브라우저에서 계산한다.
 - [ ] 26개를 넘는 "그 외" 묶음 안으로 들어가는 방법(검색 또는 다음 쪽).
-- [ ] 기존 리포트의 JaCoCo 라인 딥링크, 테스트 소스 링크 복원.
+- [x] 기존 리포트의 JaCoCo 라인 딥링크, 테스트 소스 링크 복원.
+- [ ] `petclinic-demo/make_html.py`(deprecated, 구 디자인) 폐기 여부 결정.
+- [ ] 전체 목록 페이지의 정렬, 주소로 직접 열기.
 - [ ] run 누적 추세 화면(절감률·사각지대 추이). 단일 run 리포트 범위 밖.
 - [ ] **본체 누락**: 커버한 파일이 0개인 테스트는 `CoverageStore.save()` 에서 행이 생기지 않아 인덱스에서 사라진다.
   그 결과 `ImpactAnalyzer` 의 "보수적 전체 선택"이 petclinic 에서 24개가 아니라 21개를 고른다

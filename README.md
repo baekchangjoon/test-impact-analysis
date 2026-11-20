@@ -219,9 +219,10 @@ $CLI report --testwise testwise.json --commit "$SHA" --out report.html --sut-nam
 # 옵셔널 입력(scenarios/flaky/prod-files)은 '-' 로 생략 → 해당 탭 graceful
 ```
 
-5개 탭(per-test 영향범위·역인덱스·tia impact·flaky·blind spots) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
-각 탭의 `<h2>` 아래 "이 탭 읽는 법" 접이식 요약이 `report.html` 안에 내장돼 있어, 리포트만 열어도
-탭별 핵심을 바로 확인할 수 있다(REPORT-GUIDE는 더 상세한 버전).
+4개 페이지(변경 영향·연결 구조·커버리지 지도·안정성) 해설: [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md).
+변경 영향 페이지는 `tia impact --format json` 출력을 `--impact`로 넘긴 실행(diff가 있는 실행)에만 생긴다.
+각 페이지 제목 아래 "이 탭 읽는 법" 접이식 요약이 `report.html` 안에 내장돼 있어, 리포트만 열어도
+핵심을 바로 확인할 수 있다(REPORT-GUIDE는 더 상세한 버전).
 
 ### 5. 온보딩 명령 — `init` / `doctor` / `demo`
 
@@ -324,7 +325,7 @@ GitHub Actions([`.github/workflows/ci.yml`](.github/workflows/ci.yml))가 PR·ma
 - **[GETTING-STARTED.md](GETTING-STARTED.md)** — 내 프로젝트에 적용하는 5분 길잡이(수집→index→impact→report)
 - [RELEASE-NOTES.md](docs/RELEASE-NOTES.md) — 버전별 변경 요약 + 호환성 주의사항
 - [petclinic-demo](petclinic-demo/README.md) — 실제 블랙박스 스위트 end-to-end 예제 + "이미 커버리지가 있을 때"
-- [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) — HTML 리포트 5개 탭 해설
+- [REPORT-GUIDE](petclinic-demo/REPORT-GUIDE.md) — HTML 리포트 4개 페이지 해설
 - [배포 형태] [Gradle 플러그인](tia-gradle-plugin/README.md) · [Docker/Action](docker/README.md) · [Agent Skill](skills/tia/SKILL.md)
 - [TIA 시스템 설계](docs/superpowers/specs/2026-06-13-test-impact-analysis-design.md) · [배포 설계 (D0~D4)](docs/superpowers/specs/2026-06-15-tia-distribution-design.md)
 - [PoC 구현 계획](docs/superpowers/plans/2026-06-13-tia-phase0-poc.md)

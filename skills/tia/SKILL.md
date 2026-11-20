@@ -55,12 +55,14 @@ meant for this kind of consumption; parse that instead of the default text outpu
 ```bash
 # Which tests does this diff impact? (needs an indexed tia.db for the baseline commit)
 bash scripts/run-tia.sh impact --db tia.db --commit <baseline-sha> --diff-file change.diff --format json
-# → {"schemaVersion":1,"tests":[{"id":"...","confidence":"DETERMINISTIC","reason":"..."}],"warnings":[]}
+# → {"schemaVersion":1,"tests":[{"id":"...","confidence":"DETERMINISTIC","reason":"..."}],"totalTests":N,
+#    "conservative":false,"changedFiles":[{"file":"...","kind":"modified|new|unmappable","tests":["..."]}],"warnings":[]}
 # (omit --diff-file to diff the working tree vs --commit; see `… impact --help`)
 
 # Build the interactive HTML report from a testwise.json
 bash scripts/run-tia.sh report --testwise testwise.json --commit <sha> --out report.html \
-  --sut-name <name> [--scenarios scenarios.json|-] [--flaky flaky.json|-] [--prod-files prod.txt|-]
+  --sut-name <name> [--impact impact.json|-] [--flaky flaky.json|-] [--prod-files prod.txt|-]
+# (--impact = saved `impact --format json` output → adds the "변경 영향" page; omit when there is no diff)
 
 # (less common, from this skill) convert per-test .exec → testwise.json
 bash scripts/run-tia.sh convert --exec-dir <dir> --classes <classesDir> --out testwise.json

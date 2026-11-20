@@ -58,6 +58,36 @@ class ImpactFormatsTest {
     }
 
     @Test
+    @org.junit.jupiter.api.DisplayName("RPT-REQ-001: json은 totalTests/conservative/changedFiles[].file,kind,tests 를 추가로 낸다(schemaVersion 유지)")
+    void jsonCarriesTotalsAndPerFileImpact() throws Exception {
+        ImpactFormats.Payload base = payload();
+        ImpactFormats.Payload p = new ImpactFormats.Payload(base.commit(), base.tests(), true, base.reasons(),
+                base.ignoredFiles(), base.testsByFile(), base.filters(), base.totalTests(),
+                List.of("com/acme/NewFeature.java"), List.of("src/main/resources/application.yml"));
+        JsonNode root = new ObjectMapper().readTree(ImpactFormats.json(p));
+
+        assertEquals(1, root.path("schemaVersion").asInt(), "additive fields only");
+        assertEquals(5, root.path("totalTests").asInt());
+        assertTrue(root.path("conservative").asBoolean());
+
+        JsonNode changed = root.path("changedFiles");
+        assertEquals(4, changed.size(), changed.toString());
+        assertEquals("com/acme/PricingService.java", changed.get(0).path("file").asText());
+        assertEquals("modified", changed.get(0).path("kind").asText());
+        assertEquals("io/tia/fixture/ApiSmokeTest/testPrice", changed.get(0).path("tests").get(0).asText());
+        assertEquals("modified", changed.get(1).path("kind").asText());
+        assertTrue(changed.get(1).path("tests").isEmpty(), "blind spot: modified + no tests");
+        assertEquals("new", changed.get(2).path("kind").asText());
+        assertFalse(changed.get(2).has("tests"), "new file has no line-level mapping");
+        assertEquals("unmappable", changed.get(3).path("kind").asText());
+
+        // 기존 8-인자 형태(종류 정보 없음)도 그대로 동작한다
+        JsonNode legacy = new ObjectMapper().readTree(ImpactFormats.json(base));
+        assertEquals(2, legacy.path("changedFiles").size());
+        assertFalse(legacy.path("conservative").asBoolean());
+    }
+
+    @Test
     void summaryPlainHasBlindSpotIgnoredCountAndNextStepsNoAnsi() {
         String out = ImpactFormats.summary(payload(), false);
 

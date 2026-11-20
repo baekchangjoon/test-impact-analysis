@@ -19,7 +19,15 @@ public final class ImpactFormats {
     public record Payload(String commit, List<ImpactedTest> tests, boolean conservative,
                           List<String> reasons, List<String> ignoredFiles,
                           Map<String, List<String>> testsByFile, FilterSet filters,
-                          int totalTests) {}
+                          int totalTests, List<String> newFiles, List<String> unmappableFiles) {
+        /** 변경 파일 종류 정보 없이 만드는 기존 형태(신규·매핑 불가 파일 없음). */
+        public Payload(String commit, List<ImpactedTest> tests, boolean conservative,
+                       List<String> reasons, List<String> ignoredFiles,
+                       Map<String, List<String>> testsByFile, FilterSet filters, int totalTests) {
+            this(commit, tests, conservative, reasons, ignoredFiles, testsByFile, filters, totalTests,
+                    List.of(), List.of());
+        }
+    }
 
     static String reasonOf(Confidence c) {   // 코어 모델 무변경 — 매핑으로 채움 [REQ-013]
         return switch (c) {
@@ -42,6 +50,13 @@ public final class ImpactFormats {
             n.put("confidence", t.confidence().name());
             n.put("reason", reasonOf(t.confidence()));
         }
+        // 추가 필드(하위호환, schemaVersion 유지) — `tia report --impact`가 변경 영향 페이지를 만든다 [RPT-REQ-001]
+        root.put("totalTests", p.totalTests());
+        root.put("conservative", p.conservative());
+        ArrayNode changed = root.putArray("changedFiles");
+        p.testsByFile().forEach((file, hits) -> changedFile(changed, file, "modified").set("tests", OM.valueToTree(hits)));
+        p.newFiles().forEach(file -> changedFile(changed, file, "new"));
+        p.unmappableFiles().forEach(file -> changedFile(changed, file, "unmappable"));
         ArrayNode ignored = root.putArray("ignoredChangedFiles");
         p.ignoredFiles().forEach(ignored::add);
         ArrayNode warnings = root.putArray("warnings");
@@ -88,6 +103,14 @@ public final class ImpactFormats {
                 sb.append("- ").append(reason).append('\n');
         }
         return sb.toString();
+    }
+
+    /** kind: modified(라인 단위 선별) | new(신규 .java, 과거 커버리지 없음) | unmappable(비-.java). */
+    private static ObjectNode changedFile(ArrayNode into, String file, String kind) {
+        ObjectNode n = into.addObject();
+        n.put("file", file);
+        n.put("kind", kind);
+        return n;
     }
 
     private static ObjectNode filtersNode(FilterSet f) {

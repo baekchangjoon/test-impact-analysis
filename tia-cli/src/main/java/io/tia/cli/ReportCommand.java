@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
 @Command(name = "report",
-        description = "testwise/scenarios/flaky/prod → 자기완결형 인터랙티브 HTML 리포트")
+        description = "testwise/impact/scenarios/flaky/prod → 자기완결형 인터랙티브 HTML 리포트")
 public class ReportCommand implements Callable<Integer> {
     @Mixin ConfigMixin configMixin;
     @Mixin CodeFilterMixin codeFilter;
@@ -21,6 +21,7 @@ public class ReportCommand implements Callable<Integer> {
 
     @Option(names = "--testwise", required = true, description = "per-test 커버리지 JSON") Path testwise;
     @Option(names = "--scenarios", description = "tia impact 시나리오 JSON ('-'/미지정 시 탭 비움)") Path scenarios;
+    @Option(names = "--impact", description = "tia impact --format json 출력('-'/미지정 시 변경 영향 페이지 없음)") Path impact;
     @Option(names = "--flaky", description = "flaky.json ('-'/미지정 시 탭 비움)") Path flaky;
     @Option(names = "--prod-files", description = "프로덕션 .java 목록(blind-spot 분모; 미지정 시 빈값)") Path prodFiles;
     @Option(names = "--commit", required = true, description = "인덱싱된 베이스라인 커밋") String commit;
@@ -46,7 +47,7 @@ public class ReportCommand implements Callable<Integer> {
 
         String html = new ReportBuilder().render(new ReportBuilder.Inputs(
                 testwise, nullIfDash(scenarios), nullIfDash(flaky), nullIfDash(prodFiles),
-                commit, effectiveSut, jacoco, testSrcRoot, prefixStrip, filters));
+                commit, effectiveSut, jacoco, testSrcRoot, prefixStrip, filters, nullIfDash(impact)));
         Files.writeString(out, html);
         System.out.println("wrote " + out);
         return 0;

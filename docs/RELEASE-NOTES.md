@@ -22,6 +22,18 @@
 - **SP5 — Action PR 코멘트 + 리포트 가이드 내장.** GitHub Action에 opt-in PR 코멘트 게시 스텝이
   추가되고, HTML 리포트의 각 탭에 "이 탭 읽는 법" 해설이 내장되었습니다.
 
+### HTML 리포트 리디자인
+
+- **`tia report` 출력이 4개 페이지로 바뀌었습니다**(변경 영향 · 연결 구조 · 커버리지 지도 · 안정성).
+  페이지마다 질문 하나에 답하고, 테스트·파일이 많으면 패키지·클래스 묶음으로 접어 한 화면 길이를
+  유지합니다(묶음을 눌러 내려가고, 긴 목록은 전체 목록 페이지로 이동). 외부 요청이 없는 HTML 한 장인
+  점은 그대로입니다.
+- **`tia report --impact <impact.json>` 추가.** `tia impact --format json` 출력을 넘기면 실제 diff의
+  변경 영향 페이지가 생깁니다. 넘기지 않으면 이 페이지는 없습니다(기존 `--scenarios`는 데모용으로 유지).
+- **`tia impact --format json`에 필드 추가**(하위호환, `schemaVersion` 1 유지): `totalTests`,
+  `conservative`, `changedFiles[]`(`file`, `kind`=`modified|new|unmappable`, `tests`).
+- 구 디자인을 내는 `petclinic-demo/make_html.py`는 deprecated 상태로 남아 있으며 새 템플릿과 다릅니다.
+
 ### pjacoco 2.0.0 Maven Central 이전
 
 - pjacoco가 `io.github.beltian.pjacoco:*` **2.0.0**으로 Maven Central에 게시됨에 따라 TIA의 소비
