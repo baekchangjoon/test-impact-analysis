@@ -47,11 +47,18 @@
 
 | REQ | 수용 테스트 | 레벨 | 상태 |
 |---|---|---|---|
-| RPT-REQ-001 | ImpactFormatsTest#jsonCarriesTotalsAndPerFileImpact | 단위 | 본문 "검증 현황" 참조 |
-| RPT-REQ-002 | ReportBuilderTest#impactJsonIsEmbeddedOrNull / D0AcceptanceTest#reportEmbedsImpactJsonFromCli / CliWiringTest | 단위·CLI | 〃 |
-| RPT-REQ-003 | ReportBuilderTest#tabGuidesRenderedOncePerPage / #impactPageIsGatedOnChangeData | 단위(구조) | 〃 |
-| RPT-REQ-004 | ReportBuilderTest#reportIsSelfContained | 단위 | 〃 |
+| RPT-REQ-001 | ImpactFormatsTest#jsonCarriesTotalsAndPerFileImpact | 단위 | 🟢 green |
+| RPT-REQ-002 | ReportBuilderTest#impactJsonIsEmbeddedOrNull / D0AcceptanceTest#reportEmbedsImpactJsonFromCli / CliWiringTest | 단위·CLI | 🟢 green |
+| RPT-REQ-003 | ReportBuilderTest#tabGuidesRenderedOncePerPage / #impactPageIsGatedOnChangeData | 단위(구조) | 🟢 green |
+| RPT-REQ-004 | ReportBuilderTest#reportIsSelfContained | 단위 | 🟢 green |
 | RPT-REQ-005 | (수동) | 수동 | 자동 테스트 없음 |
+
+## 검증 현황
+
+- `:tia-core:test` `:tia-cli:test` 136개 통과, 관련 E2E(`FormatE2ETest`·`ReportFilterE2ETest`·`ConfigE2ETest`) 19개 통과,
+  `skills/tia/test/skill-smoke.sh` 통과. 로컬에는 JDK 21만 있어 툴체인을 21로 바꿔 실행했다(JDK 17 판정은 CI).
+- 실제 CLI로 `index → impact --format json → report --impact` 를 돌려 브라우저에서 확인: diff 있음(변경 영향 페이지 있음),
+  `--impact` 없음(페이지 없음), 베이스라인 없음(전체 실행 권장 문구).
 
 ## 범위 밖 (후속)
 
