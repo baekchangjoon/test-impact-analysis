@@ -49,6 +49,7 @@ class CliWiringTest {
         assertTrue(hasOption(tia(), "report", "--include-code"));
         assertTrue(hasOption(tia(), "report", "--include-test"));
         assertFalse(hasOption(tia(), "report", "--format"));        // HTML 전용
+        assertTrue(hasOption(tia(), "report", "--impact"));         // RPT-REQ-002
     }
     @Test void optionsForIndex() {
         assertTrue(hasOption(tia(), "index", "--config"));

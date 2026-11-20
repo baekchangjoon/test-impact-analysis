@@ -1,242 +1,655 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TIA report · __SUT__ blackbox</title>
 <style>
-:root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--mut:#8b949e;
---acc:#58a6ff;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--det:#388bfd;--con:#d29922}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
-font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-header{padding:24px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
-h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut);font-size:13px}
-.kpis{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px}
-.kpi{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-width:120px}
-.kpi b{display:block;font-size:24px}.kpi span{color:var(--mut);font-size:12px}
-nav{display:flex;gap:4px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
-nav button{background:none;border:0;color:var(--mut);padding:12px 16px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent}
-nav button.on{color:var(--fg);border-bottom-color:var(--acc)}
-main{padding:24px 28px;max-width:1180px}section{display:none}section.on{display:block}
-h2{font-size:16px;margin:0 0 6px}.hint{color:var(--mut);margin:0 0 16px;font-size:13px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel);white-space:nowrap}
-th:hover{color:var(--fg)}th .arr{color:var(--acc);font-size:11px}
-tr:hover td{background:#1c2230}.num{text-align:right;font-variant-numeric:tabular-nums}
-code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
-.tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
-.t-det{background:rgba(56,139,253,.15);color:var(--det)}.t-con{background:rgba(210,153,34,.15);color:var(--con)}
-.t-pass{background:rgba(63,185,80,.13);color:var(--ok)}.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;min-width:60px}
-.bar i{display:block;height:100%;background:var(--acc)}
-.chips{display:flex;flex-wrap:wrap;gap:4px}.chip{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--fg);text-decoration:none;display:inline-block}
-a.chip{cursor:pointer}a.chip:hover{border-color:var(--acc);color:var(--acc)}a.chip b{color:inherit}
-input.search{width:100%;max-width:340px;padding:8px 10px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;margin-bottom:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
-.card.warn{border-color:var(--warn)}.card.bad{border-color:var(--bad)}
-.legend{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:18px}
-.legend h3{margin:0 0 10px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-.legend dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:8px 14px;align-items:baseline}
-.legend dt{margin:0;white-space:nowrap}.legend dd{margin:0;color:var(--mut);font-size:13px}
-.scen-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.big{font-size:22px;font-weight:700}.redu{color:var(--ok);font-weight:700}
-pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px;margin:10px 0}
-.add{color:var(--ok)}.del{color:var(--bad)}.gutter{color:var(--mut)}
-.note{background:rgba(210,153,34,.08);border-left:3px solid var(--warn);padding:10px 14px;border-radius:0 8px 8px 0;margin:8px 0}
-.flex{display:flex;gap:18px;flex-wrap:wrap}.grow{flex:1;min-width:280px}
-.blindgrid{columns:2;column-gap:24px}.blindgrid div{break-inside:avoid;padding:3px 0}
-.foot{color:var(--mut);font-size:12px;padding:20px 28px;border-top:1px solid var(--line)}
-.tab-guide{margin:0 0 12px;color:var(--mut)}.tab-guide summary{cursor:pointer;color:var(--fg);font-size:13px}
-.tab-guide p{margin:8px 0 0;font-size:13px;line-height:1.6}
-.empty-state{color:var(--mut);font-size:13px;padding:14px 0}
-</style></head><body>
-<header>
-<h1>Test-Impact-Analysis · <span id="sut"></span> black-box suite</h1>
-<div class="sub">indexed commit <code id="commit"></code> · out-of-process REST Assured + parallel-per-test-coverage agent · all data is real end-to-end measurement</div>
-<div class="kpis" id="kpis"></div>
-</header>
-<nav id="nav"></nav>
-<main>
-<section id="s-pertest"><h2>1 · Per-test impact range</h2>
-<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 각 테스트가 실행 중 실제로 통과한 프로덕션 코드의 파일과 라인을 보여준다. 행을 클릭하면 그 테스트가 건드린 파일 목록이 펼쳐지고, 파일 링크를 열면 커버리지 리포트의 해당 위치로 이동한다. 도달 범위 값이 클수록 그 테스트가 넓은 영역을 검증한다는 뜻이며, 값이 유독 크면 테스트 하나가 너무 많은 책임을 지고 있지 않은지 점검해 볼 만하다. 검색창으로 특정 테스트를 빠르게 찾을 수 있다.</p></details>
-<p class="hint">각 블랙박스 테스트가 실제로 실행한 프로덕션 파일/라인. 행 클릭 시 파일 목록 펼침 — 파일명을 클릭하면 JaCoCo 커버리지 HTML의 해당 라인으로 이동. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
-<input class="search" id="ptq" placeholder="filter tests…"><div id="pttbl"></div></section>
-<section id="s-reverse"><h2>2 · Reverse selection index</h2>
-<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 프로덕션 파일을 기준으로 그 파일을 실행하는 테스트 목록을 보여주는 역방향 색인이다. 특정 파일을 고칠 때 함께 실행해야 할 테스트를 빠르게 파악할 수 있다. 연결된 테스트 수가 많은 파일일수록 변경 시 영향 범위가 넓은 핫스팟이므로 더 신중히 다뤄야 한다. 행을 펼치면 관련 테스트 목록이 나타나고, 각 항목을 열면 해당 테스트의 소스 위치로 이동한다.</p></details>
-<p class="hint">"이 파일을 고치면 이 테스트들을 돌려라." fan-in이 높을수록 변경 위험 큰 핫스팟. 행 클릭 시 테스트 목록 펼침 — 테스트명을 클릭하면 로컬 테스트 소스 파일을 연다. 헤더 클릭으로 오름차순/내림차순 정렬.</p>
-<input class="search" id="rvq" placeholder="filter files…"><div id="rvtbl"></div></section>
-<section id="s-impact"><h2>3 · tia impact — diff 기반 테스트 선별</h2>
-<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 특정 변경(diff)이 어떤 테스트에 영향을 주는지 실제 커버리지 기록을 바탕으로 선별한 결과를 보여준다. 변경된 라인이 어떤 테스트의 기록과 정확히 겹치면 그 테스트만 실행하도록 정밀하게 추천하고, 겹치는 기록을 찾을 수 없는 변경은 안전을 위해 전체 테스트를 후보로 포함하는 보수적인 방식으로 처리한다. 절감률이 높을수록 실행을 건너뛸 수 있는 테스트가 많다는 뜻이며, 선별된 테스트가 하나도 없다면 그 변경이 어떤 테스트에도 닿지 않는 사각지대라는 신호다. 각 카드에서 변경 내용과 선별된 테스트 목록을 함께 확인하고, 보수적 선별이나 사각지대로 표시된 항목은 우선적으로 점검하는 것이 좋다.</p></details>
-<p class="hint"><b>베이스라인 커밋</b>(<code id="impact-base"></code> — <code>tia index</code>로 per-test 커버리지를 DB에 저장한 시점)에 <b>적용하려는 변경(diff)</b>을 비교하고, 그 변경 라인을 커버하는 테스트만 골라낸다.</p>
-<div class="note">📌 <b>무엇과 무엇을 비교하나?</b> <code>origin HEAD ↔ local HEAD</code> 같은 고정 비교가 <b>아니다</b>. 베이스라인은 위의 인덱싱된 커밋이고, 비교 대상은 "지금 평가하려는 diff" — 커밋 전 워킹트리, 브랜치 vs 베이스라인, PR diff 등 무엇이든 된다. <b>이 데모에서는</b> 시나리오마다 대상 파일/라인에 <code>// tia-probe</code> 한 줄을 넣은 <b>합성 diff</b>를 베이스라인과 비교했다(perturb-and-revert — 워킹트리 변경은 즉시 복원). <b>선별 규칙:</b> diff의 변경 라인 ∩ 각 테스트의 커버 라인 ≠ ∅ → 🎯 정밀 선별.</div>
-<div class="legend"><h3>용어 설명</h3><dl>
-<dt><span class="tag t-det">🎯 정밀 선별</span></dt><dd><b>DETERMINISTIC</b> — 변경된 코드 라인이 이 테스트의 커버리지 기록에 <b>정확히 포함</b>되어 있음. 즉 이 변경이 직접 실행하는 테스트.</dd>
-<dt><span class="tag t-con">🛡 보수적 선별</span></dt><dd><b>CONSERVATIVE</b> — 변경을 특정 커버리지에 <b>매핑할 수 없어</b>(새 파일·설정 변경 등) 누락을 막기 위해 <b>안전하게 후보로 포함</b>. fallback.</dd>
-<dt><span class="redu">▼ NN% 절감</span></dt><dd>전체 테스트 중 <b>실행을 건너뛸 수 있는 비율</b>. 높을수록 TIA 이득이 큼.</dd>
-<dt><span class="redu">🛡 safe fallback</span></dt><dd>보수적 선별로 전체를 포함한 경우 — 절감은 없지만 누락 위험 0.</dd>
-<dt><span class="del">⚠ 0개 선별</span></dt><dd>어떤 테스트도 닿지 않는 파일을 변경 → 선별 0개. <b>커버리지 사각지대</b>(탭 5 참조).</dd>
-</dl></div>
-<div id="scen"></div></section>
-<section id="s-flaky"><h2>4 · Flaky detection</h2>
-<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 테스트 스위트가 실제로 불안정한지, 그리고 그 불안정성을 잡아내는 검출 로직이 제대로 동작하는지를 함께 보여준다. 첫 번째 카드는 동일한 스위트를 여러 번 반복 실행해 결과가 바뀌는 테스트가 있는지 실측한 값이고, 두 번째 카드는 결과를 일부러 뒤집은 가상의 실행으로 검출 로직 자체가 살아있는지 검증하는 대조군이다. 두 값은 서로 다른 것을 재는 지표이므로 같을 필요가 없으며, 대조군이 조작한 사례를 정확히 잡아낼 때 비로소 첫 번째 카드의 낮은 수치를 신뢰할 수 있다. 표시되는 테스트가 많을수록 스위트 안정성에 대한 신뢰도가 떨어진다는 뜻이니 우선 조사 대상으로 삼는다.</p></details>
-<div id="flaky"></div></section>
-<section id="s-blind"><h2>5 · Coverage blind spots</h2>
-<details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 탭은 테스트 스위트가 단 한 번도 실행하지 않은 프로덕션 코드 파일 목록을 보여준다. 이런 파일에 결함이 생기면 어떤 테스트도 이를 잡아내지 못하므로 커버리지의 진짜 사각지대를 의미한다. 목록에 자주 등장하는 영역이 있다면 새로운 테스트를 추가하거나 기존 테스트의 범위를 넓히는 것을 검토해야 한다. 반대로 이 목록이 비어 있다면 프로덕션 코드 전체가 최소 한 번 이상 테스트에 의해 실행되었다는 뜻이다.</p></details>
-<p class="hint" id="blindhint"></p><div class="blindgrid" id="blindlist"></div>
-<div class="note"><b>왜 중요한가:</b> 블랙박스 스위트는 <code>/api/**</code> REST 계층을 지키지만, 여기 나열된 파일들은 어떤 테스트도 건드리지 않는다. 이 파일들에 대한 <em>수정</em>은 정밀 선별(DETERMINISTIC)에서 0개를 반환한다(시나리오 E 참조).</div>
-</section>
+/* Layout: 상단 바(SUT·수치·페이지 전환) → 페이지 하나(질문 + 읽는 법 + 내용). 외부 리소스 없음 */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --sunk:#eaeef3; --ink:#131a24; --ink2:#465263; --muted:#6b7686; --line:#d9dfe7;
+  --accent:#2a78d6; --warn:#b97a00; --crit:#cf3d3d; --good:#16855a;
+  --display:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --body:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1017; --surface:#131a24; --sunk:#0f151d; --ink:#e8edf3; --ink2:#b4bdc9; --muted:#8490a0; --line:#263141;
+  --accent:#4a94ee; --warn:#e0a030; --crit:#ee6b6b; --good:#2bb583; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1017; --surface:#131a24; --sunk:#0f151d; --ink:#e8edf3; --ink2:#b4bdc9; --muted:#8490a0; --line:#263141;
+  --accent:#4a94ee; --warn:#e0a030; --crit:#ee6b6b; --good:#2bb583; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.55 var(--body);--hl:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+
+/* 시안 전환 바 */
+.top{border-bottom:1px solid var(--line);background:var(--surface)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-block:14px}
+.top h1{font:700 18px/1.2 var(--display);margin:0;letter-spacing:-.01em}
+.top p{margin:0;color:var(--muted);font-size:12.5px}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--sunk);padding:4px;border-radius:10px;margin-left:auto}
+.seg button{border:0;background:none;padding:7px 14px;border-radius:7px;color:var(--ink2);font-weight:500}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.seg b{font-family:var(--display);margin-right:6px;color:var(--accent)}
+main.wrap{padding-block:20px 56px;display:flex;flex-direction:column;gap:18px}
+.note{border:1px dashed var(--line);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px 24px;font-size:13px;color:var(--ink2)}
+.note h2{font:700 15px/1.3 var(--display);margin:0 0 2px;color:var(--ink)}
+.note dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.note dd{margin:0}
+@media (max-width:760px){.note{grid-template-columns:1fr}.seg{margin-left:0}}
+
+/* 리포트 목업 공통 */
+.mock{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.mhead h2{font:700 22px/1.2 var(--display);margin:0;letter-spacing:-.02em}
+.mhead .meta{color:var(--muted);font-size:12.5px}
+.mhead .stats{margin-left:auto;display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px}
+.mhead .stats b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.mbody{padding:20px 22px;display:flex;flex-direction:column;gap:20px;min-width:0}
+@media (max-width:600px){.mhead,.mbody{padding-left:14px;padding-right:14px}}
+h3.sec{font:700 16px/1.3 var(--display);margin:0}
+p.sub{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.scroll{overflow-x:auto;min-width:0}
+
+.scbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.scbar .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px 5px 6px;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)}
+.chip i{font:700 11px var(--display);font-style:normal;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--sunk);color:var(--ink)}
+.chip .n{color:var(--muted);font-variant-numeric:tabular-nums}
+.chip:hover{border-color:var(--ink2)}
+.chip[aria-pressed="true"]{border-color:var(--hl);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hl)}
+.chip[aria-pressed="true"] i{background:var(--hl);color:var(--surface)}
+.t-precise{--hl:var(--accent)} .t-conservative{--hl:var(--warn)} .t-blind{--hl:var(--crit)} .t-file{--hl:var(--accent)}
+.badge{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--hl);color:var(--ink)}
+.badge::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--hl)}
+.t-conservative .badge::before,.badge.t-conservative::before{border-radius:2px}
+.t-blind .badge::before,.badge.t-blind::before{background:none;border:2px solid var(--hl)}
+pre.diff{margin:0;background:var(--sunk);border-radius:8px;padding:10px 12px;font:12px/1.6 var(--mono);overflow-x:auto;color:var(--ink2);tab-size:2}
+pre.diff .a{color:var(--good)} pre.diff .d{color:var(--crit)}
+ul.plain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+ul.plain li{display:flex;gap:8px;align-items:center;font:12px/1.5 var(--mono);color:var(--ink2);min-width:0}
+ul.plain li span.nm{overflow-wrap:anywhere;min-width:0;flex:1}
+ul.plain li .bar{flex:none;width:60px;height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+ul.plain li .bar s{display:block;height:100%;background:var(--accent);border-radius:2px}
+ul.plain li .v{flex:none;width:24px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);padding:7px 10px;border-radius:7px;font-size:12px;line-height:1.45;max-width:320px;overflow-wrap:anywhere}
+#tip b{font-family:var(--mono);font-weight:600}
+
+/* A · 그래프 */
+.gwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+@media (max-width:980px){.gwrap{grid-template-columns:1fr}}
+.gsvg svg{display:block;min-width:780px;width:100%;height:auto}
+.gsvg text{font:11px var(--mono);fill:var(--ink2)}
+.gsvg text.grp{font:600 11px var(--body);fill:var(--muted);letter-spacing:.05em}
+.gsvg text.colh{font:700 12px var(--display);fill:var(--ink)}
+.gsvg .cnt{fill:var(--muted)}
+.lk{fill:none;stroke:var(--ink2);opacity:.17;transition:opacity .15s}
+.nd{cursor:pointer;transition:opacity .15s}
+.nd circle.dot{fill:var(--surface);stroke:var(--ink2);stroke-width:1.5}
+.nd.zero circle.dot{stroke-dasharray:2 2}
+.nd circle.ring{fill:none;stroke:none}
+svg.focus .lk{opacity:.04}
+svg.focus .lk.on{stroke:var(--hl);opacity:.85}
+svg.focus .nd{opacity:.5}
+svg.focus .nd.on{opacity:1}
+svg.focus .nd.on circle.dot{fill:var(--hl);stroke:var(--hl)}
+svg.focus .nd.on text{fill:var(--ink)}
+.nd.changed circle.ring{stroke:var(--hl);stroke-width:2;animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{from{r:8px;opacity:.9}to{r:20px;opacity:0}}
+@media (prefers-reduced-motion:reduce){.nd.changed circle.ring{animation:none;r:13px;opacity:.6}}
+.panel{border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h4{font:700 14px/1.35 var(--display);margin:0;overflow-wrap:anywhere}
+.panel .big{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}.panel .big>div{white-space:nowrap}
+.panel .big b{font:700 26px/1 var(--display);letter-spacing:-.02em}
+.panel .big span{color:var(--muted);font-size:12px}
+.panel p{margin:0;color:var(--ink2);font-size:12.5px}
+.blindstrip{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{font:11px var(--mono);padding:3px 8px;border-radius:5px;border:1px dashed var(--line);color:var(--muted)}
+.bchip.hit{border:1px solid var(--crit);color:var(--ink);background:color-mix(in srgb,var(--crit) 14%,var(--surface))}
+
+/* B · 시뮬레이터 */
+.sim{display:grid;grid-template-columns:270px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.sim{grid-template-columns:1fr}}
+.sclist{display:flex;flex-direction:column;gap:6px}
+.scrow{border:1px solid var(--line);background:none;border-radius:9px;padding:9px 12px;text-align:left;display:grid;grid-template-columns:22px 1fr auto;gap:2px 10px;align-items:center}
+.scrow i{font:700 12px var(--display);font-style:normal;color:var(--muted)}
+.scrow .t{font:12px var(--mono);overflow-wrap:anywhere;min-width:0}
+.scrow .n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.scrow .mb{grid-column:2/4;height:3px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.scrow .mb s{display:block;height:100%;background:var(--hl);border-radius:2px}
+.scrow[aria-pressed="true"]{border-color:var(--hl);box-shadow:inset 0 0 0 1px var(--hl)}
+.scrow[aria-pressed="true"] i{color:var(--hl)}
+.sim label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin:14px 0 6px}
+.sim select{width:100%;font:12.5px var(--mono);padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:20px;align-items:center}
+@media (max-width:560px){.hero{grid-template-columns:1fr}}
+.hero h3{font:700 clamp(21px,3vw,30px)/1.3 var(--display);letter-spacing:-.02em;margin:10px 0 0;text-wrap:balance}
+.hero h3 b{color:var(--hl)} .hero h3 code{font:600 .8em var(--mono);overflow-wrap:anywhere}
+.ring{width:150px;height:150px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10}
+.ring .bg{stroke:var(--sunk)} .ring .fg{stroke:var(--hl);stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring div{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring b{font:700 28px/1 var(--display);letter-spacing:-.02em}.ring span{font-size:11px;color:var(--muted)}
+.waffle{display:flex;flex-wrap:wrap;gap:14px 26px;padding:16px;background:var(--sunk);border-radius:10px}
+.waffle .g{display:flex;flex-direction:column;gap:6px}
+.waffle .g small{font-size:11px;color:var(--muted)}
+.waffle .dots{display:flex;gap:5px;flex-wrap:wrap}
+.wd{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--muted);background:none;opacity:.55;transition:all .25s}
+.wd.on{background:var(--hl);border-color:var(--hl);opacity:1}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.two>div{min-width:0;display:flex;flex-direction:column;gap:8px}
+.hbar{display:grid;grid-template-columns:minmax(120px,220px) 1fr 28px;gap:10px;align-items:center;border:0;background:none;padding:4px 6px;border-radius:6px;text-align:left;width:100%}
+.hbar:hover,.hbar[aria-pressed="true"]{background:var(--sunk)}
+.hbar .nm{font:12px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .tr{height:10px}.hbar .tr s{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.hbar .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12.5px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font:700 26px/1.2 var(--display)}
+.mini{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.mini s{width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--good) 55%,var(--surface))}
+.mini s.f{background:var(--warn)}
+.covbar{height:12px;border-radius:6px;background:var(--sunk);overflow:hidden}
+.covbar s{display:block;height:100%;background:var(--accent);border-radius:6px}
+
+/* C · 매트릭스 */
+.mxwrap{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:22px;align-items:start}
+@media (max-width:1020px){.mxwrap{grid-template-columns:1fr}}
+.tools{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:12.5px;color:var(--muted)}
+.tg{display:inline-flex;background:var(--sunk);border-radius:7px;padding:3px}
+.tg button{border:0;background:none;padding:4px 10px;border-radius:5px;font-size:12.5px;color:var(--ink2)}
+.tg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+table.mx{border-collapse:separate;border-spacing:2px;font-size:12px}
+.mx th{font-weight:400}
+.mx th.ch{height:150px;vertical-align:bottom;padding:0 0 4px;width:24px}
+.mx th.ch span{writing-mode:vertical-rl;transform:rotate(180deg);font:11px var(--mono);color:var(--ink2);white-space:nowrap}
+.mx th.rh{text-align:right;font:11px var(--mono);color:var(--ink2);padding:0 8px 0 0;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:var(--surface);z-index:1}
+.mx tr.grp th{text-align:right;font:600 11px var(--body);color:var(--muted);letter-spacing:.05em;padding:8px 8px 2px 0;position:sticky;left:0;background:var(--surface)}
+.mx td.c{width:24px;height:24px;border-radius:4px;background:var(--sunk);padding:0}
+.mx td.c[data-p]{background:color-mix(in srgb,var(--accent) calc(var(--p)*1%),var(--surface))}
+.mx td.mk{width:14px;text-align:center;color:var(--hl);font-size:10px;padding:0}
+.mx td.tot{padding-left:8px;white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+.mx td.tot s{display:inline-block;height:6px;background:var(--ink2);border-radius:0 3px 3px 0;vertical-align:middle;margin-right:6px;opacity:.55}
+.mx tfoot td{text-align:center;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;padding-top:4px}
+.mx tfoot th{text-align:right;padding-right:8px;font-size:11px;color:var(--muted);position:sticky;left:0;background:var(--surface)}
+.mx .colhot{outline:1.5px solid var(--ink2);outline-offset:-1px}
+.mx th.colhot{outline:none}.mx th.colhot span,.mx tr.rowhot th.rh{color:var(--ink);font-weight:600}
+.mx tr.rowhot td.c{outline:1.5px solid var(--ink2);outline-offset:-1px}
+.mx.sc tbody tr:not(.sel):not(.grp){opacity:.3}
+.mx.sc tr.sel th.rh{color:var(--ink);font-weight:600}
+.mx th.ch.changed span{color:var(--hl);font-weight:600}
+.mx th.ch.changed::after{content:"";display:block;margin:4px auto 0;width:0;height:0;border:5px solid transparent;border-top-color:var(--hl)}
+.legend{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.legend s{width:16px;height:16px;border-radius:4px;display:inline-block}
+.pk{display:flex;flex-direction:column;gap:12px}
+.pk .p small{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.pk .p small b{font:600 12px var(--mono);color:var(--ink)}
+.pk .tiles{display:flex;flex-wrap:wrap;gap:3px}
+.pt{width:22px;height:22px;border-radius:4px;border:0;padding:0}
+.pt.cv{background:color-mix(in srgb,var(--accent) calc(var(--p)*1%),var(--surface))}
+.pt.bl{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--crit) 55%,var(--surface)) 0 2px,transparent 2px 6px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--crit) 55%,var(--surface))}
+.pt.hot{outline:2px solid var(--ink);outline-offset:1px}
+.sumline{font-size:13px;color:var(--ink2);min-height:26px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+
+/* v2 추가 */
+.top .segs{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.top .seg{margin-left:0}
+.seg.small button{padding:5px 10px;font-size:12.5px}
+.synth{font-size:12px;font-weight:600;color:var(--ink);border:1px solid var(--warn);border-radius:6px;padding:2px 8px;background:color-mix(in srgb,var(--warn) 14%,var(--surface))}
+.note{grid-template-columns:1fr 1fr}
+@media (max-width:760px){.note{grid-template-columns:1fr}.top .segs{margin-left:0}}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:12.5px;color:var(--muted);align-items:center}
+.crumbs button{border:0;background:none;padding:2px 4px;border-radius:4px;color:var(--accent);font:12.5px var(--mono)}
+.crumbs button:disabled{color:var(--ink);cursor:default;font-weight:600}
+.crumbs .hint{margin-left:auto}
+.nd.grpn text{font-weight:600}
+.gsvg .selc{fill:var(--hl);font-weight:600}
+.gbars{display:flex;flex-direction:column;gap:7px;padding:16px;background:var(--sunk);border-radius:10px}
+.gbar{display:grid;grid-template-columns:minmax(90px,200px) 1fr 92px;gap:12px;align-items:center;font-size:12.5px}
+.gbar .nm{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbar .tr{height:10px;background:var(--surface);border-radius:5px;overflow:hidden}
+.gbar .tr s{display:block;height:100%;background:var(--hl);border-radius:5px;min-width:3px}
+.gbar .v{text-align:right;color:var(--ink2);font-variant-numeric:tabular-nums}
+.gbars p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.sim input{width:100%;font:12.5px var(--mono);padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.mx th.rh.dr,.mx th.ch.dr{cursor:pointer}
+.mx th.rh.dr:hover,.mx th.ch.dr:hover span{color:var(--accent)}
+.mx th.rh em{font-style:normal;color:var(--muted)}
+.reach{display:grid;grid-template-columns:minmax(70px,1fr) 80px 54px;gap:8px;align-items:center;font-size:12px}
+.reach .nm{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reach .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.stab h3{font:700 clamp(21px,3vw,30px)/1.3 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.stab h3 b{color:var(--hl)}
+.runs{display:flex;flex-wrap:wrap;gap:4px;padding:16px;background:var(--sunk);border-radius:10px}
+.runs s{width:16px;height:16px;border-radius:4px;background:color-mix(in srgb,var(--good) 60%,var(--surface))}
+.runs s.f{background:var(--warn);border-radius:50%}
+.link{border:0;background:none;padding:4px 0;color:var(--accent);font-size:12.5px;font-weight:600;text-align:left}
+.link:hover{text-decoration:underline}
+.chip i.dot,.scrow i.dot{width:10px;height:10px;border-radius:50%;background:var(--hl);justify-self:center}
+.chip i.dot{margin:0 2px 0 6px}
+.t-conservative i.dot{border-radius:2px}.t-blind i.dot{background:none;border:2px solid var(--hl)}
+.chip[aria-pressed="true"] i.dot{background:var(--hl)}.chip.t-blind[aria-pressed="true"] i.dot{background:none}
+.sclist small.gh{font-size:11px;letter-spacing:.04em;color:var(--muted);margin:10px 0 0}
+.scrow.all{padding-block:12px}
+.mx td.c{cursor:pointer}.mx td.pick{outline:2.5px solid var(--ink);outline-offset:-1px}
+#m-side{min-width:0}
+.lq{font:13px var(--body);padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:200px}
+table.lt{border-collapse:collapse;width:100%;font-size:12.5px}
+.lt th{text-align:left;font-weight:600;color:var(--muted);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.lt td{padding:7px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.lt .r{text-align:right}.lt td.mono{font-size:12px}
+.tg button:disabled{opacity:.4;cursor:default}
+
+h2.q{font:700 20px/1.3 var(--display);letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+.tab-guide{color:var(--muted);font-size:12.5px}.tab-guide summary{cursor:pointer;color:var(--ink2)}
+.tab-guide p{margin:8px 0 0;line-height:1.65;max-width:78ch}
+.empty-state{color:var(--muted);font-size:13px;padding:10px 0;margin:0}
+.pg{display:flex;flex-direction:column;gap:20px;min-width:0}
+.top .stats{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px}
+.top .stats b{font:700 15px var(--display);color:var(--ink);margin-right:4px}
+.top p{font-size:12.5px}
+.foot{color:var(--muted);font-size:12px;margin:0}
+.nd:focus{outline:none}.nd:focus-visible circle.dot{stroke:var(--accent);stroke-width:3}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+ul.plain a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+ul.plain a:hover{color:var(--accent)}
+</style>
+</head><body>
+<div class="top"><div class="wrap">
+  <div><h1>TIA 리포트 · <span id="sut"></span></h1><p id="meta"></p></div>
+  <div class="segs"><div class="stats" id="stats"></div><div class="seg" role="tablist" id="seg"></div></div>
+</div></div>
+<main class="wrap">
+  <div class="mock"><div class="mbody" id="view"></div></div>
+  <p class="foot">Generated by <span class="mono">tia report</span> · 외부 요청 없이 이 파일 하나로 동작한다.</p>
 </main>
-<div class="foot">Generated by <code>make_html.py</code> from <code>testwise.json · scenarios.json · flaky.json</code>. Reproduce with <code>run-petclinic-tia.sh</code>.</div>
+<div id="tip" hidden></div>
 <script>
 const D = __DATA__;
-document.getElementById('sut').textContent = D.sut;
-document.title = `TIA report · ${D.sut} blackbox`;
-document.getElementById('commit').textContent = D.commit.slice(0,12);
-document.getElementById('impact-base').textContent = D.commit.slice(0,12);
-const pct = n => Math.round((1 - n/D.nTests)*100);
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-document.getElementById('kpis').innerHTML = [
- ['black-box tests', D.nTests],['prod files covered', D.nCovered],
- ['prod files blind', D.blind.length],['(test·line) points', D.totalPoints]
-].map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=x=>(Math.round(x*1000)/10)+'%';
+const fmt=n=>n.toLocaleString('en-US');
+const noExt=f=>f.replace(/\.java$/,'');
+const CAP=26, LIST=12, dsKey='';
+const TONE={precise:'정밀 선별',conservative:'보수적 선별',blind:'사각지대'};
 
-const TABS=[['s-pertest','1 · Per-test range'],['s-reverse','2 · Reverse index'],
-['s-impact','3 · tia impact'],['s-flaky','4 · Flaky'],['s-blind','5 · Blind spots']];
-const nav=document.getElementById('nav');
-TABS.forEach(([id,l],i)=>{const b=document.createElement('button');b.textContent=l;b.onclick=()=>{
- document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
- document.querySelectorAll('section').forEach(x=>x.classList.remove('on'));
- b.classList.add('on');document.getElementById(id).classList.add('on');};
- if(i===0)b.classList.add('on');nav.appendChild(b);});
-document.getElementById('s-pertest').classList.add('on');
+/* ---- 모델: 주입된 D → 화면용 구조. 모든 수치는 여기서 결정적으로 계산한다 ---- */
+function mkTree(items){
+  const root={name:'전체',kids:new Map(),leaves:[],parent:null,leaf:null};
+  items.forEach(it=>{let n=root;n.leaves.push(it.i);
+    it.path.forEach(seg=>{let c=n.kids.get(seg);if(!c){c={name:seg,kids:new Map(),leaves:[],parent:n,leaf:null};n.kids.set(seg,c)}c.leaves.push(it.i);n=c});
+    n.leaf=it.i});
+  return root}
+function stripCommon(items){
+  if(!items.length)return;
+  const a=items[0].dir,k=Math.min(...items.map(x=>x.dir.length));let c=0;
+  while(c<k&&items.every(x=>x.dir[c]===a[c]))c++;
+  items.forEach(x=>{x.dir=x.dir.slice(c);if(!x.dir.length)x.dir=['(root)']})}
+function buildDS(){
+  const fkey=new Map(),files=[];
+  const addFile=(short,full)=>{let i=fkey.get(short);if(i==null){i=files.length;fkey.set(short,i);
+    const seg=short.split('/').filter(s=>s&&s!=='…'),name=seg.pop();files.push({i,name,dir:seg,full:full||short.replace(/^…\//,'')})}return i};
+  const tests=D.perTest.map((t,i)=>{const h=t.id.lastIndexOf('#'),cut=h>=0?h:t.id.lastIndexOf('/');
+    const cls=cut>=0?t.id.slice(0,cut):'(tests)',dir=cls.split(/[./]/).filter(Boolean);
+    return{i,id:t.id,name:cut>=0?t.id.slice(cut+1):t.id,dir,simple:dir[dir.length-1]}});
+  const covF=[],covN=[];
+  D.perTest.forEach(t=>{covF.push(Int32Array.from(t.files.map(f=>addFile(f.f,f.pkg.replace(/\./g,'/')+'/'+f.file))));covN.push(Int32Array.from(t.files.map(f=>f.n)))});
+  D.blind.forEach(p=>addFile(p));
+  stripCommon(tests);stripCommon(files);
+  tests.forEach(t=>t.path=[...t.dir,t.name]);files.forEach(f=>{f.path=[...f.dir,f.name];f.n=0;f.tests=[]});
+  tests.forEach((t,i)=>{t.lines=0;covF[i].forEach((f,j)=>{files[f].n++;files[f].tests.push(i);t.lines+=covN[i][j]})});
+  const ds={tests,files,covF,covN,sut:D.sut,commit:D.commit,nCov:files.filter(f=>f.n).length,nBlind:D.blind.length,
+    tT:mkTree(tests),fT:mkTree(files),isCov:i=>files[i].n>0,scen:[],pr:null,mode:null,conf:null,defSc:null};
+  const idx=new Map(tests.map(t=>[t.id,t.i])),toSel=ids=>new Set(ids.map(x=>idx.get(x)).filter(x=>x!=null));
+  const matchFile=p=>{const f=files.find(f=>p===f.full||p.endsWith('/'+f.full));return f?f.i:null};
+  const I=D.impact;
+  if(I&&Array.isArray(I.tests)){
+    /* 실제 diff: tia impact --format json */
+    ds.mode='pr';const all=I.tests.map(t=>t.id),total=I.totalTests||tests.length,precise=new Set();
+    ds.conf=new Map(I.tests.map(t=>[idx.get(t.id),t.confidence]));
+    (I.changedFiles||[]).forEach((c,k)=>{const base=c.file.split('/').pop();
+      if(c.kind==='modified'){const ts=c.tests||[];ts.forEach(x=>precise.add(x));
+        ds.scen.push({id:'c'+k,label:base,full:c.file,tone:ts.length?'precise':'blind',sel:toSel(ts),count:ts.length,total,file:matchFile(c.file),diff:'',reasons:[]})}
+      else ds.scen.push({id:'c'+k,label:base+(c.kind==='new'?' (신규)':''),full:c.file,tone:'conservative',sel:toSel(all),count:all.length,total,file:null,diff:'',
+        reasons:[c.kind==='new'?'신규 파일이라 과거 커버리지가 없다 → 보수적 전체 선택.':'코드가 아닌 변경이라 커버리지에 매핑할 수 없다 → 보수적 전체 선택.']})});
+    ds.pr={label:`변경 파일 ${ds.scen.length}개`,sel:toSel(all),count:all.length,total,tone:I.conservative?'conservative':all.length?'precise':'blind',
+      cons:ds.scen.filter(s=>s.tone==='conservative').length,blind:ds.scen.filter(s=>s.tone==='blind').length,without:precise.size,files:ds.scen.length,
+      diff:'',reasons:[],warnings:I.warnings||[],ignored:I.ignoredChangedFiles||[]};
+  }else if(D.scenarios&&D.scenarios.length){
+    /* 데모 시나리오: 서로 독립된 가상 변경 */
+    ds.mode='scenario';
+    ds.scen=D.scenarios.map(s=>{const base=s.target.split('/').pop();
+      return{id:String(s.id),label:base+(s.line?':'+s.line:'')+(s.kind==='newfile'?' (신규)':''),full:s.target,tone:s.conservative?'conservative':s.count===0?'blind':'precise',
+        sel:toSel((s.selected||[]).map(x=>x.testId)),count:s.count,total:s.total,file:matchFile(s.target),diff:s.diff||'',reasons:s.reasons||[]}});
+  }
+  /* 조치가 필요한 순서: 보호 없음 → 전체 실행 유발 → 정밀 선별(많은 순) */
+  const ord={blind:0,conservative:1,precise:2};ds.scen.sort((a,b)=>ord[a.tone]-ord[b.tone]||b.count-a.count);
+  const p=ds.scen.find(s=>s.tone==='precise');ds.defSc=p?p.id:null;
+  const fr=D.flaky&&D.flaky.real;
+  ds.flaky=fr?{runs:fr.runs,flaky:fr.flaky||[],total:fr.total||tests.length,control:D.flaky.synthetic?(D.flaky.synthetic.flaky||[]).length:null}:null;
+  return ds}
+const DS=buildDS();
+const scById=id=>DS.scen.find(s=>s.id===id);
+const leafName=(side,i)=>{const p=(side==='t'?DS.tests:DS.files)[i].path;return p[p.length-1]};
+const parentName=(side,i)=>{const p=(side==='t'?DS.tests:DS.files)[i].path;return p[p.length-2]};
+/* 링크: JaCoCo HTML의 첫 커버 라인, 로컬 테스트 소스 */
+function jacocoHref(ti,fi){const k=DS.covF[ti].indexOf(fi);if(k<0||!D.jacoco)return null;const f=D.perTest[ti].files[k];return `${D.jacoco}/${f.pkg}/${f.file}.html#L${f.line}`}
+const srcHref=ti=>{const p=D.testSrc&&D.testSrc[DS.tests[ti].simple];return p?'file://'+p:null};
+const link=(href,html,title)=>href?`<a href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">${html}</a>`:html;
+const testName=i=>link(srcHref(i),esc(DS.tests[i].path.slice(-2).join(' · ')),'로컬 테스트 소스 열기');
 
-// ---- cross-link helpers ----
-const jacocoHref = f => `${D.jacoco}/${f.pkg}/${f.file}.html#L${f.line}`;
-const testSrcHref = id => {const cls=id.split('#')[0];const p=D.testSrc[cls];return p?('file://'+p):null;};
+/* 한 화면에 올릴 항목: 잎이 CAP 이하면 잎 그대로, 넘으면 하위 묶음(많으면 상위 CAP-1 + 그 외) */
+function visible(node,ok,side){
+  const wt=k=>k.leaf==null?0:side==='f'?DS.files[k.leaf].n:DS.tests[k.leaf].lines;
+  const lv=ok?node.leaves.filter(ok):node.leaves;
+  if(lv.length<=CAP){const dir=i=>(side==='f'?DS.files:DS.tests)[i].path.slice(0,-1).join('/'),ord=new Map();lv.forEach(i=>{const d=dir(i);if(!ord.has(d))ord.set(d,ord.size)});
+    return{leafLevel:true,items:[...lv].sort((a,b)=>ord.get(dir(a))-ord.get(dir(b))).map(i=>({leaf:i,leaves:[i]}))}}
+  let n=node;while(n.kids.size===1)n=[...n.kids.values()][0];
+  let kids=[...n.kids.values()].map(k=>({node:k.kids.size?k:null,leaf:k.kids.size?null:k.leaf,name:k.name,leaves:ok?k.leaves.filter(ok):k.leaves})).filter(k=>k.leaves.length);
+  kids.sort((a,b)=>b.leaves.length-a.leaves.length||wt(b)-wt(a));
+  if(kids.length>CAP){const rest=kids.slice(CAP-1);kids=kids.slice(0,CAP-1);kids.push({node:null,leaf:null,other:rest.length,name:`그 외 ${fmt(rest.length)}개`,leaves:rest.flatMap(r=>r.leaves)})}
+  return{leafLevel:false,items:kids}}
+function aggregate(L,R){
+  const mT=new Int32Array(DS.tests.length).fill(-1),mF=new Int32Array(DS.files.length).fill(-1);
+  L.items.forEach((it,k)=>it.leaves.forEach(i=>mT[i]=k));R.items.forEach((it,k)=>it.leaves.forEach(i=>mF[i]=k));
+  const W=R.items.length,lines=new Float64Array(L.items.length*W),cnt=new Int32Array(L.items.length*W),rowT=new Float64Array(L.items.length);let max=0;
+  for(let t=0;t<DS.tests.length;t++){const a=mT[t];if(a<0)continue;const F=DS.covF[t],Nn=DS.covN[t];
+    for(let j=0;j<F.length;j++){const b=mF[F[j]];if(b<0)continue;cnt[a*W+b]++;const v=lines[a*W+b]+=Nn[j];rowT[a]+=Nn[j];if(v>max)max=v}}
+  return{mT,mF,W,lines,cnt,rowT,max}}
+const itemName=(side,it)=>it.leaf!=null?leafName(side,it.leaf):it.name;
+const selCount=(L,A,sc)=>{const c=new Int32Array(L.items.length);if(sc)sc.sel.forEach(i=>{const a=A.mT[i];if(a>=0)c[a]++});return c};
+function crumbs(el,st,rebuild,hint){
+  const chain=n=>{const a=[];for(;n;n=n.parent)a.unshift(n);return a};
+  const one=(side,lab,node)=>`<span>${lab} `+chain(node).map((n,i,a)=>`<button data-side="${side}" data-d="${i}" ${i===a.length-1?'disabled':''}>${esc(n.name)}</button>`).join('›')+'</span>';
+  el.className='crumbs';el.innerHTML=one('t','테스트',st.tf)+one('f','파일',st.ff)+(hint?`<span class="hint">${hint}</span>`:'');
+  el.onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const k=b.dataset.side==='t'?'tf':'ff';
+    let a=[];for(let n=st[k];n;n=n.parent)a.unshift(n);st[k]=a[+b.dataset.d];rebuild()}}
 
-// ---- generic sortable header (asc/desc toggle on every column) ----
-function headHtml(cols, sort){
- // arrow on the clicked column only (sort.i); "reach"/"fan-in" share a key with
- // Lines/#tests so keying off sort.k alone would mark two columns at once.
- return '<tr>'+cols.map((c,i)=>{
-  const arr = sort.i===i ? `<span class="arr">${sort.dir>0?'▲':'▼'}</span>` : '';
-  return `<th class="${c.num?'num':''}" data-k="${c.k}" data-i="${i}">${c.label} ${arr}</th>`;
- }).join('')+'</tr>';
+/* ---- 공통 조각 ---- */
+const tip=$('#tip');
+document.addEventListener('mousemove',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');
+  if(!el){tip.hidden=true;return}
+  tip.innerHTML=el.dataset.tip;tip.hidden=false;const r=tip.getBoundingClientRect();
+  let x=e.clientX+14,y=e.clientY+14;if(x+r.width>innerWidth-8)x=e.clientX-r.width-14;if(y+r.height>innerHeight-8)y=e.clientY-r.height-14;
+  tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px'});
+function scbar(el,cur,onPick){
+  if(!DS.scen.length){el.hidden=true;return}
+  el.className='scbar';
+  el.innerHTML='<span class="lab">'+(DS.mode==='pr'?'이번 변경의 파일':'변경 시나리오')+'</span>'+DS.scen.map(s=>`<button class="chip t-${s.tone}" data-id="${esc(s.id)}" title="${esc(s.full)}" aria-pressed="${s.id===cur}"><i class="dot"></i><span class="mono">${esc(s.label)}</span><span class="n">${fmt(s.count)}/${fmt(s.total)}</span></button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('.chip');if(b)onPick(b.getAttribute('aria-pressed')==='true'?null:b.dataset.id)};
 }
-function applySort(arr, sort){
- const k=sort.k, dir=sort.dir;
- arr.sort((a,b)=>{const av=a[k],bv=b[k];
-  if(typeof av==='string'||typeof bv==='string') return dir*String(av).localeCompare(String(bv));
-  return dir*(av-bv);});
-}
-function wireSort(sel, cols, sort, data, redraw){
- document.querySelectorAll(sel+' th[data-k]').forEach(th=>th.onclick=()=>{
-  const k=th.dataset.k, i=+th.dataset.i;
-  if(sort.i===i) sort.dir*=-1;                                   // same column → flip direction
-  else {sort.k=k; sort.i=i; sort.dir = (typeof data[0][k]==='string')?1:-1;} // new column → sensible default
-  applySort(data, sort); redraw();
- });
-}
-
-// ---- 1. per-test ----
-const PT_COLS=[{k:'id',label:'Test'},{k:'result',label:'Result'},
- {k:'nfiles',label:'Files',num:1},{k:'lines',label:'Lines',num:1},{k:'lines',label:'reach'}];
-const ptSort={k:'id',i:0,dir:1};
-function ptRows(q){q=(q||'').toLowerCase();
- const max=Math.max(...D.perTest.map(x=>x.lines),1);
- return D.perTest.filter(t=>t.id.toLowerCase().includes(q)).map(t=>{
-  const files=t.files.map(f=>`<a class="chip" href="${esc(jacocoHref(f))}" target="_blank" title="JaCoCo 커버리지: ${esc(f.file)}:${f.line}"><span class="mono">${esc(f.file)}</span> <b>${f.n}</b></a>`).join('');
-  return `<tr class="exp"><td><code>${esc(t.id)}</code></td>
-   <td><span class="tag t-pass">${esc(t.result)}</span></td>
-   <td class="num">${t.nfiles}</td>
-   <td class="num">${t.lines}</td>
-   <td><div class="bar"><i style="width:${100*t.lines/max}%"></i></div></td></tr>
-   <tr class="det" style="display:none"><td colspan="5"><div class="chips">${files||'<span class=gutter>no attributed coverage</span>'}</div></td></tr>`;
- }).join('')}
-function drawPt(){
- if(!D.perTest.length){
-  document.getElementById('pttbl').innerHTML='<div class="empty-state">데이터가 없습니다 — testwise 입력이 비었거나 필터로 모두 제외되었습니다. testwise.json에 실행 결과를 채우거나 필터 범위를 넓히면 이 탭이 채워진다.</div>';
-  return;}
- document.getElementById('pttbl').innerHTML=
- `<table><thead>${headHtml(PT_COLS,ptSort)}</thead><tbody>${ptRows(document.getElementById('ptq').value)}</tbody></table>`;
- document.querySelectorAll('#pttbl tr.exp').forEach(r=>r.onclick=e=>{
-  if(e.target.closest('a'))return; const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
- wireSort('#pttbl', PT_COLS, ptSort, D.perTest, drawPt);}
-document.getElementById('ptq').oninput=drawPt;drawPt();
-
-// ---- 2. reverse ----
-const RV_COLS=[{k:'file',label:'Production file'},{k:'n',label:'#tests',num:1},{k:'n',label:'fan-in'}];
-const rvSort={k:'n',i:1,dir:-1};
-function rvRows(q){q=(q||'').toLowerCase();
- const max=Math.max(...D.reverse.map(x=>x.n),1);
- return D.reverse.filter(r=>r.file.toLowerCase().includes(q)).map(r=>{
-  const chips=r.tests.map(t=>{const href=testSrcHref(t);const label=esc(t.replace('BlackBoxIT',''));
-   return href?`<a class="chip" href="${esc(href)}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`:`<span class="chip">${label}</span>`;}).join('');
-  return `<tr class="exp"><td><code>${esc(r.file)}</code></td><td class="num">${r.n}</td>
-   <td><div class="bar"><i style="width:${100*r.n/max}%"></i></div></td></tr>
-   <tr class="det" style="display:none"><td colspan="3"><div class="chips">${chips}</div></td></tr>`;}).join('');}
-function drawRv(){
- if(!D.reverse.length){
-  document.getElementById('rvtbl').innerHTML='<div class="empty-state">데이터가 없습니다 — testwise 입력이 비었거나 필터로 모두 제외되었습니다. testwise.json에 실행 결과를 채우거나 필터 범위를 넓히면 이 탭이 채워진다.</div>';
-  return;}
- document.getElementById('rvtbl').innerHTML=`<table><thead>${headHtml(RV_COLS,rvSort)}</thead><tbody>${rvRows(document.getElementById('rvq').value)}</tbody></table>`;
- document.querySelectorAll('#rvtbl tr.exp').forEach(r=>r.onclick=e=>{
-  if(e.target.closest('a'))return; const d=r.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';});
- wireSort('#rvtbl', RV_COLS, rvSort, D.reverse, drawRv);}
-document.getElementById('rvq').oninput=drawRv;drawRv();
-
-// ---- 3. scenarios ----
-const CONF={DETERMINISTIC:{cls:'t-det',label:'🎯 정밀 선별',title:'DETERMINISTIC: 변경 라인이 이 테스트의 커버리지에 정확히 매핑됨'},
-            CONSERVATIVE:{cls:'t-con',label:'🛡 보수적 선별',title:'CONSERVATIVE: 매핑 불가 → 안전하게 후보 포함'}};
-function fmtDiff(s){return s.split('\n').map(l=>{
- if(l.startsWith('@@'))return `<span class="gutter">${esc(l)}</span>`;
- if(l.startsWith('+'))return `<span class="add">${esc(l)}</span>`;
- if(l.startsWith('-'))return `<span class="del">${esc(l)}</span>`;return esc(l);}).join('\n');}
-document.getElementById('scen').innerHTML=D.scenarios.length? D.scenarios.map(s=>{
- const blind=s.id==='E', cons=s.conservative;
- const cls=blind?'card bad':(cons?'card warn':'card');
- const sel=s.selected.map(x=>{const c=CONF[x.confidence]||{cls:'t-con',label:x.confidence,title:x.confidence};
-   return `<tr><td><span class="tag ${c.cls}" title="${esc(c.title)}">${c.label}</span></td><td><code>${esc(x.testId)}</code></td></tr>`;}).join('')
-   ||'<tr><td colspan=2 class="gutter">— 선별된 테스트 없음 —</td></tr>';
- const redu = cons? `<span class="redu">🛡 safe fallback</span> — 전체 ${s.total}개를 보수적으로 포함 (절감 없음, 누락 위험 0)`
-   : (blind? '<span class="del">⚠ 0개 선별 — 커버리지 사각지대 (탭 5 참조)</span>'
-   : `<span class="redu">▼ ${pct(s.count)}% 절감</span> · 전체 ${s.total}개 중 ${s.count}개만 실행`);
- const reasons=s.reasons.map(r=>`<div class="note">${esc(r)}</div>`).join('');
- return `<div class="${cls}"><div class="scen-head"><span class="big">${esc(s.id)}</span>
-   <span>${esc(s.title)}</span></div>
-   <div style="margin:8px 0">${redu}</div>
-   <pre>${fmtDiff(s.diff)}</pre>
-   <table><tbody>${sel}</tbody></table>${reasons}</div>`;}).join('')
- : '<div class="note">시나리오 데이터가 없다. <code>tia impact</code>로 diff 기반 선별을 만들어 <code>scenarios.json</code>으로 넘기면 이 탭이 채워진다(미지정 시 인자에 <code>-</code> 전달).</div>';
-
-// ---- 4. flaky ----
-const ratioTxt = o => `${(o.ratio*100).toFixed(1)}% (${o.flaky.length}/${o.total})`;
-const flakyChip = (t,color) => {const href=testSrcHref(t);const label='FLAKY · '+esc(t);
-  return href?`<a class="chip" href="${esc(href)}" style="border-color:${color}" title="로컬 테스트 소스 열기: ${esc(t)}">${label}</a>`
-             :`<span class="chip" style="border-color:${color}">${label}</span>`;};
-const realCard = fr => `
-  <div class="card grow"><h2 style="margin-top:0">① 실측 (Real) · ${fr.runs}회 연속 실행</h2>
-   <p class="hint">동일한 스위트를 <b>${fr.runs}번</b> 실제로 돌려, 매번 결과(Pass/Fail)가 바뀌는 테스트가 있는지 측정.</p>
-   <div class="big" style="color:var(--ok)">flaky ratio ${ratioTxt(fr)}</div>
-   <div class="hint">${fr.flaky.length}/${fr.total}개가 flaky${fr.flaky.length?'':' → 모두 같은 결과 → 스위트는 <b>결정론적(deterministic)</b>'}.</div>
-   <div class="chips" style="margin-top:8px">${fr.flaky.map(t=>flakyChip(t,'var(--ok)')).join('')}</div></div>`;
-const synthCard = fs => `
-  <div class="card grow warn"><h2 style="margin-top:0">② 검출기 검증 (synthetic · 양성 대조군)</h2>
-   <p class="hint">실제 실행이 <b>아니다</b>. 한 테스트의 결과를 <b>일부러 Pass→Fail→Pass로 뒤집은</b> 가짜 실행으로 검출기를 시험한다. 검출기가 이를 flaky로 <b>집어내면 정상</b>.</p>
-   <div class="big" style="color:var(--warn)">flaky ratio ${ratioTxt(fs)}</div>
-   <div class="hint">${fs.flaky.length}/${fs.total}개 검출 = 조작한 테스트를 정확히 잡아냄. → 왼쪽의 0%가 "검출기 고장으로 0"이 아니라 <b>"진짜 안정적이라 0"</b>임을 보증한다.</div>
-   <div class="chips" style="margin-top:8px">${fs.flaky.map(t=>flakyChip(t,'var(--warn)')).join('')}</div></div>`;
-if(!D.flaky || !D.flaky.real){
- document.getElementById('flaky').innerHTML='<div class="note">flaky 데이터가 없다. <code>tia flaky --runs run1.json,run2.json,…</code>(≥2회 실행) 결과를 <code>flaky.json</code>으로 넘기면 이 탭이 채워진다(미지정 시 인자에 <code>-</code> 전달).</div>';
-}else{
- const intro=D.flaky.synthetic?'<p class="hint">두 카드는 <b>서로 다른 것</b>을 측정한다 — 값이 같을 필요가 없다. 왼쪽은 실제 스위트가 흔들리는지(<b>실측</b>), 오른쪽은 그 <b>flaky 검출기 자체가 제대로 동작하는지</b>(<b>양성 대조군</b>).</p>':'';
- document.getElementById('flaky').innerHTML=`${intro}<div class="flex">${realCard(D.flaky.real)}${D.flaky.synthetic?synthCard(D.flaky.synthetic):''}</div>`;
+const diffHtml=d=>d?'<pre class="diff">'+d.split('\n').map(l=>`<span class="${l[0]==='+'?'a':l[0]==='-'?'d':''}">${esc(l)}</span>`).join('\n')+'</pre>':'';
+let LISTS={},listCtx=null;const VS={};
+const vstate=(k,init)=>VS[dsKey+k]||(VS[dsKey+k]=init);
+function more(n,label,fn){const id='l'+Object.keys(LISTS).length;LISTS[id]=fn;return `<button class="link" data-list="${id}">${esc(label)} ${fmt(n)}개 전체 보기 →</button>`}
+const testRows=(ix,conf)=>[...ix].map(i=>{const t=DS.tests[i],r=[t.path.slice(0,-1).join(' / '),t.path[t.path.length-1],DS.covF[i].length,t.lines];if(conf)r.push(DS.conf.get(i)||'');return r});
+const TEST_HEAD=['묶음','테스트','실행한 파일 수','실행 라인'];
+function testList(ix,title,sel){const a=[...ix],conf=!!(sel&&DS.conf);
+  return '<ul class="plain">'+a.slice(0,LIST).map(i=>`<li><span class="nm">${testName(i)}</span></li>`).join('')+'</ul>'+(a.length>LIST?more(a.length,'테스트',()=>({title,sub:'tia impact 가 선별한 테스트 전체',head:conf?[...TEST_HEAD,'선별 근거']:TEST_HEAD,rows:testRows(a,conf)})):'')}
+/* ================= 변경 영향 ================= */
+function viewImpact(root){
+  const P=DS.pr,isPr=DS.mode==='pr',st=vstate('impact',{sel:isPr?null:DS.scen[0].id});
+  const grp=[['blind','보호하는 테스트 없음'],['conservative','전체 실행을 유발'],['precise','정밀 선별 · 선별 많은 순']];
+  root.innerHTML=`<div class="sim"><div><div class="sclist" id="s-list"></div>${isPr?'':'<p class="sub" style="margin-top:10px">데모 시나리오다. 서로 독립된 가상 변경이며 한 PR의 변경 파일이 아니다.</p>'}</div>
+    <div id="s-res" style="display:flex;flex-direction:column;gap:18px;min-width:0" aria-live="polite"></div></div>`;
+  const V=visible(DS.tT,null,'t'),A=aggregate(V,{items:[]});
+  function draw(){
+    LISTS={};
+    const rowH=s=>`<button class="scrow t-${s.tone}" data-id="${esc(s.id)}" aria-pressed="${st.sel===s.id}" title="${esc(s.full)}"><i class="dot"></i><span class="t">${esc(s.label)}</span><span class="n">${fmt(s.count)}/${fmt(s.total)}</span><span class="mb"><s style="width:${s.total?s.count/s.total*100:0}%"></s></span></button>`;
+    $('#s-list').innerHTML=(isPr?`<button class="scrow all t-${P.tone}" data-id="" aria-pressed="${st.sel==null}"><i class="dot"></i><span class="t" style="font-family:var(--body);font-weight:600">이번 변경 전체 · 파일 ${P.files}개</span><span class="n">${fmt(P.count)}/${fmt(P.total)}</span><span class="mb"><s style="width:${P.total?P.count/P.total*100:0}%"></s></span></button>`:'')
+      +grp.map(([t,l])=>{const xs=DS.scen.filter(s=>s.tone===t);return xs.length?`<small class="gh">${l}</small>`+xs.map(rowH).join(''):''}).join('');
+    const r=st.sel?scById(st.sel):P,skip=r.total?1-r.count/r.total:0,C=2*Math.PI*52,lab=`<code>${esc(r.label)}</code>`,tot=fmt(r.total),cnt=fmt(r.count);
+    let line,subs=[],badge=TONE[r.tone];
+    if(!st.sel){
+      if(P.tone==='conservative'){badge='보수적 전체 실행';
+        line=P.cons?`변경 파일 ${P.files}개 중 ${P.cons}개가 커버리지에 매핑되지 않아 ${tot}개 중 <b>${cnt}개</b>를 모두 돌린다.`:`커버리지에 매핑할 수 없는 변경이 있어 ${tot}개 중 <b>${cnt}개</b>를 모두 돌린다.`;
+        if(P.cons&&P.files>P.cons)subs.push(`그 ${P.cons}개를 빼면 ${fmt(P.without)}개만 돌리면 된다 (${pct(1-P.without/P.total)} 절감).`)}
+      else if(!P.files){badge='변경 없음';line='이 실행의 diff 에는 선별 대상 변경 파일이 없다.'}
+      else if(P.tone==='blind'){line=`이번 변경 ${P.files}개 파일은 어떤 테스트도 지나가지 않는다. <b>선별 0개</b>.`}
+      else line=`이번 변경 ${P.files}개 파일이면 ${tot}개 중 <b>${cnt}개</b>만 돌리면 된다.`;
+      if(P.blind&&P.tone!=='blind')subs.push(`변경 파일 ${P.blind}개는 보호하는 테스트가 없다.`);
+      if(P.ignored.length)subs.push(`필터로 무시된 변경 파일 ${P.ignored.length}개.`);
+    }else line={precise:`${lab} 변경은 ${tot}개 중 <b>${cnt}개</b>를 선별한다.`,
+      conservative:`${lab} 변경은 커버리지에 매핑할 수 없어 <b>${cnt}개</b>를 안전하게 모두 돌린다.`,
+      blind:`${lab} 은 어떤 테스트도 지나가지 않는다. <b>선별 0개</b>.`}[r.tone];
+    const ring=r.tone==='blind'?`<b>0</b><span>보호하는 테스트 없음</span>`:`<b class="num">${pct(skip)}</b><span>실행 절감</span>`;
+    const sc=selCount(V,A,r);let viz;
+    if(V.leafLevel){const groups=[...new Set(V.items.map(it=>parentName('t',it.leaf)))];
+      viz='<div class="waffle">'+groups.map(g=>`<div class="g"><small>${esc(g)}</small><div class="dots">${V.items.filter(it=>parentName('t',it.leaf)===g).map(it=>`<span class="wd${r.sel.has(it.leaf)?' on':''}" data-tip="<b>${esc(leafName('t',it.leaf))}</b><br>${r.sel.has(it.leaf)?'실행':'건너뜀'}"></span>`).join('')}</div></div>`).join('')+'</div>';
+    }else{const rows=V.items.map((it,k)=>({it,n:sc[k]})).filter(x=>x.n).sort((a,b)=>b.n-a.n),top=rows.slice(0,10),zero=V.items.length-rows.length;
+      viz='<div class="gbars">'+top.map(x=>`<div class="gbar"><span class="nm">${esc(x.it.name)}</span><span class="tr"><s style="width:${x.n/x.it.leaves.length*100}%"></s></span><span class="v">${fmt(x.n)} / ${fmt(x.it.leaves.length)}</span></div>`).join('')
+        +`<p>${rows.length>10?`선별이 있는 묶음 ${rows.length}개 중 상위 10개. `:''}${zero?`선별 0인 묶음 ${zero}개는 통째로 건너뛴다.`:''}${!rows.length?'선별된 테스트가 없다.':''}</p></div>`}
+    const el=$('#s-res');el.className='t-'+r.tone;
+    const notes=[...r.reasons,...(!st.sel&&P?P.warnings:[])];
+    el.innerHTML=`<div class="hero"><div><span class="badge">${badge}</span><h3>${line}</h3>${subs.map(x=>`<p class="sub" style="font-size:14px;margin-top:8px">${x}</p>`).join('')}</div>
+      <div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-(r.tone==='blind'?0:skip))}"/></svg><div>${ring}</div></div></div>
+      ${viz}
+      <div class="two">${r.diff||notes.length?`<div><h3 class="sec">${r.diff?'변경':'선별 근거'}</h3>${diffHtml(r.diff)}${notes.map(x=>`<p class="sub">${esc(x)}</p>`).join('')}</div>`:''}
+      ${r.sel.size?`<div><h3 class="sec">돌릴 테스트 ${cnt}</h3>${testList(r.sel,`돌릴 테스트 · ${r.label}`,true)}</div>`:''}</div>`;
+  }
+  $('#s-list').onclick=e=>{const b=e.target.closest('.scrow');if(b){st.sel=b.dataset.id||(isPr?null:st.sel);draw()}};
+  draw();
 }
 
-// ---- 5. blind ----
-if(D.nProd===0){
- document.getElementById('blindhint').textContent='프로덕션 파일 목록이 없습니다 — prod-files 입력이 없거나 필터로 모두 제외되었습니다. prod-files.txt를 채우거나 필터 범위를 넓히면 이 탭이 사각지대를 계산해 보여준다.';
-}else if(D.blind.length===0){
- document.getElementById('blindhint').textContent=`전체 커버 — 프로덕션 ${D.nProd}개 파일 모두 최소 한 번 이상 실행됨. 커버리지 사각지대가 없습니다.`;
-}else{
- document.getElementById('blindhint').textContent=`프로덕션 ${D.nProd}개 중 ${D.blind.length}개 파일이 어떤 블랙박스 테스트에도 닿지 않음 (${D.nCovered}개만 커버).`;
+/* ================= 연결 구조 ================= */
+function viewGraph(root){
+  const TX=330,FX=590,W=860;
+  const st=vstate('graph',{sc:DS.defSc,pin:null,hov:null,tf:DS.tT,ff:DS.fT});st.hov=null;
+  root.innerHTML=`<div id="g-sc"></div><div id="g-ex"></div><div id="g-cr"></div><div class="gwrap"><div class="gsvg scroll" id="g-svg"></div><aside class="panel" id="g-panel" aria-live="polite"></aside></div><div id="g-blind"></div>`;
+  const box=$('#g-svg'),panel=$('#g-panel');let L,R,A,SC;
+  const bl=DS.files.filter(f=>!f.n);let bh;
+  if(D.nProd===0){bh='<p class="empty-state">프로덕션 파일 목록(--prod-files) 입력이 없거나 필터로 모두 제외되었습니다. 목록을 넘기면 사각지대를 계산한다.</p>';
+  }else if(D.blind.length===0){bh='<p class="empty-state">전체 커버 — 사각지대가 없습니다. 모든 프로덕션 파일을 테스트가 한 번 이상 실행했다.</p>';
+  }else{
+    bh=`<p class="sub">선이 하나도 없는 파일. 여기를 고치면 선별되는 테스트가 없다.</p>`;
+    if(bl.length<=40)bh+=`<div class="blindstrip" style="margin-top:10px">${bl.map(b=>`<span class="bchip" data-i="${b.i}">${esc(b.path.slice(-2).join('/').replace('.java',''))}</span>`).join('')}</div>`;
+    else{const by={};bl.forEach(b=>{const k=b.path.slice(0,-1).join('/');by[k]=(by[k]||0)+1});const e=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+      bh+=`<p class="sub">패키지별 파일 수, 많은 순 상위 ${Math.min(20,e.length)}개${e.length>20?` (전체 ${e.length}개 패키지)`:''}.</p><div class="blindstrip" style="margin-top:10px">${e.slice(0,20).map(([k,n])=>`<span class="bchip">${esc(k)} <b>${n}</b></span>`).join('')}</div>`
+        ;const tailBtn=()=>more(bl.length,'사각지대 파일',()=>({title:'어떤 테스트도 닿지 않는 파일',sub:'',head:['패키지','파일'],rows:bl.map(b=>[b.path.slice(0,-1).join('/'),b.path[b.path.length-1]])}));const base=bh;bh=()=>base+tailBtn()}
+  }
+  const blindSection=()=>`<h3 class="sec">어떤 테스트도 닿지 않는 파일 <span class="num">${fmt(D.blind.length)}</span></h3>${typeof bh==='function'?bh():bh}`;
+  function build(){
+    L=visible(st.tf,null,'t');R=visible(st.ff,DS.isCov,'f');A=aggregate(L,R);SC=selCount(L,A,st.sc&&scById(st.sc));
+    const cut=s=>s.length>36?s.slice(0,35)+'…':s;
+    const lay=(V,side,rowH)=>{let y=34;const ys=[],g=[];let prev=null;
+      V.items.forEach((it,k)=>{if(V.leafLevel){const p=parentName(side,it.leaf);if(p!==prev){y+=30;g.push({p,y});y+=4;prev=p}}y+=rowH;ys[k]=y});return{ys,g,h:y+24}};
+    const lt=lay(L,'t',20),lf=lay(R,'f',R.leafLevel?28:22),H=Math.max(lt.h,lf.h,160);
+    const off=(H-lf.h)/2;lf.ys=lf.ys.map(y=>y+off);lf.g.forEach(g=>g.y+=off);const off2=(H-lt.h)/2;lt.ys=lt.ys.map(y=>y+off2);lt.g.forEach(g=>g.y+=off2);
+    let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="테스트와 프로덕션 파일의 실행 관계"><text class="colh" x="${TX}" y="18" text-anchor="end">${L.leafLevel?'테스트':'테스트 묶음'} ${L.items.length}</text><text class="colh" x="${FX}" y="18">${R.leafLevel?'프로덕션 파일':'파일 묶음'} ${R.items.length}</text><g>`;
+    for(let a=0;a<L.items.length;a++)for(let b=0;b<A.W;b++){const v=A.lines[a*A.W+b];if(!v)continue;
+      s+=`<path class="lk" data-a="${a}" data-b="${b}" stroke-width="${(1+3*Math.sqrt(v/A.max)).toFixed(1)}" d="M${TX},${lt.ys[a]} C${TX+130},${lt.ys[a]} ${FX-130},${lf.ys[b]} ${FX},${lf.ys[b]}"/>`}
+    s+='</g>';
+    lt.g.forEach(g=>s+=`<text class="grp" x="${TX-14}" y="${g.y}" text-anchor="end">${esc(g.p)}</text>`);
+    lf.g.forEach(g=>s+=`<text class="grp" x="${FX+16}" y="${g.y}">${esc(g.p)}</text>`);
+    L.items.forEach((it,k)=>{const n=it.leaves.length,leaf=it.leaf!=null,ln=leaf?DS.tests[it.leaf].lines:0;
+      const r=leaf?(ln?3+Math.sqrt(ln)*.75:3.5):Math.min(10,4+Math.sqrt(n)*.25),y=lt.ys[k];
+      s+=`<g class="nd tn${leaf?(ln?'':' zero'):' grpn'}" data-s="t" data-k="${k}" tabindex="0" data-tip="<b>${esc(itemName('t',it))}</b><br>${leaf?`${DS.covF[it.leaf].length}개 파일 · ${ln}라인 실행`:`테스트 ${fmt(n)}개${it.node?' · 누르면 안으로':''}`}"><rect x="20" y="${y-10}" width="${TX-6}" height="20" fill="transparent"/><circle class="dot" cx="${TX}" cy="${y}" r="${r.toFixed(1)}"/><text x="${TX-16}" y="${y+4}" text-anchor="end"><tspan class="selc"></tspan>${esc(cut(itemName('t',it)))}${leaf?'':`<tspan class="cnt"> · ${fmt(n)}</tspan>`}</text></g>`});
+    R.items.forEach((it,k)=>{const n=it.leaves.length,leaf=it.leaf!=null,fan=leaf?DS.files[it.leaf].n:0;
+      const r=leaf?Math.min(11,4+Math.sqrt(fan)):Math.min(10,4+Math.sqrt(n)*.4),y=lf.ys[k];
+      s+=`<g class="nd fn${leaf?'':' grpn'}" data-s="f" data-k="${k}" tabindex="0" data-tip="<b>${esc(itemName('f',it))}</b><br>${leaf?`이 파일을 실행하는 테스트 ${fmt(fan)}개`:`테스트가 닿는 파일 ${fmt(n)}개${it.node?' · 누르면 안으로':''}`}"><rect x="${FX-12}" y="${y-11}" width="${W-FX+10}" height="22" fill="transparent"/><circle class="ring" cx="${FX}" cy="${y}" r="8"/><circle class="dot" cx="${FX}" cy="${y}" r="${r.toFixed(1)}"/><text x="${FX+16}" y="${y+4}">${esc(cut(noExt(itemName('f',it))))}<tspan class="cnt"> · ${fmt(leaf?fan:n)}</tspan></text></g>`});
+    box.innerHTML=s+'</svg>';
+    crumbs($('#g-cr'),st,()=>{st.pin=st.hov=null;build()},(!L.leafLevel||!R.leafLevel)?'묶음을 누르면 한 단계 안으로 들어간다':'');
+    apply();
+  }
+  function apply(){
+    const svg=$('svg',box),fo=st.hov||st.pin,sc=st.sc&&scById(st.sc);
+    let T=new Set(),F=new Set(),Lk=()=>false,tone='precise',changed=-1;
+    if(fo){if(fo.s==='t'){T.add(fo.k);for(let b=0;b<A.W;b++)if(A.lines[fo.k*A.W+b])F.add(b);Lk=(a,b)=>a===fo.k}
+      else{F.add(fo.k);for(let a=0;a<L.items.length;a++)if(A.lines[a*A.W+fo.k])T.add(a);Lk=(a,b)=>b===fo.k}}
+    else if(sc){tone=sc.tone;SC.forEach((n,a)=>{if(n)T.add(a)});
+      if(sc.tone==='precise'&&sc.file!=null){changed=A.mF[sc.file];if(changed>=0){F.add(changed);Lk=(a,b)=>b===changed&&SC[a]>0&&A.lines[a*A.W+b]>0}}}
+    svg.setAttribute('class',(fo||sc?'focus ':'')+'t-'+tone);
+    $$('.tn',svg).forEach(g=>{const k=+g.dataset.k;g.classList.toggle('on',T.has(k));
+      $('.selc',g).textContent=!fo&&sc&&SC[k]&&L.items[k].leaf==null?`${fmt(SC[k])} 선별  `:''});
+    $$('.fn',svg).forEach(g=>{g.classList.toggle('on',F.has(+g.dataset.k));g.classList.toggle('changed',changed===+g.dataset.k)});
+    $$('.lk',svg).forEach(p=>p.classList.toggle('on',Lk(+p.dataset.a,+p.dataset.b)));
+    scbar($('#g-sc'),st.sc,id=>{st.sc=id;st.pin=null;build()});
+    panel.className='panel t-'+(fo?'precise':sc?sc.tone:'precise');
+    LISTS={};$('#g-blind').innerHTML=blindSection();
+    $$('#g-blind .bchip[data-i]').forEach(c=>c.classList.toggle('hit',!fo&&!!sc&&sc.tone==='blind'&&+c.dataset.i===sc.file));
+    if(fo){const side=fo.s,it=(side==='t'?L:R).items[fo.k],O=side==='t'?R:L,os=side==='t'?'f':'t',leaf=it.leaf!=null;
+      const con=O.items.map((o,j)=>{const x=side==='t'?fo.k*A.W+j:j*A.W+fo.k;return{o,v:A.lines[x],c:A.cnt[x]}}).filter(x=>x.c).sort((a,b)=>b.c-a.c),mx=con.length?con[0].c:1;
+      const ou=(O.leafLevel?'':'묶음 ')+(os==='f'?'파일':'테스트'),unit=leaf?(O.leafLevel?'실행 라인':(os==='f'?'파일 수':'테스트 수')):'연결 수';
+      const nm=o=>{const h=esc(noExt(itemName(os,o)));if(!leaf||o.leaf==null)return h;return side==='t'?link(jacocoHref(it.leaf,o.leaf),h,'JaCoCo 커버리지 열기'):link(srcHref(o.leaf),h,'로컬 테스트 소스 열기')};
+      const val=x=>leaf&&O.leafLevel?x.v:x.c,mv=con.length?Math.max(...con.map(val)):1;
+      panel.innerHTML=`<p>${side==='t'?(leaf?'테스트':'테스트 묶음'):(leaf?'프로덕션 파일':'파일 묶음')}${st.pin&&!st.hov?' · 고정됨':''}</p><h4 class="mono">${esc(itemName(side,it))}</h4>
+      <div class="big"><div><b class="num">${fmt(con.length)}</b> <span>/ ${fmt(O.items.length)} ${os==='f'?(O.leafLevel?'파일':'파일 묶음'):(O.leafLevel?'테스트':'테스트 묶음')}과 연결</span></div></div>
+      ${con.length?`<p>${unit} 많은 순</p><ul class="plain">`+con.slice(0,LIST).map(x=>`<li><span class="nm">${nm(x.o)}</span><span class="bar"><s style="width:${val(x)/mv*100}%"></s></span><span class="v" style="width:44px">${fmt(val(x))}</span></li>`).join('')+'</ul>'
+        +(con.length>LIST?more(con.length,'연결',()=>({title:`${itemName(side,it)} 의 연결`,sub:'연결 수 = 테스트–파일 쌍의 수',head:['이름','연결 수','실행 라인'],rows:con.map(x=>[itemName(os,x.o),x.c,x.v])})):'')
+        +(!leaf&&side==='t'?more(it.leaves.length,'이 묶음의 테스트',()=>({title:`${itemName(side,it)} 의 테스트`,sub:'',head:TEST_HEAD,rows:testRows(it.leaves)})):''):'<p>측정된 프로덕션 파일 도달이 없다.</p>'}`;
+    }else if(sc){
+      panel.innerHTML=`<span class="badge">${TONE[sc.tone]}</span><h4 class="mono">${esc(sc.label)}</h4>
+      <div class="big"><div><b class="num">${fmt(sc.count)}</b> <span>/ ${fmt(sc.total)} 실행</span></div><div><b class="num">${pct(1-sc.count/sc.total)}</b> <span>절감</span></div></div>
+      ${sc.tone==='precise'&&sc.file!=null?`<p>이 파일을 실행하는 테스트는 ${fmt(DS.files[sc.file].n)}개, 그중 변경 라인을 지나는 ${fmt(sc.count)}개만 선별.</p>`:''}
+      ${sc.tone==='blind'?'<p>변경 파일에 닿는 테스트가 없어 선별 0개.</p>':''}
+      ${sc.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${diffHtml(sc.diff)}${sc.sel.size?testList(sc.sel,`돌릴 테스트 · ${sc.label}`,true):''}`;
+    }else panel.innerHTML=`<h4>읽는 법</h4><p>왼쪽은 테스트, 오른쪽은 프로덕션 파일. 선은 "실행했다"이고 굵기는 실행 라인 수다.</p><p>노드에 올리면 연결만 남는다. ${DS.scen.length?'위의 변경 항목을 누르면 그 변경이 선별하는 테스트가 켜진다.':''}</p>`;
+  }
+  const nodeOf=g=>({s:g.dataset.s,k:+g.dataset.k});
+  box.addEventListener('mouseover',e=>{const g=e.target.closest('.nd');st.hov=g?nodeOf(g):null;apply()});
+  box.addEventListener('mouseleave',()=>{st.hov=null;apply()});
+  const act=g=>{const n=nodeOf(g),it=(n.s==='t'?L:R).items[n.k];
+    if(it.node){st[n.s==='t'?'tf':'ff']=it.node;st.pin=st.hov=null;build();return}
+    const same=st.pin&&st.pin.s===n.s&&st.pin.k===n.k;st.pin=same?null:n;st.hov=null;apply()};
+  box.addEventListener('click',e=>{const g=e.target.closest('.nd');if(g)act(g);else{st.pin=null;apply()}});
+  box.addEventListener('keydown',e=>{if(e.key==='Enter'){const g=e.target.closest('.nd');if(g)act(g)}});
+  if(!visible(DS.tT,null,'t').leafLevel){
+    $('#g-ex').className='tools';$('#g-ex').innerHTML='<span>사례 바로 보기</span><span class="tg"><button data-ex="t">여러 파일 묶음에 걸친 테스트 하나</button><button data-ex="f">여러 테스트 묶음이 실행하는 파일 하나</button></span>';
+    $('#g-ex').onclick=e=>{const b=e.target.closest('button');if(!b)return;st.sc=null;const walk=(n,p)=>{p.slice(0,-1).forEach(s=>n=n.kids.get(s));return n};
+      if(b.dataset.ex==='t'){let best=-1,bi=0;DS.tests.forEach((t,i)=>{const s=new Set();DS.covF[i].forEach(f=>s.add(DS.files[f].path[0]));if(s.size>best){best=s.size;bi=i}});
+        st.tf=walk(DS.tT,DS.tests[bi].path);st.ff=DS.fT;st.pin=null;build();const k=L.items.findIndex(it=>it.leaf===bi);if(k>=0)st.pin={s:'t',k}}
+      else{const f=DS.files.reduce((a,b)=>b.n>a.n?b:a);st.ff=walk(DS.fT,f.path);st.tf=DS.tT;st.pin=null;build();const k=R.items.findIndex(it=>it.leaf===f.i);if(k>=0)st.pin={s:'f',k}}
+      apply()}}
+  build();
 }
-document.getElementById('blindlist').innerHTML=D.blind.map(f=>`<div><code>${esc(f)}</code></div>`).join('');
-</script></body></html>
+
+/* ================= 커버리지 지도 ================= */
+function viewMatrix(root){
+  if(!D.reverse.length){root.innerHTML='<p class="empty-state">데이터가 없습니다 — 어떤 테스트도 프로덕션 파일을 실행하지 않았습니다.</p>';return;}
+  const st=vstate('matrix',{sc:null,tf:DS.tT,ff:DS.fT,cell:null});
+  const bin=p=>p<=.08?22:p<=.22?42:p<=.42?62:p<=.68?82:100;
+  let side;
+  if(DS.files.length<=80){const pk=[...new Set(DS.files.map(f=>f.path[f.path.length-2]))];const mxn=Math.max(...DS.files.map(f=>f.n));
+    side=`<p class="sub">타일 하나가 프로덕션 파일 하나. 진할수록 많은 테스트가 실행하고, 빗금은 사각지대다.</p><div class="pk" style="margin-top:12px">${pk.map(p=>{const fs=DS.files.filter(f=>f.path[f.path.length-2]===p),cv=fs.filter(f=>f.n);
+      return `<div class="p"><small><b>${esc(p)}</b><span class="num">${cv.length}/${fs.length} 도달</span></small><div class="tiles">${fs.map(f=>f.n?`<span class="pt cv" data-fi="${f.i}" style="--p:${bin(f.n/mxn)}" data-tip="<b>${esc(leafName('f',f.i))}</b><br>${f.n}개 테스트가 실행"></span>`:`<span class="pt bl" data-tip="<b>${esc(leafName('f',f.i))}</b><br>사각지대 · 실행하는 테스트 없음"></span>`).join('')}</div></div>`}).join('')}</div>`;
+  }else{let n=DS.fT;while(n.kids.size===1)n=[...n.kids.values()][0];
+    const rows=[...n.kids.values()].map(k=>({name:k.name,t:k.leaves.length,c:k.leaves.filter(DS.isCov).length})).sort((a,b)=>(b.t-b.c)-(a.t-a.c));
+    side=`<p class="sub">묶음별 도달 파일 비율. 사각지대가 많은 순 상위 ${Math.min(14,rows.length)}개${rows.length>14?` (전체 ${rows.length}개)`:''}.</p><div class="pk" style="margin-top:12px;gap:7px">${rows.slice(0,14).map(r=>`<div class="reach" data-tip="<b>${esc(r.name)}</b><br>도달 ${fmt(r.c)} · 사각지대 ${fmt(r.t-r.c)}"><span class="nm">${esc(r.name)}</span><span class="covbar" style="height:8px"><s style="width:${r.c/r.t*100}%"></s></span><span class="v">${fmt(r.c)}/${fmt(r.t)}</span></div>`).join('')}</div>`}
+  root.innerHTML=`<div id="m-sc"></div><div id="m-cr"></div>
+  <div class="tools"><span class="legend">실행 라인 수 적음 ${[22,42,62,82,100].map(p=>`<s style="background:color-mix(in srgb,var(--accent) ${p}%,var(--surface))"></s>`).join('')} 많음 · 정확한 값은 칸에 올리면 표시</span></div>
+  <div class="sumline" id="m-sum" aria-live="polite"></div>
+  <div class="mxwrap"><div class="scroll" id="m-tbl"></div><div id="m-side"></div></div>`;
+  let L,R,A;
+  function table(){
+    const sc=st.sc&&scById(st.sc);L=visible(st.tf,null,'t');R=visible(st.ff,DS.isCov,'f');A=aggregate(L,R);const SC=selCount(L,A,sc);
+    const mxr=Math.max(1,...A.rowT),ch=sc&&sc.tone==='precise'&&sc.file!=null?A.mF[sc.file]:-1;
+    const row=(it,k)=>{const nm=itemName('t',it),leaf=it.leaf!=null;
+      return `<tr data-k="${k}" class="${SC[k]?'sel':''}"><th class="rh${it.node?' dr':''}" data-drill="t" title="${esc(nm)}">${esc(nm)}${leaf?'':` <em>${fmt(it.leaves.length)}</em>`}</th><td class="mk">${SC[k]?(sc.tone==='conservative'?'■':'●'):''}</td>${R.items.map((c,j)=>{const v=A.lines[k*A.W+j];return v?`<td class="c" data-j="${j}" data-p style="--p:${bin(v/A.max)}" data-tip="<b>${esc(nm)}</b><br>× <b>${esc(itemName('f',c))}</b><br>${fmt(v)}라인 실행"></td>`:`<td class="c" data-j="${j}"></td>`}).join('')}<td class="tot"><s style="width:${A.rowT[k]/mxr*60}px"></s>${fmt(A.rowT[k])}${SC[k]&&!leaf?` · ${fmt(SC[k])} 선별`:''}</td></tr>`};
+    let body='',prev=null;
+    L.items.forEach((it,k)=>{if(L.leafLevel){const p=parentName('t',it.leaf);if(p!==prev){body+=`<tr class="grp"><th>${esc(p)}</th><td colspan="${R.items.length+2}"></td></tr>`;prev=p}}body+=row(it,k)});
+    $('#m-tbl').innerHTML=`<table class="mx${sc?' sc t-'+sc.tone:''}"><thead><tr><th></th><th></th>${R.items.map((c,j)=>`<th class="ch${ch===j?' changed':''}${c.node?' dr':''}" data-j="${j}" data-drill="f" data-tip="<b>${esc(itemName('f',c))}</b><br>${c.leaf!=null?`${fmt(DS.files[c.leaf].n)}개 테스트가 실행`:`도달 파일 ${fmt(c.leaves.length)}개${c.node?' · 누르면 안으로':''}`}"><span>${esc(noExt(itemName('f',c)))}</span></th>`).join('')}<th></th></tr></thead>
+      <tbody>${body}</tbody><tfoot><tr><th>${R.leafLevel?'실행하는 테스트 수':'도달 파일 수'}</th><td></td>${R.items.map(c=>`<td>${fmt(c.leaf!=null?DS.files[c.leaf].n:c.leaves.length)}</td>`).join('')}<td></td></tr></tfoot></table>`;
+    scbar($('#m-sc'),st.sc,id=>{st.sc=id;table()});
+    crumbs($('#m-cr'),st,()=>{st.cell=null;table()},(!L.leafLevel||!R.leafLevel)?`한 화면 최대 ${CAP}×${CAP} · 칸을 누르면 상세, 행·열 이름을 누르면 한 단계 안으로`:'');
+    sidePanel();
+    const sum=$('#m-sum');sum.className='sumline'+(sc?' t-'+sc.tone:'');
+    sum.innerHTML=sc?`<span class="badge">${TONE[sc.tone]}</span><span><span class="mono">${esc(sc.label)}</span> → <b class="num">${fmt(sc.count)}/${fmt(sc.total)}</b> 실행 · <b class="num">${pct(1-sc.count/sc.total)}</b> 절감</span>${sc.tone==='blind'?'<span>변경 파일이 지도에 열로 존재하지 않는다(사각지대).</span>':''}${sc.tone==='conservative'?'<span>열에 매핑할 수 없는 변경이라 인덱스에 있는 테스트를 모두 선별.</span>':''}`
+      :'<span>세로줄이 길수록 여러 테스트가 공유하는 코드다. '+(DS.scen.length?' 위의 변경 항목을 누르면 변경 열과 선별된 행이 표시된다.':'')+'</span>';
+  }
+  function sidePanel(){
+    LISTS={};const el=$('#m-side');$$('#m-tbl td.pick').forEach(e=>e.classList.remove('pick'));
+    if(!st.cell||!L.items[st.cell.k]||!R.items[st.cell.j]){el.className='';el.innerHTML=`<h3 class="sec">도달 범위</h3>${side}<p class="sub" style="margin-top:14px">지도의 칸을 누르면 여기에 그 칸의 테스트와 파일이 나온다.</p>`;return}
+    const {k,j}=st.cell,ri=L.items[k],ci=R.items[j],td=$(`#m-tbl tr[data-k="${k}"] td[data-j="${j}"]`);if(td)td.classList.add('pick');
+    const ts=[],fm=new Map();ri.leaves.forEach(i=>{const F=DS.covF[i],Nn=DS.covN[i];let l=0,n=0;for(let x=0;x<F.length;x++)if(A.mF[F[x]]===j){l+=Nn[x];n++;const o=fm.get(F[x])||[0,0];o[0]++;o[1]+=Nn[x];fm.set(F[x],o)}if(n)ts.push([i,n,l])});
+    ts.sort((a,b)=>b[2]-a[2]);const fs=[...fm].sort((a,b)=>b[1][1]-a[1][1]),rn=itemName('t',ri),cn=itemName('f',ci),mt=ts.length?ts[0][2]:1,mf=fs.length?fs[0][1][1]:1;
+    el.className='panel';
+    el.innerHTML=`<div><button class="link" id="m-x">← 도달 범위로</button></div><p>선택한 칸</p><h4 class="mono">${esc(rn)} × ${esc(noExt(cn))}</h4>`
+     +(ts.length?`<div class="big"><div><b class="num">${fmt(A.lines[k*A.W+j])}</b> <span>실행 라인</span></div><div><b class="num">${fmt(A.cnt[k*A.W+j])}</b> <span>연결</span></div></div>
+      <p>테스트 ${fmt(ts.length)}개 · 실행 라인 많은 순</p><ul class="plain">${ts.slice(0,8).map(x=>`<li><span class="nm">${testName(x[0])}</span><span class="bar"><s style="width:${x[2]/mt*100}%"></s></span><span class="v" style="width:40px">${fmt(x[2])}</span></li>`).join('')}</ul>
+      ${ts.length>8?more(ts.length,'테스트',()=>({title:`${rn} × ${noExt(cn)} 의 테스트`,sub:'이 칸에 속한 테스트와, 이 칸의 파일에서 실행한 라인',head:['묶음','테스트','이 칸의 파일 수','이 칸의 실행 라인'],rows:ts.map(x=>{const p=DS.tests[x[0]].path;return[p.slice(0,-1).join(' / '),p[p.length-1],x[1],x[2]]})})):''}
+      <p>파일 ${fmt(fs.length)}개 · 실행 라인 많은 순</p><ul class="plain">${fs.slice(0,8).map(x=>`<li><span class="nm">${ri.leaf!=null?link(jacocoHref(ri.leaf,x[0]),esc(noExt(leafName('f',x[0]))),'JaCoCo 커버리지 열기'):esc(noExt(leafName('f',x[0])))}</span><span class="bar"><s style="width:${x[1][1]/mf*100}%"></s></span><span class="v" style="width:40px">${fmt(x[1][1])}</span></li>`).join('')}</ul>
+      ${fs.length>8?more(fs.length,'파일',()=>({title:`${rn} × ${noExt(cn)} 의 파일`,sub:'이 칸에 속한 파일과, 그 파일을 실행한 이 칸의 테스트 수',head:['패키지','파일','이 칸의 테스트 수','실행 라인'],rows:fs.map(x=>{const p=DS.files[x[0]].path;return[p.slice(0,-1).join('/'),p[p.length-1],x[1][0],x[1][1]]})})):''}`
+      :'<p>연결 없음. 이 행의 테스트는 이 열의 파일을 실행하지 않는다.</p>')
+     +((ri.node||ci.node)?`<div class="tools">${ri.node?'<span class="tg"><button data-in="t">행 안으로</button></span>':''}${ci.node?'<span class="tg"><button data-in="f">열 안으로</button></span>':''}</div>`:'');
+    el.onclick=e=>{if(e.target.closest('#m-x')){st.cell=null;sidePanel()}const b=e.target.closest('[data-in]');if(b){if(b.dataset.in==='t')st.tf=ri.node;else st.ff=ci.node;st.cell=null;table()}};
+  }
+  const hot=(j,k)=>{$$('.colhot,.rowhot',root).forEach(e=>e.classList.remove('colhot','rowhot'));
+    if(j!=null)$$(`#m-tbl [data-j="${j}"]`).forEach(e=>e.classList.add('colhot'));
+    if(k!=null){const r=$(`#m-tbl tr[data-k="${k}"]`);if(r)r.classList.add('rowhot')}};
+  const tb=$('#m-tbl');
+  tb.addEventListener('mouseover',e=>{const c=e.target.closest('[data-j]'),r=e.target.closest('tr[data-k]');hot(c?c.dataset.j:null,r?r.dataset.k:null)});
+  tb.addEventListener('mouseleave',()=>hot(null,null));
+  tb.addEventListener('click',e=>{const c=e.target.closest('td.c');if(c){st.cell={k:+c.closest('tr').dataset.k,j:+c.dataset.j};sidePanel();return}
+    const h=e.target.closest('[data-drill]');if(!h)return;st.cell=null;
+    const it=h.dataset.drill==='t'?L.items[+h.closest('tr').dataset.k]:R.items[+h.dataset.j];
+    if(it&&it.node){st[h.dataset.drill==='t'?'tf':'ff']=it.node;table()}});
+  table();
+}
+
+/* ================= 안정성 ================= */
+function viewStab(root){
+  const f=DS.flaky;LISTS={};
+  if(!f){root.innerHTML=GUIDE.stability+'<p class="empty-state">flaky 데이터가 없다. <span class="mono">tia flaky --runs run1.json,run2.json,…</span>(2회 이상 실행) 결과를 <span class="mono">--flaky</span> 로 넘기면 이 페이지가 채워진다.</p>';return}
+  const N=f.total,k=f.flaky.length,set=new Set(f.flaky),known=f.flaky.every(x=>DS.tests.some(t=>t.id===x));
+  root.innerHTML=GUIDE.stability+`<div class="stab ${k?'t-conservative':'t-precise'}" style="display:flex;flex-direction:column;gap:18px">
+   <h3>같은 스위트를 ${f.runs}회 반복했을 때 결과가 바뀐 테스트는 ${fmt(N)}개 중 <b>${fmt(k)}개</b>다.</h3>
+   ${N<=200&&known&&N===DS.tests.length?`<div class="runs">${DS.tests.map(t=>`<s class="${set.has(t.id)?'f':''}" data-tip="<b>${esc(t.path.slice(-2).join(' · '))}</b><br>${set.has(t.id)?'결과가 바뀜':f.runs+'회 모두 같은 결과'}"></s>`).join('')}</div>`
+     :`<div><div class="covbar"><s style="width:${N?(1-k/N)*100:0}%;background:var(--good)"></s></div><p class="sub">${fmt(N-k)}개는 ${f.runs}회 모두 같은 결과 · 흔들린 비율 ${pct(N?k/N:0)}</p></div>`}
+   ${k?`<div><h3 class="sec">결과가 바뀐 테스트</h3><ul class="plain" style="margin-top:8px">${f.flaky.slice(0,LIST).map(x=>`<li><span class="nm">${esc(x)}</span></li>`).join('')}</ul>${k>LIST?more(k,'결과가 바뀐 테스트',()=>({title:'결과가 바뀐 테스트',sub:`${f.runs}회 반복 실행에서 Pass/Fail이 바뀐 테스트`,head:['테스트'],rows:f.flaky.map(x=>[x])})):''}</div>`:''}
+   ${f.control!=null?`<div class="tile"><div class="k">이 수치는 믿을 수 있나 · 검출기 대조군</div><p style="margin:6px 0 0;color:var(--ink2)">한 테스트의 결과를 일부러 Pass → Fail → Pass 로 뒤집은 가짜 실행을 검출기에 넣었고, 검출기는 <b>${f.control}건</b>을 잡아냈다. 조작한 사례를 잡아내므로, 위 수치는 검출기 고장이 아니라 실제 측정값이다.</p></div>`:''}
+  </div>`;
+}
+
+/* ================= 전체 목록 ================= */
+function viewList(root){
+  const c=listCtx,PAGE=50;let q='',pg=0;
+  root.innerHTML=`<div><button class="link" id="l-back">← ${VIEWS[c.back].name} 페이지로 돌아가기</button></div>
+   <div><h3 class="sec">${esc(c.title)}</h3><p class="sub">${esc(c.sub||'')}</p></div>
+   <div class="tools"><input id="l-q" class="lq" placeholder="이름으로 거르기" autocomplete="off"><span id="l-n"></span><span class="tg" id="l-pg" style="margin-left:auto"></span></div>
+   <div class="scroll"><table class="lt"><thead><tr>${c.head.map((h,i)=>`<th class="${typeof c.rows[0][i]==='number'?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody id="l-b"></tbody></table></div>`;
+  function draw(){
+    const rows=q?c.rows.filter(r=>r.join(' ').toLowerCase().includes(q)):c.rows,Pn=Math.max(1,Math.ceil(rows.length/PAGE));pg=Math.max(0,Math.min(pg,Pn-1));
+    $('#l-b').innerHTML=rows.slice(pg*PAGE,pg*PAGE+PAGE).map(r=>'<tr>'+r.map(v=>typeof v==='number'?`<td class="r num">${fmt(v)}</td>`:`<td class="mono">${esc(v)}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${c.head.length}" style="color:var(--muted)">일치하는 항목이 없다.</td></tr>`;
+    $('#l-n').textContent=`${fmt(rows.length)}개${q?` (전체 ${fmt(c.rows.length)}개 중)`:''} · ${pg+1} / ${fmt(Pn)} 쪽`;
+    $('#l-pg').innerHTML=`<button data-d="-1" ${pg?'':'disabled'}>← 이전</button><button data-d="1" ${pg<Pn-1?'':'disabled'}>다음 →</button>`}
+  $('#l-q').oninput=e=>{q=e.target.value.trim().toLowerCase();pg=0;draw()};
+  $('#l-pg').onclick=e=>{const b=e.target.closest('button');if(b&&!b.disabled){pg+=+b.dataset.d;draw()}};
+  $('#l-back').onclick=()=>{location.hash=c.back};
+  draw();
+}
+
+/* ---- 페이지: 하나에 질문 하나 ---- */
+const GUIDE={
+  impact:'<div><h2 class="q">이번 변경이면 테스트를 몇 개 돌려야 하나</h2><details class="tab-guide"><summary>이 탭 읽는 법</summary><p>이 페이지는 변경(diff)이 어떤 테스트에 영향을 주는지 실제 커버리지 기록으로 선별한 결과를 보여준다. 변경 라인이 어떤 테스트의 기록과 겹치면 그 테스트만 실행하도록 정밀하게 선별하고, 겹치는 기록을 찾을 수 없는 변경(신규 파일·설정 등)은 안전을 위해 전체를 후보로 넣는 보수적 방식으로 처리한다. 왼쪽 목록은 조치가 필요한 순서다: 보호하는 테스트가 없는 변경, 전체 실행을 유발한 변경, 정밀 선별된 변경 순. 절감률이 높을수록 건너뛸 수 있는 테스트가 많다.</p></details></div>',
+  graph:'<div><h2 class="q">테스트와 프로덕션 코드는 어떻게 연결돼 있나</h2><details class="tab-guide"><summary>이 탭 읽는 법</summary><p>왼쪽은 테스트, 오른쪽은 테스트가 실제로 실행한 프로덕션 파일이다. 선은 "실행했다"를 뜻하고 굵기는 실행 라인 수다. 항목이 많으면 패키지·클래스 묶음으로 보여주며, 묶음을 누르면 한 단계 안으로 들어간다. 연결이 많은 파일일수록 변경 시 영향 범위가 넓은 핫스팟이다. 아래 목록은 어떤 테스트도 실행하지 않은 파일, 즉 사각지대다.</p></details></div>',
+  matrix:'<div><h2 class="q">어디가 지켜지고 어디가 비어 있나</h2><details class="tab-guide"><summary>이 탭 읽는 법</summary><p>행은 테스트, 열은 프로덕션 파일이고 칸의 진하기는 실행 라인 수다. 세로줄이 길게 이어지는 열은 여러 테스트가 공유하는 코드다. 칸을 누르면 오른쪽에 그 칸의 테스트와 파일이 나오고, 행·열 이름을 누르면 묶음 안으로 들어간다. 오른쪽 도달 범위에서 빗금이나 빈 막대는 테스트가 닿지 않는 영역이다.</p></details></div>',
+  stability:'<div><h2 class="q">이 측정 결과를 믿어도 되나</h2><details class="tab-guide"><summary>이 탭 읽는 법</summary><p>같은 스위트를 여러 번 반복 실행해 결과가 바뀌는 테스트가 있는지 실측한 값이다. 결과가 바뀌는 테스트가 많을수록 선별 결과의 신뢰도가 떨어지므로 우선 조사 대상이다. 대조군은 결과를 일부러 뒤집은 가상의 실행으로 검출 로직 자체가 살아 있는지 확인한 것이며, 실측과는 다른 것을 재므로 값이 같을 필요가 없다.</p></details></div>'};
+const VIEWS={
+  impact:{name:'변경 영향',fn:r=>{r.innerHTML=GUIDE.impact+'<div id="pg" class="pg"></div>';viewImpact($('#pg',r))},off:!DS.mode},
+  graph:{name:'연결 구조',fn:r=>{r.innerHTML=GUIDE.graph+'<div id="pg" class="pg"></div>';viewGraph($('#pg',r))}},
+  matrix:{name:'커버리지 지도',fn:r=>{r.innerHTML=GUIDE.matrix+'<div id="pg" class="pg"></div>';viewMatrix($('#pg',r))}},
+  stability:{name:'안정성',fn:viewStab},
+  list:{name:'전체 목록',fn:viewList,off:true}};
+const FIRST=Object.keys(VIEWS).find(k=>!VIEWS[k].off);
+let curView=FIRST;
+function route(){
+  const h=location.hash.slice(1),key=h==='list'&&listCtx?'list':(VIEWS[h]&&!VIEWS[h].off?h:FIRST);
+  if(key!=='list')curView=key;
+  $('#sut').textContent=D.sut;
+  $('#meta').innerHTML=`indexed commit <span class="mono">${esc(String(D.commit).slice(0,10))}</span>`;
+  $('#stats').innerHTML=`<span><b class="num">${fmt(D.nTests)}</b>테스트</span>${D.nProd?`<span><b class="num">${fmt(D.nCovered)}/${fmt(D.nProd)}</b>파일 도달</span><span><b class="num">${fmt(D.blind.length)}</b>사각지대</span>`:`<span><b class="num">${fmt(D.nCovered)}</b>파일 도달</span>`}`;
+  $('#seg').innerHTML=Object.entries(VIEWS).filter(([,x])=>!x.off).map(([k,x])=>`<button role="tab" data-k="${k}" aria-selected="${k===curView}">${x.name}</button>`).join('');
+  const old=$('#view'),view=old.cloneNode(false);old.replaceWith(view);
+  if(!D.perTest.length){view.innerHTML='<p class="empty-state">데이터가 없습니다 — testwise 입력에 테스트가 없거나 필터로 모두 제외되었습니다.</p>';return;}
+  VIEWS[key].fn(view);
+}
+$('#seg').onclick=e=>{const b=e.target.closest('button');if(b){if(location.hash.slice(1)===b.dataset.k)route();else location.hash=b.dataset.k}};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-list]');if(!b||!LISTS[b.dataset.list])return;listCtx=LISTS[b.dataset.list]();listCtx.back=curView;location.hash='list'});
+addEventListener('hashchange',route);route();
+</script>
+</body></html>

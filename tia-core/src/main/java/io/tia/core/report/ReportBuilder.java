@@ -19,11 +19,11 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
- * D0: ports {@code petclinic-demo/make_html.py} to Java. The interactive HTML/CSS/JS
- * <b>template is reused verbatim</b> (resource {@code /report-template.html}, extracted
- * from make_html.py) — only the {@code __DATA__} model computation is reimplemented here,
- * so the report is equivalent to the Python output (E2E-1 compares the {@code __DATA__}
- * JSON island canonically).
+ * Builds the self-contained interactive HTML report: the static template (resource
+ * {@code /report-template.html}) with the {@code __DATA__} model injected. The model computation
+ * was ported from {@code petclinic-demo/make_html.py} and stays compatible with it; the template
+ * itself is the redesigned one (변경 영향·연결 구조·커버리지 지도·안정성) and is no longer shared
+ * with the Python generator. No LLM, no network: same inputs → same bytes.
  *
  * <p>Optional inputs ({@code scenarios}/{@code flaky}/{@code prodFiles}) may be null (or a
  * missing path) → the corresponding tab degrades gracefully, same as the Python generator.
@@ -35,7 +35,14 @@ public final class ReportBuilder {
     /** {@code filters} may be null → treated as {@link FilterSet#none()} (no filtering). */
     public record Inputs(Path testwise, Path scenarios, Path flaky, Path prodFiles,
                          String commit, String sut, String jacoco, Path testSrcRoot,
-                         String prefixStrip, FilterSet filters) {}
+                         String prefixStrip, FilterSet filters, Path impact) {
+        /** {@code impact} 없이 만드는 기존 형태 → 변경 영향 페이지는 시나리오가 있을 때만 생긴다. */
+        public Inputs(Path testwise, Path scenarios, Path flaky, Path prodFiles,
+                      String commit, String sut, String jacoco, Path testSrcRoot,
+                      String prefixStrip, FilterSet filters) {
+            this(testwise, scenarios, flaky, prodFiles, commit, sut, jacoco, testSrcRoot, prefixStrip, filters, null);
+        }
+    }
 
     /** Build the report HTML (template + injected model). */
     public String render(Inputs in) throws IOException {
@@ -51,6 +58,8 @@ public final class ReportBuilder {
         FilterSet filters = (in.filters() != null) ? in.filters() : FilterSet.none();
         JsonNode root = om.readTree(in.testwise().toFile());
         Object scenarios = usable(in.scenarios(), "scenarios") ? om.readValue(in.scenarios().toFile(), Object.class) : new ArrayList<>();
+        // `tia impact --format json` 출력 그대로(이미 필터 적용됨). 없으면 null → 변경 영향 페이지 없음 [RPT-REQ-002]
+        Object impact = usable(in.impact(), "impact") ? om.readValue(in.impact().toFile(), Object.class) : null;
         Object flaky = usable(in.flaky(), "flaky") ? om.readValue(in.flaky().toFile(), Object.class) : null;   // flaky tab: opaque schema, NOT filtered [REQ-011 descope]
         List<String> prod = usable(in.prodFiles(), "prod-files")
                 ? readProd(in.prodFiles()).stream().filter(filters::acceptsCode).toList()   // prod denominator respects code filters
@@ -132,6 +141,7 @@ public final class ReportBuilder {
         model.put("reverse", reverseModel);
         model.put("scenarios", scenarios);
         model.put("flaky", flaky);
+        model.put("impact", impact);
         model.put("blind", blindShort);
         model.put("nProd", prod.size());
         model.put("nCovered", rev.size());

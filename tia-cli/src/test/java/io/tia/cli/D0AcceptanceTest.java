@@ -85,6 +85,30 @@ class D0AcceptanceTest {
     }
 
     @Test
+    void reportEmbedsImpactJsonFromCli(@TempDir Path tmp) throws Exception {   // RPT-REQ-002
+        Path testwise = tmp.resolve("tw.json");
+        Files.writeString(testwise, """
+            {"tests":[{"uniformPath":"T#m","result":"PASSED","paths":[{"path":"com/x","files":[{"fileName":"A.java","coveredLines":"1-2"}]}]}]}""");
+        Path impact = tmp.resolve("impact.json");
+        Files.writeString(impact, """
+            {"schemaVersion":1,"command":"impact","commit":"c","totalTests":1,"conservative":false,
+             "tests":[{"id":"T#m","confidence":"DETERMINISTIC"}],
+             "changedFiles":[{"file":"src/main/java/com/x/A.java","kind":"modified","tests":["T#m"]}],
+             "ignoredChangedFiles":[],"warnings":[]}""");
+        Path html = tmp.resolve("r.html");
+        assertEquals(0, run("report", "--testwise", testwise.toString(), "--commit", "c",
+                "--out", html.toString(), "--impact", impact.toString()));
+        JsonNode d = dataIsland(Files.readString(html));
+        assertEquals(1, d.get("impact").get("changedFiles").size());
+        assertEquals("T#m", d.get("impact").get("tests").get(0).get("id").asText());
+
+        // "-" 센티널 → impact 없음(변경 영향 페이지 없음)
+        assertEquals(0, run("report", "--testwise", testwise.toString(), "--commit", "c",
+                "--out", html.toString(), "--impact", "-"));
+        assertTrue(dataIsland(Files.readString(html)).get("impact").isNull());
+    }
+
+    @Test
     void reportDegradesGracefullyWithoutOptionalInputs(@TempDir Path tmp) throws Exception {
         Path testwise = tmp.resolve("tw.json");
         Files.writeString(testwise, """

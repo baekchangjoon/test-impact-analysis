@@ -309,11 +309,21 @@ FAIL이 하나라도 있으면 exit 1(그 외 WARN/SKIP은 0). 진단은 읽기 
 
 ```bash
 "$CLI" report --testwise testwise.json --commit <sha> --out report.html --sut-name my-service \
-  [--scenarios -] [--flaky -] [--prod-files -] [--jacoco-dir jacoco] [--test-src-root src/test/java]
+  [--impact impact.json] [--flaky -] [--prod-files -] [--jacoco-dir jacoco] [--test-src-root src/test/java]
 ```
-탭 해설: [REPORT-GUIDE.md](petclinic-demo/REPORT-GUIDE.md). 옵셔널 입력은 `-`로 생략(탭이 graceful하게 비워짐).
-생성된 `report.html`에는 각 탭 `<h2>` 아래 "이 탭 읽는 법" 접이식 요약이 내장돼 있어, 별도 문서 없이도
-탭별 읽는 법을 바로 확인할 수 있다(REPORT-GUIDE.md는 더 상세한 버전).
+페이지 해설: [REPORT-GUIDE.md](petclinic-demo/REPORT-GUIDE.md). 옵셔널 입력은 `-`로 생략한다.
+리포트는 외부 요청이 없는 HTML 한 장이며, 같은 입력이면 항상 같은 결과가 나온다.
+
+- **변경 영향 페이지**는 diff가 있을 때만 생긴다. PR·커밋 실행에서는 `tia impact --format json` 출력을
+  파일로 저장해 `--impact`로 넘긴다. 넘기지 않으면(베이스라인 인덱싱 실행 등) 이 페이지는 없고
+  연결 구조가 첫 화면이 된다.
+
+  ```bash
+  "$CLI" impact --commit <sha> --diff-file change.diff --format json > impact.json
+  "$CLI" report --testwise testwise.json --commit <sha> --out report.html --impact impact.json
+  ```
+- 각 페이지 제목 아래 "이 탭 읽는 법" 접이식 요약이 내장돼 있어, 별도 문서 없이도 읽는 법을 바로
+  확인할 수 있다(REPORT-GUIDE.md는 더 상세한 버전).
 
 ### 5. CI / 에이전트 통합
 
