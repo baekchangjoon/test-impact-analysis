@@ -317,7 +317,7 @@ function buildDS(){
         ds.scen.push({id:'c'+k,label:base,full:c.file,tone:ts.length?'precise':'blind',sel:toSel(ts),count:ts.length,total,file:matchFile(c.file),diff:'',reasons:[]})}
       else ds.scen.push({id:'c'+k,label:base+(c.kind==='new'?' (신규)':''),full:c.file,tone:'conservative',sel:toSel(all),count:all.length,total,file:null,diff:'',
         reasons:[c.kind==='new'?'신규 파일이라 과거 커버리지가 없다 → 보수적 전체 선택.':'코드가 아닌 변경이라 커버리지에 매핑할 수 없다 → 보수적 전체 선택.']})});
-    ds.pr={label:`변경 파일 ${ds.scen.length}개`,sel:toSel(all),count:all.length,total,tone:I.conservative?'conservative':all.length?'precise':'blind',
+    ds.pr={label:`변경 파일 ${ds.scen.length}개`,sel:toSel(all),count:all.length,total,tone:(I.conservative||(I.warnings||[]).includes('no-baseline'))?'conservative':all.length?'precise':'blind',noBaseline:(I.warnings||[]).includes('no-baseline'),
       cons:ds.scen.filter(s=>s.tone==='conservative').length,blind:ds.scen.filter(s=>s.tone==='blind').length,without:precise.size,files:ds.scen.length,
       diff:'',reasons:[],warnings:I.warnings||[],ignored:I.ignoredChangedFiles||[]};
   }else if(D.scenarios&&D.scenarios.length){
@@ -406,7 +406,8 @@ function viewImpact(root){
     const r=st.sel?scById(st.sel):P,skip=r.total?1-r.count/r.total:0,C=2*Math.PI*52,lab=`<code>${esc(r.label)}</code>`,tot=fmt(r.total),cnt=fmt(r.count);
     let line,subs=[],badge=TONE[r.tone];
     if(!st.sel){
-      if(P.tone==='conservative'){badge='보수적 전체 실행';
+      if(P.noBaseline){badge='베이스라인 없음';line='이 커밋의 베이스라인이 인덱스에 없어 선별할 수 없다. <b>전체 실행</b>을 권장한다.'}
+      else if(P.tone==='conservative'){badge='보수적 전체 실행';
         line=P.cons?`변경 파일 ${P.files}개 중 ${P.cons}개가 커버리지에 매핑되지 않아 ${tot}개 중 <b>${cnt}개</b>를 모두 돌린다.`:`커버리지에 매핑할 수 없는 변경이 있어 ${tot}개 중 <b>${cnt}개</b>를 모두 돌린다.`;
         if(P.cons&&P.files>P.cons)subs.push(`그 ${P.cons}개를 빼면 ${fmt(P.without)}개만 돌리면 된다 (${pct(1-P.without/P.total)} 절감).`)}
       else if(!P.files){badge='변경 없음';line='이 실행의 diff 에는 선별 대상 변경 파일이 없다.'}
@@ -417,7 +418,7 @@ function viewImpact(root){
     }else line={precise:`${lab} 변경은 ${tot}개 중 <b>${cnt}개</b>를 선별한다.`,
       conservative:`${lab} 변경은 커버리지에 매핑할 수 없어 <b>${cnt}개</b>를 안전하게 모두 돌린다.`,
       blind:`${lab} 은 어떤 테스트도 지나가지 않는다. <b>선별 0개</b>.`}[r.tone];
-    const ring=r.tone==='blind'?`<b>0</b><span>보호하는 테스트 없음</span>`:`<b class="num">${pct(skip)}</b><span>실행 절감</span>`;
+    const ring=(!st.sel&&P.noBaseline)?`<b>전체</b><span>선별 불가</span>`:r.tone==='blind'?`<b>0</b><span>보호하는 테스트 없음</span>`:`<b class="num">${pct(skip)}</b><span>실행 절감</span>`;
     const sc=selCount(V,A,r);let viz;
     if(V.leafLevel){const groups=[...new Set(V.items.map(it=>parentName('t',it.leaf)))];
       viz='<div class="waffle">'+groups.map(g=>`<div class="g"><small>${esc(g)}</small><div class="dots">${V.items.filter(it=>parentName('t',it.leaf)===g).map(it=>`<span class="wd${r.sel.has(it.leaf)?' on':''}" data-tip="<b>${esc(leafName('t',it.leaf))}</b><br>${r.sel.has(it.leaf)?'실행':'건너뜀'}"></span>`).join('')}</div></div>`).join('')+'</div>';
@@ -425,7 +426,7 @@ function viewImpact(root){
       viz='<div class="gbars">'+top.map(x=>`<div class="gbar"><span class="nm">${esc(x.it.name)}</span><span class="tr"><s style="width:${x.n/x.it.leaves.length*100}%"></s></span><span class="v">${fmt(x.n)} / ${fmt(x.it.leaves.length)}</span></div>`).join('')
         +`<p>${rows.length>10?`선별이 있는 묶음 ${rows.length}개 중 상위 10개. `:''}${zero?`선별 0인 묶음 ${zero}개는 통째로 건너뛴다.`:''}${!rows.length?'선별된 테스트가 없다.':''}</p></div>`}
     const el=$('#s-res');el.className='t-'+r.tone;
-    const notes=[...r.reasons,...(!st.sel&&P?P.warnings:[])];
+    const notes=[...r.reasons,...(!st.sel&&P?P.warnings.filter(w=>w!=='no-baseline'):[])];
     el.innerHTML=`<div class="hero"><div><span class="badge">${badge}</span><h3>${line}</h3>${subs.map(x=>`<p class="sub" style="font-size:14px;margin-top:8px">${x}</p>`).join('')}</div>
       <div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" cx="60" cy="60" r="52" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-(r.tone==='blind'?0:skip))}"/></svg><div>${ring}</div></div></div>
       ${viz}
