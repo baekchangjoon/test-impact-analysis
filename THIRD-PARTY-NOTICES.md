@@ -7,7 +7,7 @@ fat-jar `tia.jar`, Docker 이미지 `ghcr.io/<owner>/tia`, GitHub Packages 아�
 | 컴포넌트 | 좌표 | 라이선스 | 소스 |
 |---|---|---|---|
 | Jackson (core·databind·annotations) | `com.fasterxml.jackson.core:*` | Apache-2.0 | https://github.com/FasterXML/jackson |
-| Jackson dataformat: YAML | `com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.8` | Apache-2.0 | https://github.com/FasterXML/jackson-dataformats-text |
+| Jackson dataformat: YAML | `com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.11` | Apache-2.0 | https://github.com/FasterXML/jackson-dataformats-text |
 | SnakeYAML (jackson-dataformat-yaml 전이) | `org.yaml:snakeyaml:2.3` | Apache-2.0 | https://bitbucket.org/snakeyaml/snakeyaml |
 | picocli | `info.picocli:picocli` | Apache-2.0 | https://github.com/remkop/picocli |
 | RoaringBitmap | `org.roaringbitmap:RoaringBitmap` | Apache-2.0 | https://github.com/RoaringBitmap/RoaringBitmap |
